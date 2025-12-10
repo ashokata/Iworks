@@ -66,33 +66,29 @@ export class FieldSmartProStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
+    // Customers DynamoDB Table (for serverless customer storage)
+    const customersTable = new dynamodb.Table(this, 'CustomersTable', {
+      partitionKey: { name: 'customerId', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
+    customersTable.addGlobalSecondaryIndex({
+      indexName: 'tenantId-index',
+      partitionKey: { name: 'tenantId', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'createdAt', type: dynamodb.AttributeType.NUMBER },
+    });
+
     // Lambda environment
     const lambdaEnv = {
       DATABASE_URL: `postgresql://${dbSecret.secretValueFromJson('username').unsafeUnwrap()}:${dbSecret.secretValueFromJson('password').unsafeUnwrap()}@${dbCluster.clusterEndpoint.hostname}:5432/fieldsmartpro`,
       DYNAMODB_CONVERSATIONS_TABLE: conversationsTable.tableName,
       DYNAMODB_CACHE_TABLE: cacheTable.tableName,
+      DYNAMODB_CUSTOMERS_TABLE: customersTable.tableName,
       NODE_ENV: 'production',
     };
 
     // Lambda Functions
-    const createCustomerFn = new lambda.Function(this, 'CreateCustomerFunction', {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'handlers/customers/create.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../apps/api/dist')),
-      environment: lambdaEnv,
-      vpc,
-      timeout: cdk.Duration.seconds(30),
-    });
-
-    const listCustomersFn = new lambda.Function(this, 'ListCustomersFunction', {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'handlers/customers/list.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../apps/api/dist')),
-      environment: lambdaEnv,
-      vpc,
-      timeout: cdk.Duration.seconds(30),
-    });
-
     const createJobFn = new lambda.Function(this, 'CreateJobFunction', {
       runtime: lambda.Runtime.NODEJS_20_X,
       handler: 'handlers/jobs/create.handler',
@@ -138,13 +134,48 @@ export class FieldSmartProStack extends cdk.Stack {
       timeout: cdk.Duration.seconds(300), // 5 minutes for migrations
     });
 
+    // Customer DynamoDB Lambdas (serverless - no VPC needed)
+    const dynamoDBCustomerEnv = {
+      DYNAMODB_CUSTOMERS_TABLE: customersTable.tableName,
+      NODE_ENV: 'production',
+    };
+
+    const createCustomerDynamoDBFn = new lambda.Function(this, 'CreateCustomerDynamoDBFunction', {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: 'handlers/customers/create-dynamodb.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '../../apps/api/dist')),
+      environment: dynamoDBCustomerEnv,
+      timeout: cdk.Duration.seconds(30),
+    });
+
+    const listCustomersDynamoDBFn = new lambda.Function(this, 'ListCustomersDynamoDBFunction', {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: 'handlers/customers/list-dynamodb.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '../../apps/api/dist')),
+      environment: dynamoDBCustomerEnv,
+      timeout: cdk.Duration.seconds(30),
+    });
+
+    const getCustomerDynamoDBFn = new lambda.Function(this, 'GetCustomerDynamoDBFunction', {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: 'handlers/customers/get-dynamodb.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '../../apps/api/dist')),
+      environment: dynamoDBCustomerEnv,
+      timeout: cdk.Duration.seconds(30),
+    });
+
     // Grant permissions
-    [createCustomerFn, listCustomersFn, createJobFn, chatFn, healthFn, seedFn, migrateFn].forEach(fn => {
+    [createJobFn, chatFn, healthFn, seedFn, migrateFn].forEach(fn => {
       dbCluster.connections.allowDefaultPortFrom(fn);
     });
 
     conversationsTable.grantReadWriteData(chatFn);
     cacheTable.grantReadWriteData(chatFn);
+    
+    // Grant DynamoDB permissions to customer Lambdas
+    customersTable.grantReadWriteData(createCustomerDynamoDBFn);
+    customersTable.grantReadData(listCustomersDynamoDBFn);
+    customersTable.grantReadData(getCustomerDynamoDBFn);
 
     chatFn.addToRolePolicy(new iam.PolicyStatement({
       actions: ['bedrock:InvokeModel', 'bedrock:InvokeModelWithResponseStream'],
@@ -166,9 +197,13 @@ export class FieldSmartProStack extends cdk.Stack {
     const health = api.root.addResource('health');
     health.addMethod('GET', new apigateway.LambdaIntegration(healthFn));
 
+    // Customer endpoints - using DynamoDB
     const customers = api.root.addResource('customers');
-    customers.addMethod('GET', new apigateway.LambdaIntegration(listCustomersFn));
-    customers.addMethod('POST', new apigateway.LambdaIntegration(createCustomerFn));
+    customers.addMethod('GET', new apigateway.LambdaIntegration(listCustomersDynamoDBFn));
+    customers.addMethod('POST', new apigateway.LambdaIntegration(createCustomerDynamoDBFn));
+    
+    const customerById = customers.addResource('{customerId}');
+    customerById.addMethod('GET', new apigateway.LambdaIntegration(getCustomerDynamoDBFn));
 
     const jobs = api.root.addResource('jobs');
     jobs.addMethod('POST', new apigateway.LambdaIntegration(createJobFn));
