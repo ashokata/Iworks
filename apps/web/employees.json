@@ -1,0 +1,25 @@
+﻿
+
+StatusCode        : 200
+StatusDescription : OK
+Content           : {"@odata.context":"http://localhost:8090/odata/iworks/v1/$metadata#Employees","value":[{"EmployeeID
+                    ":1,"Role":"Technician","IsActive":true,"PhoneNumber":"(312) 
+                    414-1111","Bio":null,"HireDate":null,"Ye...
+RawContent        : HTTP/1.1 200 OK
+                    OData-Version: 4.0
+                    Transfer-Encoding: chunked
+                    Content-Type: application/json;charset=utf-8
+                    Date: Fri, 05 Dec 2025 20:47:00 GMT
+                    
+                    {"@odata.context":"http://localhost:8090/odata/iwo...
+Forms             : {}
+Headers           : {[OData-Version, 4.0], [Transfer-Encoding, chunked], [Content-Type, 
+                    application/json;charset=utf-8], [Date, Fri, 05 Dec 2025 20:47:00 GMT]}
+Images            : {}
+InputFields       : {}
+Links             : {}
+ParsedHtml        : mshtml.HTMLDocumentClass
+RawContentLength  : 760
+
+
+

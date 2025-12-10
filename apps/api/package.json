@@ -1,0 +1,38 @@
+{
+  "name": "@fieldsmartpro/api",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc && esbuild src/handlers/**/*.ts --bundle --platform=node --target=node20 --outdir=dist/handlers --external:@aws-sdk/* --external:pg-native --external:@prisma/client && node copy-prisma.js",
+    "deploy": "cdk deploy --all",
+    "migrate": "prisma migrate dev",
+    "generate": "prisma generate",
+    "studio": "prisma studio",
+    "seed": "tsx prisma/seed.ts",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.685.0",
+    "@aws-sdk/client-dynamodb": "^3.685.0",
+    "@aws-sdk/lib-dynamodb": "^3.685.0",
+    "@prisma/client": "^5.22.0",
+    "@types/uuid": "^10.0.0",
+    "cors": "^2.8.5",
+    "express": "^4.22.1",
+    "uuid": "^10.0.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.145",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^20.17.6",
+    "aws-cdk-lib": "^2.167.1",
+    "constructs": "^10.3.0",
+    "esbuild": "^0.24.0",
+    "prisma": "^5.22.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}

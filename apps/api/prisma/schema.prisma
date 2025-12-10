@@ -1,0 +1,200 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Multi-tenancy
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  subdomain String   @unique
+  settings  Json?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users     User[]
+  customers Customer[]
+  jobs      Job[]
+  invoices  Invoice[]
+
+  @@map("tenants")
+}
+
+// Users & Authentication
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  role         UserRole @default(TECHNICIAN)
+  phone        String?
+  isActive     Boolean  @default(true)
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  assignedJobs Job[]
+
+  @@index([tenantId])
+  @@index([email])
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  DISPATCHER
+  TECHNICIAN
+}
+
+// Customers
+model Customer {
+  id        String   @id @default(uuid())
+  firstName String
+  lastName  String
+  email     String
+  phone     String
+  address   String?
+  city      String?
+  state     String?
+  zipCode   String?
+  notes     String?
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  jobs Job[]
+
+  @@index([tenantId])
+  @@index([email])
+  @@map("customers")
+}
+
+// Jobs
+model Job {
+  id               String    @id @default(uuid())
+  jobNumber        String    @unique
+  title            String
+  description      String?
+  status           JobStatus @default(SCHEDULED)
+  priority         Priority  @default(MEDIUM)
+  scheduledDate    DateTime
+  completedDate    DateTime?
+  estimatedDuration Int?      // minutes
+  actualDuration   Int?      // minutes
+  
+  // Location
+  address          String?
+  city             String?
+  state            String?
+  zipCode          String?
+  latitude         Float?
+  longitude        Float?
+
+  // Relations
+  customerId       String
+  customer         Customer  @relation(fields: [customerId], references: [id])
+  assignedToId     String?
+  assignedTo       User?     @relation(fields: [assignedToId], references: [id])
+  tenantId         String
+  tenant           Tenant    @relation(fields: [tenantId], references: [id])
+  
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  invoices         Invoice[]
+  notes            JobNote[]
+
+  @@index([tenantId])
+  @@index([customerId])
+  @@index([assignedToId])
+  @@index([status])
+  @@index([scheduledDate])
+  @@map("jobs")
+}
+
+enum JobStatus {
+  SCHEDULED
+  IN_PROGRESS
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+// Job Notes
+model JobNote {
+  id        String   @id @default(uuid())
+  jobId     String
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  note      String
+  createdBy String
+  createdAt DateTime @default(now())
+
+  @@index([jobId])
+  @@map("job_notes")
+}
+
+// Invoices
+model Invoice {
+  id            String        @id @default(uuid())
+  invoiceNumber String        @unique
+  jobId         String
+  job           Job           @relation(fields: [jobId], references: [id])
+  status        InvoiceStatus @default(DRAFT)
+  subtotal      Decimal       @db.Decimal(10, 2)
+  tax           Decimal       @db.Decimal(10, 2)
+  total         Decimal       @db.Decimal(10, 2)
+  dueDate       DateTime?
+  paidDate      DateTime?
+  notes         String?
+  tenantId      String
+  tenant        Tenant        @relation(fields: [tenantId], references: [id])
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  items InvoiceItem[]
+
+  @@index([tenantId])
+  @@index([jobId])
+  @@index([status])
+  @@map("invoices")
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+// Invoice Items
+model InvoiceItem {
+  id          String  @id @default(uuid())
+  invoiceId   String
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  description String
+  quantity    Decimal @db.Decimal(10, 2)
+  unitPrice   Decimal @db.Decimal(10, 2)
+  total       Decimal @db.Decimal(10, 2)
+  sortOrder   Int     @default(0)
+
+  @@index([invoiceId])
+  @@map("invoice_items")
+}

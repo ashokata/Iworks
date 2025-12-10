@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run dev:*)",
+      "Bash(curl:*)",
+      "Bash(rm:*)",
+      "mcp__ide__getDiagnostics",
+      "mcp__ide__executeCode",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nrebrand: update application from Field Smart Pro to InField Works\n\n- Update app name and branding across all pages and components\n- Replace email addresses from fieldsmartpro.com to infieldworks.com\n- Add InField Works logo to login, navigation, and sidebar\n- Update company information and test credentials\n- Update README and manifest with new branding\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git push:*)",
+      "Bash(git pull:*)",
+      "Bash(git commit:*)",
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(taskkill:*)",
+      "Bash(cat:*)",
+      "Bash(npm cache clean:*)",
+      "Bash(git fetch:*)",
+      "Bash(git stash:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx next build)",
+      "Bash(awk:*)",
+      "Bash(dir nul)",
+      "WebFetch(domain:chatgpt.com)",
+      "Bash(powershell -Command \"Add-Type -AssemblyName System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::OpenRead(''C:\\Users\\ashok\\Downloads\\llm-gateway-repo.zip'').Entries | Select-Object -First 50 FullName\")",
+      "Bash(powershell:*)",
+      "Bash(timeout /t 5 /nobreak)",
+      "Bash(node -e:*)",
+      "Bash(dir \"C:\\Users\\ashok\\Documents\\IW\\FieldSmartPro_UX\\src\\app\\api\\tenants\")",
+      "Bash(dir \"C:\\Users\\ashok\\Documents\\IW\\FieldSmartPro_UX\\src\\app\\api\\tenants\\[tenantId]\")",
+      "Bash(git diff:*)",
+      "Bash(dir:*)",
+      "Bash(git init:*)",
+      "Bash(gh repo create:*)",
+      "Bash(git branch:*)",
+      "Bash(git remote add:*)",
+      "Bash(git config:*)"
+    ],
+    "deny": []
+  }
+}

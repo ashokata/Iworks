@@ -1,0 +1,12 @@
+.navLinkShine {
+  text-shadow: 0 0 1px rgba(255, 255, 255, 0.7);
+  transition: all 0.3s ease;
+}
+
+.navLinkShine:hover {
+  text-shadow: 0 0 4px rgba(255, 255, 255, 0.9);
+}
+
+.navLinkActive {
+  text-shadow: 0 0 3px rgba(255, 255, 255, 0.8);
+}

@@ -1,0 +1,13 @@
+/* Custom styles for shining text effect */
+.nav-link-shine {
+  text-shadow: 0 0 1px rgba(255, 255, 255, 0.7);
+  transition: all 0.3s ease;
+}
+
+.nav-link-shine:hover {
+  text-shadow: 0 0 4px rgba(255, 255, 255, 0.9);
+}
+
+.nav-link-active {
+  text-shadow: 0 0 3px rgba(255, 255, 255, 0.8);
+}

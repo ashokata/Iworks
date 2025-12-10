@@ -1,0 +1,8 @@
+{
+  "FieldSmartProStack": {
+    "ApiUrl": "https://gpajab36b7.execute-api.us-east-1.amazonaws.com/prod/",
+    "DatabaseSecretArn": "arn:aws:secretsmanager:us-east-1:820242944174:secret:DBSecretD58955BC-AU1rR8KC2RAZ-DmIoMI",
+    "FieldSmartProAPIEndpoint2334C0CF": "https://gpajab36b7.execute-api.us-east-1.amazonaws.com/prod/",
+    "DatabaseEndpoint": "fieldsmartprostack-databaseb269d8bb-o7edqpyx821v.cluster-c6biqum2w39o.us-east-1.rds.amazonaws.com"
+  }
+}

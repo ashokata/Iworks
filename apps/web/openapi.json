@@ -1,0 +1,1605 @@
+﻿{
+  "openapi": "3.0.4",
+  "info": {
+    "title": "POS_IWorks_GET_Call_Endpoints",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8090/odata/iworks/v1"
+    }
+  ],
+  "paths": {
+    "/Jobs": {
+      "get": {
+        "tags": [
+          "Job"
+        ],
+        "operationId": "ListJob",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/top"
+          },
+          {
+            "$ref": "#/components/parameters/skip"
+          },
+          {
+            "$ref": "#/components/parameters/filter"
+          },
+          {
+            "$ref": "#/components/parameters/count"
+          },
+          {
+            "name": "$orderby",
+            "in": "query",
+            "description": "Order items by property values",
+            "style": "form",
+            "explode": false,
+            "schema": {
+              "uniqueItems": true,
+              "type": "array",
+              "items": {
+                "enum": [
+                  "JobID",
+                  "JobID desc",
+                  "JobName",
+                  "JobName desc",
+                  "Description",
+                  "Description desc",
+                  "Status",
+                  "Status desc",
+                  "Priority",
+                  "Priority desc",
+                  "ScheduledDate",
+                  "ScheduledDate desc",
+                  "StartDate",
+                  "StartDate desc",
+                  "EndDate",
+                  "EndDate desc",
+                  "Location",
+                  "Location desc",
+                  "EstimatedDuration",
+                  "EstimatedDuration desc",
+                  "EventAllDay",
+                  "EventAllDay desc",
+                  "changedDate",
+                  "changedDate desc",
+                  "createdDate",
+                  "createdDate desc"
+                ],
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "$select",
+            "in": "query",
+            "description": "Select properties to be returned",
+            "style": "form",
+            "explode": false,
+            "schema": {
+              "uniqueItems": true,
+              "type": "array",
+              "items": {
+                "enum": [
+                  "JobID",
+                  "JobName",
+                  "Description",
+                  "Status",
+                  "Priority",
+                  "ScheduledDate",
+                  "StartDate",
+                  "EndDate",
+                  "Location",
+                  "EstimatedDuration",
+                  "EventAllDay",
+                  "changedDate",
+                  "createdDate"
+                ],
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "$expand",
+            "in": "query",
+            "description": "Expand related entities",
+            "style": "form",
+            "explode": false,
+            "schema": {
+              "uniqueItems": true,
+              "type": "array",
+              "items": {
+                "enum": [
+                  "Job_AssignedTo",
+                  "Job_Employee_SalesPerson",
+                  "Job_EmployeeList"
+                ],
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retrieved collection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Collection of Job",
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Job"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/Jobs('{JobID}')": {
+      "get": {
+        "tags": [
+          "Job"
+        ],
+        "operationId": "GetJob",
+        "parameters": [
+          {
+            "name": "JobID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "$select",
+            "in": "query",
+            "description": "Select properties to be returned",
+            "style": "form",
+            "explode": false,
+            "schema": {
+              "uniqueItems": true,
+              "type": "array",
+              "items": {
+                "enum": [
+                  "JobID",
+                  "JobName",
+                  "Description",
+                  "Status",
+                  "Priority",
+                  "ScheduledDate",
+                  "StartDate",
+                  "EndDate",
+                  "Location",
+                  "EstimatedDuration",
+                  "EventAllDay",
+                  "changedDate",
+                  "createdDate"
+                ],
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "$expand",
+            "in": "query",
+            "description": "Expand related entities",
+            "style": "form",
+            "explode": false,
+            "schema": {
+              "uniqueItems": true,
+              "type": "array",
+              "items": {
+                "enum": [
+                  "Job_AssignedTo",
+                  "Job_Employee_SalesPerson",
+                  "Job_EmployeeList"
+                ],
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retrieved Job",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/Jobs/$count": {
+      "get": {
+        "tags": [
+          "Job"
+        ],
+        "operationId": "CountJob",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Count"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/Jobs/$query": {
+      "post": {
+        "tags": [
+          "Job"
+        ],
+        "operationId": "QueryJob",
+        "requestBody": {
+          "content": {
+            "text/plain": {
+              "schema": {
+                "description": "The query string"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Retrieved collection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Collection of Job",
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Job"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/Employees": {
+      "get": {
+        "tags": [
+          "Employee"
+        ],
+        "operationId": "ListEmployee",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/top"
+          },
+          {
+            "$ref": "#/components/parameters/skip"
+          },
+          {
+            "$ref": "#/components/parameters/filter"
+          },
+          {
+            "$ref": "#/components/parameters/count"
+          },
+          {
+            "name": "$orderby",
+            "in": "query",
+            "description": "Order items by property values",
+            "style": "form",
+            "explode": false,
+            "schema": {
+              "uniqueItems": true,
+              "type": "array",
+              "items": {
+                "enum": [
+                  "EmployeeID",
+                  "EmployeeID desc",
+                  "FirstName",
+                  "FirstName desc",
+                  "LastName",
+                  "LastName desc",
+                  "Role",
+                  "Role desc",
+                  "IsActive",
+                  "IsActive desc",
+                  "PhoneNumber",
+                  "PhoneNumber desc",
+                  "MaxHours",
+                  "MaxHours desc",
+                  "HoursOccupied",
+                  "HoursOccupied desc",
+                  "LatestJobStartDateTime",
+                  "LatestJobStartDateTime desc",
+                  "FullName",
+                  "FullName desc",
+                  "Email",
+                  "Email desc",
+                  "IsLocalUser",
+                  "IsLocalUser desc",
+                  "Name",
+                  "Name desc",
+                  "Password",
+                  "Password desc",
+                  "LastLogin",
+                  "LastLogin desc",
+                  "Blocked",
+                  "Blocked desc",
+                  "BlockedSince",
+                  "BlockedSince desc",
+                  "Active",
+                  "Active desc",
+                  "FailedLogins",
+                  "FailedLogins desc",
+                  "WebServiceUser",
+                  "WebServiceUser desc",
+                  "IsAnonymous",
+                  "IsAnonymous desc",
+                  "changedDate",
+                  "changedDate desc",
+                  "createdDate",
+                  "createdDate desc"
+                ],
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "$select",
+            "in": "query",
+            "description": "Select properties to be returned",
+            "style": "form",
+            "explode": false,
+            "schema": {
+              "uniqueItems": true,
+              "type": "array",
+              "items": {
+                "enum": [
+                  "EmployeeID",
+                  "FirstName",
+                  "LastName",
+                  "Role",
+                  "IsActive",
+                  "PhoneNumber",
+                  "MaxHours",
+                  "HoursOccupied",
+                  "LatestJobStartDateTime",
+                  "FullName",
+                  "Email",
+                  "IsLocalUser",
+                  "Name",
+                  "Password",
+                  "LastLogin",
+                  "Blocked",
+                  "BlockedSince",
+                  "Active",
+                  "FailedLogins",
+                  "WebServiceUser",
+                  "IsAnonymous",
+                  "changedDate",
+                  "createdDate"
+                ],
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "$expand",
+            "in": "query",
+            "description": "Expand related entities",
+            "style": "form",
+            "explode": false,
+            "schema": {
+              "uniqueItems": true,
+              "type": "array",
+              "items": {
+                "enum": [
+                  "Jobs_AssignedTo",
+                  "Job_Employee_SalesPerson",
+                  "Job_Employee_JobList"
+                ],
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retrieved collection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Collection of Employee",
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Employee"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/Employees('{EmployeeID}')": {
+      "get": {
+        "tags": [
+          "Employee"
+        ],
+        "operationId": "GetEmployee",
+        "parameters": [
+          {
+            "name": "EmployeeID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "$select",
+            "in": "query",
+            "description": "Select properties to be returned",
+            "style": "form",
+            "explode": false,
+            "schema": {
+              "uniqueItems": true,
+              "type": "array",
+              "items": {
+                "enum": [
+                  "EmployeeID",
+                  "FirstName",
+                  "LastName",
+                  "Role",
+                  "IsActive",
+                  "PhoneNumber",
+                  "MaxHours",
+                  "HoursOccupied",
+                  "LatestJobStartDateTime",
+                  "FullName",
+                  "Email",
+                  "IsLocalUser",
+                  "Name",
+                  "Password",
+                  "LastLogin",
+                  "Blocked",
+                  "BlockedSince",
+                  "Active",
+                  "FailedLogins",
+                  "WebServiceUser",
+                  "IsAnonymous",
+                  "changedDate",
+                  "createdDate"
+                ],
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "$expand",
+            "in": "query",
+            "description": "Expand related entities",
+            "style": "form",
+            "explode": false,
+            "schema": {
+              "uniqueItems": true,
+              "type": "array",
+              "items": {
+                "enum": [
+                  "Jobs_AssignedTo",
+                  "Job_Employee_SalesPerson",
+                  "Job_Employee_JobList"
+                ],
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retrieved Employee",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Employee"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/Employees/$count": {
+      "get": {
+        "tags": [
+          "Employee"
+        ],
+        "operationId": "CountEmployee",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Count"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/Employees/$query": {
+      "post": {
+        "tags": [
+          "Employee"
+        ],
+        "operationId": "QueryEmployee",
+        "requestBody": {
+          "content": {
+            "text/plain": {
+              "schema": {
+                "description": "The query string"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Retrieved collection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Collection of Employee",
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Employee"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/Customers": {
+      "get": {
+        "tags": [
+          "Customer"
+        ],
+        "operationId": "ListCustomer",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/top"
+          },
+          {
+            "$ref": "#/components/parameters/skip"
+          },
+          {
+            "$ref": "#/components/parameters/filter"
+          },
+          {
+            "$ref": "#/components/parameters/count"
+          },
+          {
+            "name": "$orderby",
+            "in": "query",
+            "description": "Order items by property values",
+            "style": "form",
+            "explode": false,
+            "schema": {
+              "uniqueItems": true,
+              "type": "array",
+              "items": {
+                "enum": [
+                  "CustomerID",
+                  "CustomerID desc",
+                  "FirstName",
+                  "FirstName desc",
+                  "LastName",
+                  "LastName desc",
+                  "Email",
+                  "Email desc",
+                  "BillableEmail",
+                  "BillableEmail desc",
+                  "BillableName",
+                  "BillableName desc",
+                  "BillablePhoneNumber",
+                  "BillablePhoneNumber desc",
+                  "DisplayName",
+                  "DisplayName desc",
+                  "MobileNumber",
+                  "MobileNumber desc",
+                  "HomeNumber",
+                  "HomeNumber desc",
+                  "WorkNumber",
+                  "WorkNumber desc",
+                  "Company",
+                  "Company desc",
+                  "JobTitle",
+                  "JobTitle desc",
+                  "Notes",
+                  "Notes desc",
+                  "NotificationEnabled",
+                  "NotificationEnabled desc",
+                  "Archived",
+                  "Archived desc",
+                  "IsContractor",
+                  "IsContractor desc",
+                  "HasImprovedCardOnFile",
+                  "HasImprovedCardOnFile desc",
+                  "DoNotService",
+                  "DoNotService desc",
+                  "IsActive",
+                  "IsActive desc",
+                  "changedDate",
+                  "changedDate desc",
+                  "createdDate",
+                  "createdDate desc"
+                ],
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "$select",
+            "in": "query",
+            "description": "Select properties to be returned",
+            "style": "form",
+            "explode": false,
+            "schema": {
+              "uniqueItems": true,
+              "type": "array",
+              "items": {
+                "enum": [
+                  "CustomerID",
+                  "FirstName",
+                  "LastName",
+                  "Email",
+                  "BillableEmail",
+                  "BillableName",
+                  "BillablePhoneNumber",
+                  "DisplayName",
+                  "MobileNumber",
+                  "HomeNumber",
+                  "WorkNumber",
+                  "Company",
+                  "JobTitle",
+                  "Notes",
+                  "NotificationEnabled",
+                  "Archived",
+                  "IsContractor",
+                  "HasImprovedCardOnFile",
+                  "DoNotService",
+                  "IsActive",
+                  "changedDate",
+                  "createdDate"
+                ],
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "$expand",
+            "in": "query",
+            "description": "Expand related entities",
+            "style": "form",
+            "explode": false,
+            "schema": {
+              "uniqueItems": true,
+              "type": "array",
+              "items": {
+                "enum": [
+                  "Jobs",
+                  "CustomerAddresses"
+                ],
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retrieved collection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Collection of Customer",
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Customer"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/Customers('{CustomerID}')": {
+      "get": {
+        "tags": [
+          "Customer"
+        ],
+        "operationId": "GetCustomer",
+        "parameters": [
+          {
+            "name": "CustomerID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "$select",
+            "in": "query",
+            "description": "Select properties to be returned",
+            "style": "form",
+            "explode": false,
+            "schema": {
+              "uniqueItems": true,
+              "type": "array",
+              "items": {
+                "enum": [
+                  "CustomerID",
+                  "FirstName",
+                  "LastName",
+                  "Email",
+                  "BillableEmail",
+                  "BillableName",
+                  "BillablePhoneNumber",
+                  "DisplayName",
+                  "MobileNumber",
+                  "HomeNumber",
+                  "WorkNumber",
+                  "Company",
+                  "JobTitle",
+                  "Notes",
+                  "NotificationEnabled",
+                  "Archived",
+                  "IsContractor",
+                  "HasImprovedCardOnFile",
+                  "DoNotService",
+                  "IsActive",
+                  "changedDate",
+                  "createdDate"
+                ],
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "$expand",
+            "in": "query",
+            "description": "Expand related entities",
+            "style": "form",
+            "explode": false,
+            "schema": {
+              "uniqueItems": true,
+              "type": "array",
+              "items": {
+                "enum": [
+                  "Jobs",
+                  "CustomerAddresses"
+                ],
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retrieved Customer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Customer"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/Customers/$count": {
+      "get": {
+        "tags": [
+          "Customer"
+        ],
+        "operationId": "CountCustomer",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Count"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/Customers/$query": {
+      "post": {
+        "tags": [
+          "Customer"
+        ],
+        "operationId": "QueryCustomer",
+        "requestBody": {
+          "content": {
+            "text/plain": {
+              "schema": {
+                "description": "The query string"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Retrieved collection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Collection of Customer",
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Customer"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/CustomerAddresses": {
+      "get": {
+        "tags": [
+          "CustomerAddress"
+        ],
+        "operationId": "ListCustomerAddress",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/top"
+          },
+          {
+            "$ref": "#/components/parameters/skip"
+          },
+          {
+            "$ref": "#/components/parameters/filter"
+          },
+          {
+            "$ref": "#/components/parameters/count"
+          },
+          {
+            "name": "$orderby",
+            "in": "query",
+            "description": "Order items by property values",
+            "style": "form",
+            "explode": false,
+            "schema": {
+              "uniqueItems": true,
+              "type": "array",
+              "items": {
+                "enum": [
+                  "AddressID",
+                  "AddressID desc",
+                  "AddressType",
+                  "AddressType desc",
+                  "Address_Line1",
+                  "Address_Line1 desc",
+                  "Address_Line_2",
+                  "Address_Line_2 desc",
+                  "City",
+                  "City desc",
+                  "State",
+                  "State desc",
+                  "ZipCode",
+                  "ZipCode desc",
+                  "County",
+                  "County desc",
+                  "Country",
+                  "Country desc",
+                  "changedDate",
+                  "changedDate desc",
+                  "createdDate",
+                  "createdDate desc"
+                ],
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "$select",
+            "in": "query",
+            "description": "Select properties to be returned",
+            "style": "form",
+            "explode": false,
+            "schema": {
+              "uniqueItems": true,
+              "type": "array",
+              "items": {
+                "enum": [
+                  "AddressID",
+                  "AddressType",
+                  "Address_Line1",
+                  "Address_Line_2",
+                  "City",
+                  "State",
+                  "ZipCode",
+                  "County",
+                  "Country",
+                  "changedDate",
+                  "createdDate"
+                ],
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "$expand",
+            "in": "query",
+            "description": "Expand related entities",
+            "style": "form",
+            "explode": false,
+            "schema": {
+              "uniqueItems": true,
+              "type": "array",
+              "items": {
+                "enum": [
+                  "Customer",
+                  "owner",
+                  "changedBy"
+                ],
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retrieved collection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Collection of CustomerAddress",
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/CustomerAddress"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/CustomerAddresses('{AddressID}')": {
+      "get": {
+        "tags": [
+          "CustomerAddress"
+        ],
+        "operationId": "GetCustomerAddress",
+        "parameters": [
+          {
+            "name": "AddressID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "$select",
+            "in": "query",
+            "description": "Select properties to be returned",
+            "style": "form",
+            "explode": false,
+            "schema": {
+              "uniqueItems": true,
+              "type": "array",
+              "items": {
+                "enum": [
+                  "AddressID",
+                  "AddressType",
+                  "Address_Line1",
+                  "Address_Line_2",
+                  "City",
+                  "State",
+                  "ZipCode",
+                  "County",
+                  "Country",
+                  "changedDate",
+                  "createdDate"
+                ],
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "$expand",
+            "in": "query",
+            "description": "Expand related entities",
+            "style": "form",
+            "explode": false,
+            "schema": {
+              "uniqueItems": true,
+              "type": "array",
+              "items": {
+                "enum": [
+                  "Customer",
+                  "owner",
+                  "changedBy"
+                ],
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retrieved CustomerAddress",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerAddress"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/CustomerAddresses/$count": {
+      "get": {
+        "tags": [
+          "CustomerAddress"
+        ],
+        "operationId": "CountCustomerAddress",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Count"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/CustomerAddresses/$query": {
+      "post": {
+        "tags": [
+          "CustomerAddress"
+        ],
+        "operationId": "QueryCustomerAddress",
+        "requestBody": {
+          "content": {
+            "text/plain": {
+              "schema": {
+                "description": "The query string"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Retrieved collection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Collection of CustomerAddress",
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/CustomerAddress"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Job": {
+        "title": "Job",
+        "type": "object",
+        "properties": {
+          "JobID": {
+            "type": "string"
+          },
+          "JobName": {
+            "type": "string"
+          },
+          "Description": {
+            "type": "string"
+          },
+          "Status": {
+            "enum": [
+              "Scheduled",
+              "In_Progress",
+              "Completed",
+              "Canceled"
+            ],
+            "type": "string"
+          },
+          "Priority": {
+            "enum": [
+              "Low",
+              "Medium",
+              "High",
+              "Critical"
+            ],
+            "type": "string"
+          },
+          "ScheduledDate": {
+            "pattern": "^[0-9]{4,}-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]([.][0-9]{1,12})?(Z|[+-][0-9][0-9]:[0-9][0-9])$",
+            "type": "string",
+            "format": "date-time"
+          },
+          "StartDate": {
+            "pattern": "^[0-9]{4,}-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]([.][0-9]{1,12})?(Z|[+-][0-9][0-9]:[0-9][0-9])$",
+            "type": "string",
+            "format": "date-time"
+          },
+          "EndDate": {
+            "pattern": "^[0-9]{4,}-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]([.][0-9]{1,12})?(Z|[+-][0-9][0-9]:[0-9][0-9])$",
+            "type": "string",
+            "format": "date-time"
+          },
+          "Location": {
+            "type": "string"
+          },
+          "EstimatedDuration": {
+            "type": "integer"
+          },
+          "EventAllDay": {
+            "type": "boolean"
+          },
+          "changedDate": {
+            "pattern": "^[0-9]{4,}-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]([.][0-9]{1,12})?(Z|[+-][0-9][0-9]:[0-9][0-9])$",
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true
+          },
+          "createdDate": {
+            "pattern": "^[0-9]{4,}-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]([.][0-9]{1,12})?(Z|[+-][0-9][0-9]:[0-9][0-9])$",
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true
+          }
+        }
+      },
+      "Employee": {
+        "title": "Employee",
+        "type": "object",
+        "properties": {
+          "EmployeeID": {
+            "type": "string"
+          },
+          "FirstName": {
+            "type": "string"
+          },
+          "LastName": {
+            "type": "string"
+          },
+          "Role": {
+            "type": "string"
+          },
+          "IsActive": {
+            "type": "boolean"
+          },
+          "PhoneNumber": {
+            "type": "string"
+          },
+          "MaxHours": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "HoursOccupied": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "LatestJobStartDateTime": {
+            "pattern": "^[0-9]{4,}-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]([.][0-9]{1,12})?(Z|[+-][0-9][0-9]:[0-9][0-9])$",
+            "type": "string",
+            "format": "date-time"
+          },
+          "FullName": {
+            "type": "string"
+          },
+          "Email": {
+            "type": "string"
+          },
+          "IsLocalUser": {
+            "type": "boolean"
+          },
+          "Name": {
+            "type": "string"
+          },
+          "Password": {
+            "type": "string"
+          },
+          "LastLogin": {
+            "pattern": "^[0-9]{4,}-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]([.][0-9]{1,12})?(Z|[+-][0-9][0-9]:[0-9][0-9])$",
+            "type": "string",
+            "format": "date-time"
+          },
+          "Blocked": {
+            "type": "boolean"
+          },
+          "BlockedSince": {
+            "pattern": "^[0-9]{4,}-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]([.][0-9]{1,12})?(Z|[+-][0-9][0-9]:[0-9][0-9])$",
+            "type": "string",
+            "format": "date-time"
+          },
+          "Active": {
+            "type": "boolean"
+          },
+          "FailedLogins": {
+            "type": "integer"
+          },
+          "WebServiceUser": {
+            "type": "boolean"
+          },
+          "IsAnonymous": {
+            "type": "boolean"
+          },
+          "changedDate": {
+            "pattern": "^[0-9]{4,}-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]([.][0-9]{1,12})?(Z|[+-][0-9][0-9]:[0-9][0-9])$",
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true
+          },
+          "createdDate": {
+            "pattern": "^[0-9]{4,}-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]([.][0-9]{1,12})?(Z|[+-][0-9][0-9]:[0-9][0-9])$",
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true
+          }
+        }
+      },
+      "Customer": {
+        "title": "Customer",
+        "type": "object",
+        "properties": {
+          "CustomerID": {
+            "type": "string"
+          },
+          "FirstName": {
+            "type": "string"
+          },
+          "LastName": {
+            "type": "string"
+          },
+          "Email": {
+            "type": "string"
+          },
+          "BillableEmail": {
+            "type": "string"
+          },
+          "BillableName": {
+            "type": "string"
+          },
+          "BillablePhoneNumber": {
+            "type": "string"
+          },
+          "DisplayName": {
+            "type": "string"
+          },
+          "MobileNumber": {
+            "type": "string"
+          },
+          "HomeNumber": {
+            "type": "string"
+          },
+          "WorkNumber": {
+            "type": "string"
+          },
+          "Company": {
+            "type": "string"
+          },
+          "JobTitle": {
+            "enum": [
+              "No_title",
+              "Mr_",
+              "Ms_",
+              "Mrs_",
+              "Miss_",
+              "Dr_"
+            ],
+            "type": "string"
+          },
+          "Notes": {
+            "type": "string"
+          },
+          "NotificationEnabled": {
+            "type": "boolean"
+          },
+          "Archived": {
+            "type": "boolean"
+          },
+          "IsContractor": {
+            "type": "boolean"
+          },
+          "HasImprovedCardOnFile": {
+            "type": "boolean"
+          },
+          "DoNotService": {
+            "type": "boolean"
+          },
+          "IsActive": {
+            "type": "boolean"
+          },
+          "changedDate": {
+            "pattern": "^[0-9]{4,}-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]([.][0-9]{1,12})?(Z|[+-][0-9][0-9]:[0-9][0-9])$",
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true
+          },
+          "createdDate": {
+            "pattern": "^[0-9]{4,}-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]([.][0-9]{1,12})?(Z|[+-][0-9][0-9]:[0-9][0-9])$",
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true
+          }
+        }
+      },
+      "CustomerAddress": {
+        "title": "CustomerAddress",
+        "type": "object",
+        "properties": {
+          "AddressID": {
+            "type": "string"
+          },
+          "AddressType": {
+            "enum": [
+              "Primary",
+              "Billing",
+              "Service"
+            ],
+            "type": "string"
+          },
+          "Address_Line1": {
+            "type": "string"
+          },
+          "Address_Line_2": {
+            "type": "string"
+          },
+          "City": {
+            "type": "string"
+          },
+          "State": {
+            "type": "string"
+          },
+          "ZipCode": {
+            "type": "string"
+          },
+          "County": {
+            "type": "string"
+          },
+          "Country": {
+            "type": "string"
+          },
+          "changedDate": {
+            "pattern": "^[0-9]{4,}-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]([.][0-9]{1,12})?(Z|[+-][0-9][0-9]:[0-9][0-9])$",
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true
+          },
+          "createdDate": {
+            "pattern": "^[0-9]{4,}-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]([.][0-9]{1,12})?(Z|[+-][0-9][0-9]:[0-9][0-9])$",
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true
+          }
+        }
+      },
+      "CountResponse": {
+        "type": "integer",
+        "format": "int32"
+      },
+      "ErrorResponse": {
+        "required": [
+          "error"
+        ],
+        "type": "object",
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/MainError"
+          }
+        }
+      },
+      "MainError": {
+        "required": [
+          "code",
+          "message"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string",
+            "nullable": true
+          },
+          "details": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ErrorDetails"
+            }
+          }
+        }
+      },
+      "ErrorDetails": {
+        "required": [
+          "code",
+          "message"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      }
+    },
+    "responses": {
+      "Error": {
+        "description": "Error",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "Count": {
+        "description": "The count of the resource",
+        "content": {
+          "text/plain": {
+            "schema": {
+              "$ref": "#/components/schemas/CountResponse"
+            }
+          }
+        }
+      }
+    },
+    "parameters": {
+      "top": {
+        "name": "$top",
+        "in": "query",
+        "description": "Show only the first n items",
+        "schema": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "skip": {
+        "name": "$skip",
+        "in": "query",
+        "description": "Skip the first n items",
+        "schema": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "count": {
+        "name": "$count",
+        "in": "query",
+        "description": "Include count of items",
+        "schema": {
+          "type": "boolean"
+        }
+      },
+      "filter": {
+        "name": "$filter",
+        "in": "query",
+        "description": "Filter items by property values",
+        "schema": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Job"
+    },
+    {
+      "name": "Employee"
+    },
+    {
+      "name": "Customer"
+    },
+    {
+      "name": "CustomerAddress"
+    }
+  ]
+}

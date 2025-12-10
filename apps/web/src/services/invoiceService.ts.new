@@ -1,0 +1,466 @@
+import { apiClient } from './apiClient';
+import { EnhancedJob, Invoice, InvoiceItem } from '@/types/enhancedTypes';
+
+/**
+ * Service to handle invoice generation and management
+ * Based on HouseCallPro's invoicing capabilities
+ */
+export const invoiceService = {
+  /**
+   * Generate an invoice from a job
+   */
+  generateFromJob: async (jobId: string): Promise<Invoice | null> => {
+    try {
+      try {
+        // First try the real API
+        const response = await apiClient.post<Invoice>(`/api/jobs/${jobId}/generate-invoice`);
+        return response;
+      } catch (apiError) {
+        console.log("API not available, generating mock invoice");
+        
+        // For demo purposes, just return a mock invoice
+        // In a real app, this would create a new invoice on the server
+        const mockInvoice: Invoice = {
+          id: `INV-${Date.now().toString().slice(-6)}`,
+          jobId: jobId,
+          customerId: "demo-customer",
+          tenantId: "demo-tenant",
+          createdAt: new Date().toISOString(),
+          dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+          items: [
+            {
+              id: `item-${Date.now()}-1`,
+              description: "Service Call Fee",
+              quantity: 1,
+              unitPrice: 95,
+              total: 95,
+              taxable: true
+            },
+            {
+              id: `item-${Date.now()}-2`,
+              description: "Parts and Materials",
+              quantity: 1,
+              unitPrice: 175.50,
+              total: 175.50,
+              taxable: true
+            },
+            {
+              id: `item-${Date.now()}-3`,
+              description: "Labor - Hourly Rate",
+              quantity: 3,
+              unitPrice: 85,
+              total: 255,
+              taxable: false
+            }
+          ],
+          subtotal: 525.50,
+          taxRate: 0.07,
+          tax: 18.94,
+          total: 544.44,
+          status: "Unpaid",
+          notes: "Thank you for choosing our service! Please pay within 14 days."
+        };
+        
+        // Only return mock data if we're in development
+        if (process.env.NODE_ENV === 'development') {
+          return mockInvoice;
+        }
+        throw apiError;
+      }
+    } catch (error) {
+      console.error('Error generating invoice:', error);
+      return null;
+    }
+  },
+
+  /**
+   * Get all invoices
+   */
+  getAllInvoices: async (): Promise<Invoice[]> => {
+    try {
+      try {
+        const response = await apiClient.get<Invoice[]>('/api/invoices');
+        return response;
+      } catch (apiError) {
+        // Return mock invoices for development
+        if (process.env.NODE_ENV === 'development') {
+          return [
+            {
+              id: 'INV-20250721-001',
+              jobId: 'job-001',
+              customerId: 'customer-001',
+              tenantId: 'tenant-001',
+              createdAt: '2025-07-19T10:00:00Z',
+              dueDate: '2025-08-02T10:00:00Z',
+              items: [
+                {
+                  id: 'item-001',
+                  description: 'Service Call',
+                  quantity: 1,
+                  unitPrice: 95,
+                  total: 95,
+                  taxable: true
+                }
+              ],
+              subtotal: 95,
+              taxRate: 0.07,
+              tax: 6.65,
+              total: 101.65,
+              status: 'Unpaid'
+            },
+            {
+              id: 'INV-20250721-002',
+              jobId: 'job-002',
+              customerId: 'customer-002',
+              tenantId: 'tenant-001',
+              createdAt: '2025-07-18T14:30:00Z',
+              dueDate: '2025-08-01T14:30:00Z',
+              items: [
+                {
+                  id: 'item-002',
+                  description: 'Comprehensive Service',
+                  quantity: 1,
+                  unitPrice: 250,
+                  total: 250,
+                  taxable: true
+                }
+              ],
+              subtotal: 250,
+              taxRate: 0.07,
+              tax: 17.50,
+              total: 267.50,
+              status: 'Paid',
+              paidAmount: 267.50,
+              paidDate: '2025-07-20T09:15:00Z',
+              paymentMethod: 'Credit Card'
+            }
+          ];
+        }
+        throw apiError;
+      }
+    } catch (error) {
+      console.error('Error fetching invoices:', error);
+      return [];
+    }
+  },
+
+  /**
+   * Get an invoice by ID
+   */
+  getInvoiceById: async (id: string): Promise<Invoice | null> => {
+    try {
+      try {
+        const response = await apiClient.get<Invoice>(`/api/invoices/${id}`);
+        return response;
+      } catch (apiError) {
+        // Return mock invoice for development
+        if (process.env.NODE_ENV === 'development' && id) {
+          return {
+            id: id,
+            jobId: `job-${id.split('-').pop()}`,
+            customerId: 'customer-001',
+            tenantId: 'tenant-001',
+            createdAt: '2025-07-19T10:00:00Z',
+            dueDate: '2025-08-02T10:00:00Z',
+            items: [
+              {
+                id: 'item-001',
+                description: 'Service Call',
+                quantity: 1,
+                unitPrice: 95,
+                total: 95,
+                taxable: true
+              },
+              {
+                id: 'item-002',
+                description: 'Parts & Materials',
+                quantity: 1,
+                unitPrice: 120,
+                total: 120,
+                taxable: true
+              }
+            ],
+            subtotal: 215,
+            taxRate: 0.07,
+            tax: 15.05,
+            total: 230.05,
+            status: 'Unpaid'
+          };
+        }
+        throw apiError;
+      }
+    } catch (error) {
+      console.error(`Error fetching invoice ${id}:`, error);
+      return null;
+    }
+  },
+
+  /**
+   * Get invoices for a customer
+   */
+  getInvoicesByCustomer: async (customerId: string): Promise<Invoice[]> => {
+    try {
+      const response = await apiClient.get<Invoice[]>(`/api/customers/${customerId}/invoices`);
+      return response;
+    } catch (error) {
+      console.error(`Error fetching invoices for customer ${customerId}:`, error);
+      return [];
+    }
+  },
+  
+  /**
+   * Get invoice for a specific job
+   */
+  getInvoiceForJob: async (jobId: string): Promise<Invoice | null> => {
+    // Return null if no job ID
+    if (!jobId) return null;
+    
+    try {
+      // First try the real API
+      try {
+        const response = await apiClient.get<Invoice>(`/api/jobs/${jobId}/invoice`);
+        return response;
+      } catch (apiError) {
+        // If API fails, use mock data for demonstration in development mode
+        if (process.env.NODE_ENV === 'development') {
+          console.log("Using mock data for invoice");
+          
+          // For demo purposes only - in a real app, this would be a real API call
+          const currentDate = new Date();
+          const dueDate = new Date(currentDate);
+          dueDate.setDate(dueDate.getDate() + 14); // Due in 14 days
+          
+          // Generate random invoice ID with current timestamp
+          const mockInvoice: Invoice = {
+            id: `INV-${currentDate.getFullYear()}-${String(Date.now()).slice(-5)}`,
+            jobId: jobId,
+            customerId: "demo-customer",
+            tenantId: "demo-tenant",
+            createdAt: currentDate.toISOString(),
+            dueDate: dueDate.toISOString(),
+            items: [
+              {
+                id: `svc-${Date.now()}-1`,
+                description: "Service Call - InField Works Rate",
+                quantity: 1,
+                unitPrice: 120,
+                total: 120,
+                taxable: true
+              },
+              {
+                id: `mat-${Date.now()}-2`,
+                description: "Premium Replacement Parts",
+                quantity: 3,
+                unitPrice: 45,
+                total: 135,
+                taxable: true
+              },
+              {
+                id: `labor-${Date.now()}-3`,
+                description: "Labor - 2.5 hours",
+                quantity: 2.5,
+                unitPrice: 85,
+                total: 212.50,
+                taxable: false
+              }
+            ],
+            subtotal: 467.50,
+            taxRate: 0.07,
+            tax: 17.85,
+            total: 485.35,
+            status: "Unpaid",
+            notes: "Thank you for your business! Payment due within 14 days."
+          };
+          
+          return mockInvoice;
+        }
+        throw apiError;
+      }
+    } catch (error) {
+      console.error(`Error fetching invoice for job ${jobId}:`, error);
+      return null;
+    }
+  },
+
+  /**
+   * Update an invoice
+   */
+  updateInvoice: async (id: string, data: Partial<Invoice>): Promise<Invoice | null> => {
+    try {
+      try {
+        const response = await apiClient.put<Invoice>(`/api/invoices/${id}`, data);
+        return response;
+      } catch (apiError) {
+        // For demo purposes, simulate a successful update
+        if (process.env.NODE_ENV === 'development') {
+          // Try to get the current invoice
+          let currentInvoice = await invoiceService.getInvoiceById(id);
+          
+          if (currentInvoice) {
+            // Update with new data
+            const updatedInvoice = { ...currentInvoice, ...data };
+            return updatedInvoice;
+          }
+        }
+        throw apiError;
+      }
+    } catch (error) {
+      console.error(`Error updating invoice ${id}:`, error);
+      return null;
+    }
+  },
+
+  /**
+   * Send an invoice to a customer
+   */
+  sendInvoice: async (id: string, method: 'email' | 'sms' | 'mail'): Promise<boolean> => {
+    try {
+      try {
+        await apiClient.post(`/api/invoices/${id}/send`, { method });
+        return true;
+      } catch (apiError) {
+        console.log(`Mock: Sending invoice ${id} via ${method}`);
+        
+        // For demo purposes, simulate a successful send
+        // In a real app, this would trigger an email, SMS, etc.
+        
+        // Only return success for mock if in development
+        if (process.env.NODE_ENV === 'development') {
+          // Simulate network delay
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          return true;
+        }
+        throw apiError;
+      }
+    } catch (error) {
+      console.error(`Error sending invoice ${id}:`, error);
+      return false;
+    }
+  },
+
+  /**
+   * Mark an invoice as paid
+   */
+  markAsPaid: async (id: string, paymentDetails: any): Promise<Invoice | null> => {
+    try {
+      try {
+        const response = await apiClient.post<Invoice>(`/api/invoices/${id}/mark-paid`, paymentDetails);
+        return response;
+      } catch (apiError) {
+        console.log(`Mock: Marking invoice ${id} as paid`);
+        
+        // For demo purposes, simulate a successful payment update
+        // In a real app, this would update the database record
+        
+        // Only return mock data if in development
+        if (process.env.NODE_ENV === 'development') {
+          // Get the current invoice to update it
+          let currentInvoice = null;
+          
+          // Try to get the invoice
+          try {
+            currentInvoice = await invoiceService.getInvoiceById(id);
+          } catch (error) {
+            console.error(`Could not fetch invoice ${id} for update`);
+          }
+          
+          // If we couldn't get it, create a placeholder
+          if (!currentInvoice) {
+            currentInvoice = {
+              id: id,
+              jobId: "unknown",
+              customerId: "unknown",
+              tenantId: "unknown",
+              createdAt: new Date().toISOString(),
+              dueDate: new Date().toISOString(),
+              items: [],
+              subtotal: 0,
+              taxRate: 0,
+              tax: 0,
+              total: paymentDetails.amount || 0,
+              status: "Unpaid",
+            };
+          }
+          
+          // Update the invoice with payment details
+          const updatedInvoice: Invoice = {
+            ...currentInvoice,
+            status: "Paid",
+            paidAmount: paymentDetails.amount || currentInvoice.total,
+            paidDate: paymentDetails.date || new Date().toISOString(),
+            paymentMethod: paymentDetails.method || "cash"
+          };
+          
+          // Simulate network delay
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          return updatedInvoice;
+        }
+        throw apiError;
+      }
+    } catch (error) {
+      console.error(`Error marking invoice ${id} as paid:`, error);
+      return null;
+    }
+  },
+
+  /**
+   * Create a mock invoice from job data (for demonstration)
+   * This simulates what the API would do
+   */
+  createMockInvoice: (job: EnhancedJob): Invoice => {
+    const invoiceItems: InvoiceItem[] = [];
+    let subtotal = 0;
+
+    // Add service cost (just a placeholder since we don't have actual service prices)
+    const serviceCost = 150; // Example service cost
+    invoiceItems.push({
+      id: `service-${Date.now()}`,
+      description: `${job.jobType} Service - ${job.title}`,
+      quantity: 1,
+      unitPrice: serviceCost,
+      total: serviceCost,
+      taxable: true
+    });
+    subtotal += serviceCost;
+
+    // Add materials
+    job.materials.forEach(material => {
+      invoiceItems.push({
+        id: `material-${material.id}`,
+        description: material.name,
+        quantity: material.quantity,
+        unitPrice: material.unitCost,
+        total: material.totalCost,
+        taxable: material.taxable
+      });
+      subtotal += material.totalCost;
+    });
+
+    // Calculate tax (assuming 7% tax rate)
+    const taxRate = 0.07;
+    const taxableAmount = invoiceItems
+      .filter(item => item.taxable)
+      .reduce((sum, item) => sum + item.total, 0);
+    const tax = taxableAmount * taxRate;
+    
+    // Calculate total
+    const total = subtotal + tax;
+
+    // Create invoice
+    return {
+      id: `INV-${Date.now()}`,
+      jobId: job.id,
+      customerId: job.customerId,
+      createdAt: new Date().toISOString(),
+      dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
+      items: invoiceItems,
+      subtotal,
+      taxRate,
+      tax,
+      total,
+      notes: `Invoice for ${job.jobType} service. Thank you for your business!`,
+      status: 'Unpaid',
+      tenantId: job.tenantId
+    };
+  }
+};

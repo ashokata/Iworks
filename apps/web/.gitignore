@@ -1,0 +1,9 @@
+node_modules/
+Pet/
+.next/
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+build-output.txt
+nul
