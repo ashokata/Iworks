@@ -1,8 +1,9 @@
 import express from 'express';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
-import { createCustomerHandler } from './handlers/customers/create';
-import { listCustomersHandler } from './handlers/customers/list';
+import { createCustomerDynamoDBHandler } from './handlers/customers/create-dynamodb';
+import { listCustomersDynamoDBHandler } from './handlers/customers/list-dynamodb';
+import { getCustomerDynamoDBHandler } from './handlers/customers/get-dynamodb';
 import { createJobHandler } from './handlers/jobs/create';
 import { chatHandler } from './handlers/chat/index';
 import { healthHandler } from './handlers/health/index';
@@ -33,14 +34,14 @@ app.get('/health', async (req, res) => {
   }
 });
 
-// Customer routes
+// Customer routes - using DynamoDB
 app.post('/customers', async (req, res) => {
   const event = {
     httpMethod: 'POST',
     headers: req.headers,
     body: JSON.stringify(req.body)
   };
-  const result = await createCustomerHandler(event as any, {} as any, {} as any);
+  const result = await createCustomerDynamoDBHandler(event as any, {} as any, {} as any);
   if (result) {
     res.status(result.statusCode).json(JSON.parse(result.body));
   } else {
@@ -54,7 +55,7 @@ app.get('/customers', async (req, res) => {
     headers: req.headers,
     queryStringParameters: req.query
   };
-  const result = await listCustomersHandler(event as any, {} as any, {} as any);
+  const result = await listCustomersDynamoDBHandler(event as any, {} as any, {} as any);
   if (result) {
     res.status(result.statusCode).json(JSON.parse(result.body));
   } else {
@@ -62,27 +63,18 @@ app.get('/customers', async (req, res) => {
   }
 });
 
-// Get customer by ID
+// Get customer by ID - using DynamoDB
 app.get('/customers/:id', async (req, res) => {
-  try {
-    const tenantId = req.headers['x-tenant-id'] || 'local-tenant';
-    const { id } = req.params;
-    
-    const customer = await prisma.customer.findUnique({
-      where: { 
-        id,
-        tenantId: tenantId as string
-      }
-    });
-    
-    if (!customer) {
-      return res.status(404).json({ error: 'Customer not found' });
-    }
-    
-    res.status(200).json(customer);
-  } catch (error: any) {
-    console.error('Error fetching customer:', error);
-    res.status(500).json({ error: 'Failed to fetch customer' });
+  const event = {
+    httpMethod: 'GET',
+    headers: req.headers,
+    pathParameters: { customerId: req.params.id }
+  };
+  const result = await getCustomerDynamoDBHandler(event as any, {} as any, {} as any);
+  if (result) {
+    res.status(result.statusCode).json(JSON.parse(result.body));
+  } else {
+    res.status(500).json({ error: 'Get customer failed' });
   }
 });
 
