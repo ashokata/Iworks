@@ -172,6 +172,36 @@ export class FieldSmartProStack extends cdk.Stack {
       timeout: cdk.Duration.seconds(30),
     });
 
+    // LLM Chat Lambda with Bedrock integration (serverless - no VPC needed)
+    const llmChatEnv = {
+      DYNAMODB_CUSTOMERS_TABLE: customersTable.tableName,
+      DYNAMODB_CONVERSATIONS_TABLE: conversationsTable.tableName,
+      BEDROCK_MODEL_ID: 'us.anthropic.claude-sonnet-4-20250514-v1:0',
+      BEDROCK_FALLBACK_MODEL: 'us.anthropic.claude-3-5-sonnet-20241022-v2:0',
+      BEDROCK_MAX_TOKENS: '4096',
+      BEDROCK_TEMPERATURE: '0.7',
+      NODE_ENV: 'production',
+    };
+
+    const llmChatFn = new lambda.Function(this, 'LLMChatFunction', {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: 'handlers/llm-chat/index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '../../apps/api/dist')),
+      environment: llmChatEnv,
+      timeout: cdk.Duration.seconds(90), // Longer timeout for LLM calls
+      memorySize: 512, // More memory for LLM processing
+    });
+
+    // Grant Bedrock permissions to LLM Chat Lambda
+    llmChatFn.addToRolePolicy(new iam.PolicyStatement({
+      actions: ['bedrock:InvokeModel', 'bedrock:InvokeModelWithResponseStream'],
+      resources: ['*'],
+    }));
+
+    // Grant DynamoDB permissions to LLM Chat Lambda
+    customersTable.grantReadWriteData(llmChatFn);
+    conversationsTable.grantReadWriteData(llmChatFn);
+
     // Grant permissions
     [createJobFn, chatFn, healthFn, seedFn, migrateFn].forEach(fn => {
       dbCluster.connections.allowDefaultPortFrom(fn);
@@ -220,6 +250,10 @@ export class FieldSmartProStack extends cdk.Stack {
 
     const chat = api.root.addResource('chat');
     chat.addMethod('POST', new apigateway.LambdaIntegration(chatFn));
+
+    // LLM Chat endpoint with function calling
+    const llmChat = api.root.addResource('llm-chat');
+    llmChat.addMethod('POST', new apigateway.LambdaIntegration(llmChatFn));
 
     const migrate = api.root.addResource('migrate');
     migrate.addMethod('POST', new apigateway.LambdaIntegration(migrateFn));
