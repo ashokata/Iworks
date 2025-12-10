@@ -3,7 +3,8 @@
     "allow": [
       "Bash(aws cloudformation describe-stacks:*)",
       "Bash(test:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(npm run dev:*)"
     ]
   }
 }
