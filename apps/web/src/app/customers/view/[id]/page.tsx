@@ -53,9 +53,9 @@ export default function PetCustomerViewPage() {
 
   // Fetch customer data
   const { data: customer, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['pet-customer', customerId],
+    queryKey: ['customer', customerId],
     queryFn: () => customerService.getCustomerById(customerId),
-    enabled: !!customerId, // Temporarily force the query for debugging
+    enabled: !!customerId,
   });
 
   // Loading state

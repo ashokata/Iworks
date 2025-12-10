@@ -164,6 +164,14 @@ export class FieldSmartProStack extends cdk.Stack {
       timeout: cdk.Duration.seconds(30),
     });
 
+    const updateCustomerDynamoDBFn = new lambda.Function(this, 'UpdateCustomerDynamoDBFunction', {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: 'handlers/customers/update-dynamodb.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '../../apps/api/dist')),
+      environment: dynamoDBCustomerEnv,
+      timeout: cdk.Duration.seconds(30),
+    });
+
     // Grant permissions
     [createJobFn, chatFn, healthFn, seedFn, migrateFn].forEach(fn => {
       dbCluster.connections.allowDefaultPortFrom(fn);
@@ -176,6 +184,7 @@ export class FieldSmartProStack extends cdk.Stack {
     customersTable.grantReadWriteData(createCustomerDynamoDBFn);
     customersTable.grantReadData(listCustomersDynamoDBFn);
     customersTable.grantReadData(getCustomerDynamoDBFn);
+    customersTable.grantReadWriteData(updateCustomerDynamoDBFn);
 
     chatFn.addToRolePolicy(new iam.PolicyStatement({
       actions: ['bedrock:InvokeModel', 'bedrock:InvokeModelWithResponseStream'],
@@ -204,6 +213,7 @@ export class FieldSmartProStack extends cdk.Stack {
     
     const customerById = customers.addResource('{customerId}');
     customerById.addMethod('GET', new apigateway.LambdaIntegration(getCustomerDynamoDBFn));
+    customerById.addMethod('PUT', new apigateway.LambdaIntegration(updateCustomerDynamoDBFn));
 
     const jobs = api.root.addResource('jobs');
     jobs.addMethod('POST', new apigateway.LambdaIntegration(createJobFn));

@@ -76,13 +76,16 @@ export const customerService = {
       const data = await response.json();
       console.log('[Customer Service] Received customers:', data);
       
-      // API returns { customers: [...], pagination: {...} }
+      // API returns { customers: [...], count: ... }
       const customers = data.customers || [];
       
-      // Add display_name and other computed fields
+      // Add display_name and other computed fields, map customerId to id
       return customers.map((c: any) => ({
         ...c,
-        display_name: `${c.firstName} ${c.lastName}`.trim(),
+        id: c.customerId || c.id,  // Map customerId to id for frontend
+        first_name: c.firstName,   // Add snake_case alias for filters
+        last_name: c.lastName,     // Add snake_case alias for filters
+        display_name: `${c.firstName || ''} ${c.lastName || ''}`.trim(),
         mobile_number: c.phone,  // Map phone to mobile_number
         type: 'homeowner' as const,
         is_contractor: false,
@@ -109,7 +112,11 @@ export const customerService = {
   // Get a customer by ID
   getCustomerById: async (id: string): Promise<Customer | null> => {
     try {
-      console.log(`[Customer Service] Fetching customer ${id}`);
+      // #region agent log
+      console.log(`[DEBUG-GET0] Fetching customer with ID: ${id}`);
+      console.log(`[DEBUG-GET0] Full URL: ${API_CONFIG.BASE_URL}/customers/${id}`);
+      fetch('http://127.0.0.1:7242/ingest/c288bfc6-fede-4b2e-ba41-31212e9a87d0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'customerService.ts:getCustomerById',message:'Fetching customer',data:{id,url:`${API_CONFIG.BASE_URL}/customers/${id}`},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'GET0'})}).catch(()=>{});
+      // #endregion
       
       const response = await fetch(`${API_CONFIG.BASE_URL}/customers/${id}`, {
         method: 'GET',
@@ -119,20 +126,42 @@ export const customerService = {
         },
       });
 
+      // #region agent log
+      console.log(`[DEBUG-GET1] Response status: ${response.status}`);
+      fetch('http://127.0.0.1:7242/ingest/c288bfc6-fede-4b2e-ba41-31212e9a87d0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'customerService.ts:getCustomerById',message:'Response status',data:{status:response.status,ok:response.ok},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'GET1'})}).catch(()=>{});
+      // #endregion
+
       if (response.status === 404) {
+        console.log('[DEBUG-GET2] Customer not found (404)');
         return null;
       }
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.log(`[DEBUG-GET2] Error response: ${errorText}`);
+        fetch('http://127.0.0.1:7242/ingest/c288bfc6-fede-4b2e-ba41-31212e9a87d0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'customerService.ts:getCustomerById',message:'Error response',data:{status:response.status,errorText},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'GET2'})}).catch(()=>{});
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const customer = await response.json();
+      const data = await response.json();
+      // #region agent log
+      console.log('[DEBUG-GET3] Raw response data:', JSON.stringify(data));
+      fetch('http://127.0.0.1:7242/ingest/c288bfc6-fede-4b2e-ba41-31212e9a87d0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'customerService.ts:getCustomerById',message:'Raw response',data:{rawData:data},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'GET3'})}).catch(()=>{});
+      // #endregion
+      
+      // Handle both { customer: ... } wrapper and direct customer object
+      const customer = data.customer || data;
+      
+      // Map customerId to id for frontend compatibility
+      const customerId = customer.customerId || customer.id;
       
       // Add display_name and other computed fields
       return {
         ...customer,
-        display_name: `${customer.firstName} ${customer.lastName}`.trim(),
+        id: customerId,  // Ensure id is set for frontend
+        first_name: customer.firstName,   // Add snake_case alias
+        last_name: customer.lastName,     // Add snake_case alias
+        display_name: `${customer.firstName || ''} ${customer.lastName || ''}`.trim(),
         mobile_number: customer.phone,  // Map phone to mobile_number
         type: 'homeowner' as const,
         is_contractor: false,
@@ -182,9 +211,14 @@ export const customerService = {
   },
   
   // Create a new customer
-  createCustomer: async (customerData: CreateCustomerRequest): Promise<Customer> => {
+  createCustomer: async (customerData: CreateCustomerRequest | any): Promise<Customer> => {
     try {
-      console.log('[Customer Service] Creating customer:', customerData);
+      // #region agent log
+      console.log('[DEBUG-FE1] Raw customerData received:', JSON.stringify(customerData));
+      console.log('[DEBUG-FE1] API URL:', `${API_CONFIG.BASE_URL}/customers`);
+      console.log('[DEBUG-FE1] Tenant ID:', getTenantId());
+      fetch('http://127.0.0.1:7242/ingest/c288bfc6-fede-4b2e-ba41-31212e9a87d0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'customerService.ts:createCustomer',message:'Raw customerData',data:{customerData,apiUrl:`${API_CONFIG.BASE_URL}/customers`,tenantId:getTenantId()},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'FE1'})}).catch(()=>{});
+      // #endregion
       
       const response = await fetch(`${API_CONFIG.BASE_URL}/customers`, {
         method: 'POST',
@@ -195,14 +229,31 @@ export const customerService = {
         body: JSON.stringify(customerData),
       });
 
+      // #region agent log
+      console.log('[DEBUG-FE2] Response status:', response.status);
+      fetch('http://127.0.0.1:7242/ingest/c288bfc6-fede-4b2e-ba41-31212e9a87d0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'customerService.ts:createCustomer',message:'Response received',data:{status:response.status,ok:response.ok},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'FE2'})}).catch(()=>{});
+      // #endregion
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        // #region agent log
+        console.log('[DEBUG-FE3] Error response data:', JSON.stringify(errorData));
+        fetch('http://127.0.0.1:7242/ingest/c288bfc6-fede-4b2e-ba41-31212e9a87d0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'customerService.ts:createCustomer',message:'Error response',data:{errorData,status:response.status},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'FE3'})}).catch(()=>{});
+        // #endregion
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
 
-      const customer = await response.json();
-      console.log('[Customer Service] Customer created:', customer);
-      return customer;
+      const data = await response.json();
+      console.log('[Customer Service] Customer created:', data);
+      
+      // Handle { customer: ... } wrapper and map customerId to id
+      const customer = data.customer || data;
+      return {
+        ...customer,
+        id: customer.customerId || customer.id,
+        display_name: `${customer.firstName} ${customer.lastName}`.trim(),
+        mobile_number: customer.phone,
+      };
     } catch (error: any) {
       console.error('[Customer Service] Error creating customer:', error);
       throw error;
