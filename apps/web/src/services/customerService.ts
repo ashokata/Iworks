@@ -58,14 +58,20 @@ export const customerService = {
   // Get all customers
   getAllCustomers: async (): Promise<Customer[]> => {
     try {
+      const tenantIdUsed = getTenantId();
       console.log(`[Customer Service] Fetching customers from Lambda API`);
       console.log(`[Customer Service] API URL:`, API_CONFIG.BASE_URL);
+      console.log(`[Customer Service] Tenant ID:`, tenantIdUsed);
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/c288bfc6-fede-4b2e-ba41-31212e9a87d0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'customerService.ts:getAllCustomers',message:'Fetching customers',data:{url:`${API_CONFIG.BASE_URL}/customers`,tenantId:tenantIdUsed},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'LIST1'})}).catch(()=>{});
+      // #endregion
       
       const response = await fetch(`${API_CONFIG.BASE_URL}/customers`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'x-tenant-id': getTenantId(),
+          'x-tenant-id': tenantIdUsed,
         },
       });
 
@@ -75,6 +81,10 @@ export const customerService = {
 
       const data = await response.json();
       console.log('[Customer Service] Received customers:', data);
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/c288bfc6-fede-4b2e-ba41-31212e9a87d0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'customerService.ts:getAllCustomers',message:'Customers received',data:{count:data.customers?.length,customers:data.customers?.map((c:any)=>({id:c.customerId,firstName:c.firstName,lastName:c.lastName}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'LIST2'})}).catch(()=>{});
+      // #endregion
       
       // API returns { customers: [...], count: ... }
       const customers = data.customers || [];
@@ -263,7 +273,15 @@ export const customerService = {
   // Update a customer
   updateCustomer: async (id: string, customerData: Partial<CreateCustomerRequest>): Promise<Customer> => {
     try {
-      console.log(`[Customer Service] Updating customer ${id}:`, customerData);
+      // #region agent log
+      const updateUrl = `${API_CONFIG.BASE_URL}/customers/${id}`;
+      const tenantIdUsed = getTenantId();
+      console.log(`[DEBUG-UPD1] Updating customer at URL: ${updateUrl}`);
+      console.log(`[DEBUG-UPD1] Customer ID: ${id}`);
+      console.log(`[DEBUG-UPD1] Tenant ID: ${tenantIdUsed}`);
+      console.log(`[DEBUG-UPD1] Data:`, JSON.stringify(customerData));
+      fetch('http://127.0.0.1:7242/ingest/c288bfc6-fede-4b2e-ba41-31212e9a87d0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'customerService.ts:updateCustomer',message:'Update request',data:{id,url:updateUrl,tenantId:tenantIdUsed,customerData},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'UPD1'})}).catch(()=>{});
+      // #endregion
       
       const response = await fetch(`${API_CONFIG.BASE_URL}/customers/${id}`, {
         method: 'PUT',
@@ -274,16 +292,33 @@ export const customerService = {
         body: JSON.stringify(customerData),
       });
 
+      // #region agent log
+      console.log(`[DEBUG-UPD2] Response status: ${response.status}`);
+      fetch('http://127.0.0.1:7242/ingest/c288bfc6-fede-4b2e-ba41-31212e9a87d0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'customerService.ts:updateCustomer',message:'Response received',data:{status:response.status,ok:response.ok},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'UPD2'})}).catch(()=>{});
+      // #endregion
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        // #region agent log
+        console.log(`[DEBUG-UPD3] Error data:`, JSON.stringify(errorData));
+        fetch('http://127.0.0.1:7242/ingest/c288bfc6-fede-4b2e-ba41-31212e9a87d0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'customerService.ts:updateCustomer',message:'Error response',data:{errorData,status:response.status},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'UPD3'})}).catch(()=>{});
+        // #endregion
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
 
       const customer = await response.json();
       console.log('[Customer Service] Customer updated:', customer);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/c288bfc6-fede-4b2e-ba41-31212e9a87d0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'customerService.ts:updateCustomer',message:'Update response data',data:{customer},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'UPD4'})}).catch(()=>{});
+      // #endregion
       return customer;
     } catch (error: any) {
-      console.error(`[Customer Service] Error updating customer ${id}:`, error);
+      // #region agent log
+      console.error(`[DEBUG-UPD-ERR] Error updating customer ${id}:`, error.message);
+      console.error(`[DEBUG-UPD-ERR] Error stack:`, error.stack);
+      console.error(`[DEBUG-UPD-ERR] Error type:`, error.constructor.name);
+      fetch('http://127.0.0.1:7242/ingest/c288bfc6-fede-4b2e-ba41-31212e9a87d0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'customerService.ts:updateCustomer',message:'Exception caught',data:{id,errorMessage:error.message,errorName:error.name,errorStack:error.stack},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'UPD-ERR'})}).catch(()=>{});
+      // #endregion
       throw error;
     }
   },

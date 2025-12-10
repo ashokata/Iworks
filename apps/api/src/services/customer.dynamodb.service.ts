@@ -104,6 +104,10 @@ export const customerDynamoDBService = {
    * Update a customer
    */
   async updateCustomer(customerId: string, updates: Partial<Omit<Customer, 'customerId' | 'tenantId' | 'createdAt'>>): Promise<Customer | null> {
+    // #region agent log
+    console.log('[DDB-U1] updateCustomer called', JSON.stringify({ customerId, updates, tableName: CUSTOMERS_TABLE }));
+    // #endregion
+    
     const updateExpressions: string[] = [];
     const expressionAttributeNames: Record<string, string> = {};
     const expressionAttributeValues: Record<string, any> = {};
@@ -119,20 +123,35 @@ export const customerDynamoDBService = {
       }
     });
 
+    // #region agent log
+    console.log('[DDB-U2] Update expressions built', JSON.stringify({ updateExpressions, expressionAttributeNames, expressionAttributeValues }));
+    // #endregion
+
     if (updateExpressions.length === 0) {
+      // #region agent log
+      console.log('[DDB-U3] No updates to apply, returning existing customer');
+      // #endregion
       return this.getCustomer(customerId);
     }
 
-    const result = await docClient.send(
-      new UpdateCommand({
-        TableName: CUSTOMERS_TABLE,
-        Key: { customerId },
-        UpdateExpression: `SET ${updateExpressions.join(', ')}`,
-        ExpressionAttributeNames: expressionAttributeNames,
-        ExpressionAttributeValues: expressionAttributeValues,
-        ReturnValues: 'ALL_NEW',
-      })
-    );
+    const updateCommand = {
+      TableName: CUSTOMERS_TABLE,
+      Key: { customerId },
+      UpdateExpression: `SET ${updateExpressions.join(', ')}`,
+      ExpressionAttributeNames: expressionAttributeNames,
+      ExpressionAttributeValues: expressionAttributeValues,
+      ReturnValues: 'ALL_NEW' as const,
+    };
+    
+    // #region agent log
+    console.log('[DDB-U4] Sending UpdateCommand', JSON.stringify(updateCommand));
+    // #endregion
+
+    const result = await docClient.send(new UpdateCommand(updateCommand));
+
+    // #region agent log
+    console.log('[DDB-U5] UpdateCommand result', JSON.stringify({ attributes: result.Attributes }));
+    // #endregion
 
     return result.Attributes as Customer | null;
   },

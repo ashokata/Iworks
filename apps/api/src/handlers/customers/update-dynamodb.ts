@@ -18,6 +18,14 @@ const updateCustomerSchema = z.object({
 function normalizeCustomerInput(body: any): any {
   const normalized: any = {};
   
+  // Handle display_name by splitting into firstName and lastName
+  if (body.display_name) {
+    const parts = body.display_name.trim().split(/\s+/);
+    normalized.firstName = parts[0] || '';
+    normalized.lastName = parts.slice(1).join(' ') || '';
+  }
+  
+  // Direct firstName/lastName take precedence
   if (body.firstName || body.first_name) {
     normalized.firstName = body.firstName || body.first_name;
   }
@@ -56,9 +64,17 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Tenant-Id',
   };
 
+  // #region agent log
+  console.log('[UPD-L1] Lambda invoked', JSON.stringify({ path: event.path, pathParams: event.pathParameters, headers: event.headers, body: event.body?.substring(0, 500) }));
+  // #endregion
+
   try {
     // Get tenant ID from headers
     const tenantId = event.headers['x-tenant-id'] || event.headers['X-Tenant-Id'];
+    
+    // #region agent log
+    console.log('[UPD-L2] TenantId extracted', JSON.stringify({ tenantId, headerKeys: Object.keys(event.headers) }));
+    // #endregion
     
     if (!tenantId) {
       return {
@@ -73,6 +89,10 @@ export const handler: APIGatewayProxyHandler = async (event) => {
 
     // Get customer ID from path parameters
     const customerId = event.pathParameters?.customerId;
+    
+    // #region agent log
+    console.log('[UPD-L3] CustomerId from path', JSON.stringify({ customerId, pathParameters: event.pathParameters }));
+    // #endregion
     
     if (!customerId) {
       return {
@@ -111,8 +131,16 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       };
     }
 
+    // #region agent log
+    console.log('[UPD-L4] Parsed body', JSON.stringify({ body }));
+    // #endregion
+
     // First, verify the customer exists and belongs to this tenant
     const existingCustomer = await customerDynamoDBService.getCustomer(customerId);
+    
+    // #region agent log
+    console.log('[UPD-L5] Existing customer lookup', JSON.stringify({ customerId, found: !!existingCustomer, existingCustomer }));
+    // #endregion
     
     if (!existingCustomer) {
       return {
@@ -126,6 +154,9 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     }
 
     if (existingCustomer.tenantId !== tenantId) {
+      // #region agent log
+      console.log('[UPD-L6] Tenant mismatch', JSON.stringify({ existingTenantId: existingCustomer.tenantId, requestTenantId: tenantId }));
+      // #endregion
       return {
         statusCode: 403,
         headers,
@@ -138,9 +169,16 @@ export const handler: APIGatewayProxyHandler = async (event) => {
 
     // Normalize and validate input
     const normalizedBody = normalizeCustomerInput(body);
-    console.log('Normalized update input:', JSON.stringify(normalizedBody));
+    
+    // #region agent log
+    console.log('[UPD-L7] Normalized body', JSON.stringify({ normalizedBody, originalBody: body }));
+    // #endregion
 
     const validationResult = updateCustomerSchema.safeParse(normalizedBody);
+    
+    // #region agent log
+    console.log('[UPD-L8] Validation result', JSON.stringify({ success: validationResult.success, data: validationResult.success ? validationResult.data : null, errors: !validationResult.success ? validationResult.error.errors : null }));
+    // #endregion
     
     if (!validationResult.success) {
       return {
@@ -157,8 +195,16 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       };
     }
 
+    // #region agent log
+    console.log('[UPD-L9] About to call updateCustomer', JSON.stringify({ customerId, dataToUpdate: validationResult.data }));
+    // #endregion
+
     // Update customer in DynamoDB
     const updatedCustomer = await customerDynamoDBService.updateCustomer(customerId, validationResult.data);
+
+    // #region agent log
+    console.log('[UPD-L10] Update result', JSON.stringify({ customerId, updatedCustomer }));
+    // #endregion
 
     if (!updatedCustomer) {
       return {
@@ -182,7 +228,9 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       }),
     };
   } catch (error) {
-    console.error('Error updating customer:', error);
+    // #region agent log
+    console.error('[UPD-L-ERR] Exception caught', JSON.stringify({ error: error instanceof Error ? { message: error.message, stack: error.stack } : error }));
+    // #endregion
     
     return {
       statusCode: 500,
