@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import axios from 'axios';
 
 /**
- * AI Chat API endpoint - Connected to LLM Gateway
- * Routes messages to the AWS Bedrock LLM Gateway
+ * AI Chat API endpoint - Connected to AWS Lambda LLM Gateway
+ * Routes messages to the AWS Bedrock LLM Lambda function
  */
 export async function POST(request: NextRequest) {
   try {
@@ -20,101 +19,93 @@ export async function POST(request: NextRequest) {
     // Get user and tenant info from headers or context
     const userId = request.headers.get('x-user-id') || context?.userId || 'user-' + Date.now();
     const tenantId = request.headers.get('x-tenant-id') || context?.tenantId || 'tenant1';
-    const authToken = request.headers.get('authorization') || 'Bearer test-mendix-token-12345';
 
-    console.log('[AI Chat API] Sending request to LLM Gateway:', {
+    console.log('[AI Chat API] Sending request to LLM Lambda:', {
       userId,
       tenantId,
       query: message.substring(0, 100) + '...'
     });
 
-    // Call the LLM Gateway
-    const gatewayBaseUrl = process.env.LLM_GATEWAY_URL || 'http://localhost:3001';
-    const gatewayUrl = `${gatewayBaseUrl}/chat`;
+    // Call the AWS Lambda LLM Chat endpoint
+    const llmChatUrl = process.env.NEXT_PUBLIC_API_BASE_URL 
+      ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/llm-chat`
+      : 'https://gpajab36b7.execute-api.us-east-1.amazonaws.com/prod/llm-chat';
 
-    console.log('[AI Chat API] Gateway URL:', gatewayUrl);
+    console.log('[AI Chat API] LLM Chat URL:', llmChatUrl);
 
     try {
-      const gatewayResponse = await axios.post(
-        gatewayUrl,
-        {
+      const response = await fetch(llmChatUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-tenant-id': tenantId,
+          'x-user-id': userId,
+        },
+        body: JSON.stringify({
+          query: message,
           userId,
           tenantId,
-          query: message,
-          // Include conversation history if available
           history: context?.history || [],
           context: {
             currentLocation: context?.location,
             userProfile: context?.userProfile,
             ...(context || {})
           }
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': authToken,
-          },
-          timeout: 30000, // 30 second timeout
-        }
-      );
-
-      console.log('[AI Chat API] Gateway response received:', {
-        status: gatewayResponse.status,
-        hasData: !!gatewayResponse.data
+        }),
       });
 
-      // Extract the response from the gateway
-      const responseData = gatewayResponse.data;
-
-      // The gateway returns the AI response and function execution results
-      let responseMessage = responseData.message || responseData.response || 'I processed your request.';
-
-      // If a function was executed (like createCustomer), format a friendly response
-      if (responseData.functionResult) {
-        const funcResult = responseData.functionResult;
-        if (funcResult.status === 'success') {
-          responseMessage = formatSuccessResponse(funcResult);
-        }
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
       }
 
+      const responseData = await response.json();
+
+      console.log('[AI Chat API] LLM response received:', {
+        conversationId: responseData.conversationId,
+        hasReply: !!responseData.reply,
+        tool: responseData.metadata?.tool
+      });
+
+      // Return the response from the Lambda
       return NextResponse.json({
-        message: responseMessage,
-        conversationId: conversationId || `conv_${Date.now()}`,
+        message: responseData.reply || 'I processed your request.',
+        conversationId: responseData.conversationId || conversationId || `conv_${Date.now()}`,
         metadata: {
-          model: 'bedrock-claude-haiku',
-          gateway: 'llm-gateway',
-          functionExecuted: responseData.functionName,
-          tokens: responseData.usage?.total_tokens,
+          model: responseData.metadata?.model || 'claude-sonnet-4',
+          gateway: 'aws-lambda',
+          functionExecuted: responseData.metadata?.tool,
+          toolResult: responseData.metadata?.toolResult,
+          tokens: responseData.metadata?.tokensUsed,
+          latencyMs: responseData.metadata?.latencyMs,
         },
-        data: responseData.data, // Include any structured data from Mendix
+        suggestedActions: responseData.suggestedActions,
+        data: responseData.metadata?.toolResult?.data,
       });
 
-    } catch (gatewayError: any) {
-      console.error('[AI Chat API] Gateway error:', {
-        message: gatewayError.message,
-        response: gatewayError.response?.data,
-        status: gatewayError.response?.status
+    } catch (fetchError: any) {
+      console.error('[AI Chat API] LLM Lambda error:', {
+        message: fetchError.message,
       });
 
-      // If gateway is not available, provide helpful error
-      if (gatewayError.code === 'ECONNREFUSED') {
+      // If Lambda is not available, provide helpful error
+      if (fetchError.message.includes('fetch failed') || fetchError.message.includes('ECONNREFUSED')) {
         return NextResponse.json({
-          message: "I'm having trouble connecting to the AI service. Please make sure the LLM Gateway is running locally or deployed to AWS.",
+          message: "I'm having trouble connecting to the AI service. Please check your internet connection and try again.",
           conversationId: conversationId || `conv_${Date.now()}`,
           metadata: {
-            error: 'gateway_unavailable',
-            suggestion: 'Start the gateway with: cd llm-gateway && npm run invoke:local'
+            error: 'lambda_unavailable',
           }
         });
       }
 
-      // Return error from gateway
+      // Return error from Lambda
       return NextResponse.json({
-        message: `I encountered an error: ${gatewayError.response?.data?.message || gatewayError.message}. Please try again.`,
+        message: `I encountered an error: ${fetchError.message}. Please try again.`,
         conversationId: conversationId || `conv_${Date.now()}`,
         metadata: {
-          error: 'gateway_error',
-          details: gatewayError.response?.data
+          error: 'lambda_error',
+          details: fetchError.message
         }
       });
     }

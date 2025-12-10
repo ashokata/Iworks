@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 
 /**
  * AI Chat Streaming API endpoint
- * Routes requests to AWS LLM Gateway (Bedrock)
+ * Routes requests to AWS Lambda LLM Chat function
  */
 export async function POST(request: NextRequest) {
   try {
@@ -16,64 +16,51 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get LLM Gateway URL from environment
-    const gatewayUrl = process.env.LLM_GATEWAY_URL;
-
-    if (!gatewayUrl) {
-      console.error('[AI Chat Stream] LLM_GATEWAY_URL not configured');
-      return new Response(
-        JSON.stringify({ error: 'LLM Gateway not configured' }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log('[AI Chat Stream] Routing request to AWS LLM Gateway');
-
     // Get tenant and user info from headers
     const tenantId = request.headers.get('x-tenant-id') || 'tenant1';
     const userId = request.headers.get('x-user-id') || 'user-' + Date.now();
-    const authToken = request.headers.get('authorization') || '';
 
-    // Build conversation history for gateway
+    // Build conversation history
     const conversationHistory = context?.history || [];
     const messages = conversationHistory.map((msg: any) => ({
       role: msg.role === 'user' ? 'user' : 'assistant',
       content: msg.content
     }));
 
-    // Prepare request for LLM Gateway
-    const gatewayRequest = {
-      userId,
-      tenantId,
-      query: message,
-      context: {
-        currentLocation: context?.currentLocation,
-      },
-      history: messages,
-    };
+    // Call the AWS Lambda LLM Chat endpoint
+    const llmChatUrl = process.env.NEXT_PUBLIC_API_BASE_URL 
+      ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/llm-chat`
+      : 'https://gpajab36b7.execute-api.us-east-1.amazonaws.com/prod/llm-chat';
 
-    console.log('[AI Chat Stream] Calling gateway with:', {
-      url: `${gatewayUrl}/chat`,
+    console.log('[AI Chat Stream] Calling Lambda:', {
+      url: llmChatUrl,
       tenantId,
       userId,
       messageLength: message.length,
     });
 
-    // Call the LLM Gateway
-    const response = await fetch(`${gatewayUrl}/chat`, {
+    // Call the Lambda
+    const response = await fetch(llmChatUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': authToken,
-        'X-Tenant-Id': tenantId,
-        'X-User-Id': userId,
+        'x-tenant-id': tenantId,
+        'x-user-id': userId,
       },
-      body: JSON.stringify(gatewayRequest),
+      body: JSON.stringify({
+        query: message,
+        userId,
+        tenantId,
+        history: messages,
+        context: {
+          currentLocation: context?.currentLocation,
+        },
+      }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('[AI Chat Stream] Gateway error:', {
+      console.error('[AI Chat Stream] Lambda error:', {
         status: response.status,
         error: errorText,
       });
@@ -83,15 +70,15 @@ export async function POST(request: NextRequest) {
       return streamTextResponse(fallbackResponse, conversationId);
     }
 
-    const gatewayResponse = await response.json();
-    console.log('[AI Chat Stream] Gateway response received:', {
-      hasContent: !!gatewayResponse.content,
-      hasToolUse: !!gatewayResponse.tool_use,
+    const lambdaResponse = await response.json();
+    console.log('[AI Chat Stream] Lambda response received:', {
+      hasReply: !!lambdaResponse.reply,
+      tool: lambdaResponse.metadata?.tool,
     });
 
     // Stream the response back to client
-    const responseText = gatewayResponse.content || 'I received your message but had trouble generating a response. Please try again.';
-    return streamTextResponse(responseText, conversationId);
+    const responseText = lambdaResponse.reply || 'I received your message but had trouble generating a response. Please try again.';
+    return streamTextResponse(responseText, lambdaResponse.conversationId || conversationId);
 
   } catch (error: any) {
     console.error('[AI Chat Stream] Error:', {
