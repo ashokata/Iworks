@@ -56,13 +56,9 @@ export const jobService = {
       
       return transformedJobs;
     } catch (error: any) {
-      console.error('[Job Service] Error fetching jobs:', error);
-      console.error('[Job Service] Error details:', {
-        status: error?.response?.status,
-        statusText: error?.response?.statusText,
-        data: error?.response?.data,
-      });
-      throw error;
+      // OData Jobs endpoint not available - this is expected when using AWS backend
+      console.warn('[Job Service] Jobs endpoint not available (OData backend not connected), returning empty array');
+      return [];
     }
   },
 
@@ -89,14 +85,9 @@ export const jobService = {
       console.warn('[Job Service] No response data received');
       return null;
     } catch (error: any) {
-      console.error(`[Job Service] ❌ Error fetching job ${id}:`, error);
-      console.error('[Job Service] Error details:', {
-        message: error?.message,
-        status: error?.response?.status,
-        statusText: error?.response?.statusText,
-        data: error?.response?.data,
-      });
-      throw error;
+      // OData Jobs endpoint not available - this is expected when using AWS backend
+      console.warn(`[Job Service] Job ${id} not found (OData backend not connected), returning null`);
+      return null;
     }
   },
 

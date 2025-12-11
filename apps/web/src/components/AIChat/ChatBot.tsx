@@ -1,10 +1,54 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { ChatMessage } from '@/types';
 import { aiChatService } from '@/services/aiChatService';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+
+// TypeScript declarations for Web Speech API
+interface SpeechRecognitionEvent extends Event {
+  results: SpeechRecognitionResultList;
+  resultIndex: number;
+}
+
+interface SpeechRecognitionResultList {
+  length: number;
+  item(index: number): SpeechRecognitionResult;
+  [index: number]: SpeechRecognitionResult;
+}
+
+interface SpeechRecognitionResult {
+  length: number;
+  item(index: number): SpeechRecognitionAlternative;
+  [index: number]: SpeechRecognitionAlternative;
+  isFinal: boolean;
+}
+
+interface SpeechRecognitionAlternative {
+  transcript: string;
+  confidence: number;
+}
+
+interface SpeechRecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start(): void;
+  stop(): void;
+  abort(): void;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+  onerror: ((event: Event & { error: string }) => void) | null;
+  onend: (() => void) | null;
+  onstart: (() => void) | null;
+}
+
+declare global {
+  interface Window {
+    SpeechRecognition: new () => SpeechRecognition;
+    webkitSpeechRecognition: new () => SpeechRecognition;
+  }
+}
 
 interface ChatBotProps {
   onClose: () => void;
@@ -22,9 +66,13 @@ export function ChatBot({ onClose }: ChatBotProps) {
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
+  const [isListening, setIsListening] = useState(false);
+  const [speechSupported, setSpeechSupported] = useState(false);
+  const [interimTranscript, setInterimTranscript] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -37,6 +85,85 @@ export function ChatBot({ onClose }: ChatBotProps) {
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+
+  // Initialize Speech Recognition
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SpeechRecognitionAPI) {
+        setSpeechSupported(true);
+        const recognition = new SpeechRecognitionAPI();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+
+        recognition.onstart = () => {
+          console.log('[Voice] Speech recognition started');
+          setIsListening(true);
+        };
+
+        recognition.onresult = (event: SpeechRecognitionEvent) => {
+          let finalTranscript = '';
+          let interimText = '';
+
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+              finalTranscript += transcript;
+            } else {
+              interimText += transcript;
+            }
+          }
+
+          if (finalTranscript) {
+            setInputMessage((prev) => prev + finalTranscript);
+            setInterimTranscript('');
+          } else {
+            setInterimTranscript(interimText);
+          }
+        };
+
+        recognition.onerror = (event) => {
+          console.error('[Voice] Speech recognition error:', event.error);
+          setIsListening(false);
+          setInterimTranscript('');
+          
+          if (event.error === 'not-allowed') {
+            alert('Microphone access was denied. Please allow microphone access in your browser settings.');
+          }
+        };
+
+        recognition.onend = () => {
+          console.log('[Voice] Speech recognition ended');
+          setIsListening(false);
+          setInterimTranscript('');
+        };
+
+        recognitionRef.current = recognition;
+      }
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.abort();
+      }
+    };
+  }, []);
+
+  // Toggle voice input
+  const toggleVoiceInput = useCallback(() => {
+    if (!recognitionRef.current) {
+      alert('Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari.');
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current.stop();
+    } else {
+      setInterimTranscript('');
+      recognitionRef.current.start();
+    }
+  }, [isListening]);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -311,6 +438,19 @@ export function ChatBot({ onClose }: ChatBotProps) {
           </div>
         )}
 
+        {/* Voice Recording Indicator */}
+        {isListening && (
+          <div className="mb-3 flex items-center justify-center space-x-2 py-2 px-4 bg-red-50 border border-red-200 rounded-xl animate-pulse">
+            <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+            <span className="text-sm text-red-600 font-medium">Listening...</span>
+            {interimTranscript && (
+              <span className="text-sm text-gray-500 italic truncate max-w-[200px]">
+                {interimTranscript}
+              </span>
+            )}
+          </div>
+        )}
+
         <div className="flex items-end space-x-2">
           {/* File Upload Button */}
           <input
@@ -332,15 +472,43 @@ export function ChatBot({ onClose }: ChatBotProps) {
             </svg>
           </button>
 
+          {/* Voice Input Button */}
+          {speechSupported && (
+            <button
+              onClick={toggleVoiceInput}
+              className={`p-3 rounded-xl transition-all ${
+                isListening
+                  ? 'bg-red-500 text-white hover:bg-red-600 animate-pulse'
+                  : 'text-gray-500 hover:text-[#0f118a] hover:bg-gray-100'
+              }`}
+              disabled={isLoading}
+              title={isListening ? 'Stop listening' : 'Voice input'}
+            >
+              {isListening ? (
+                // Stop icon when listening
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <rect x="6" y="6" width="12" height="12" rx="2" />
+                </svg>
+              ) : (
+                // Microphone icon when not listening
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                </svg>
+              )}
+            </button>
+          )}
+
           <div className="flex-1 relative">
             <input
               ref={inputRef}
               type="text"
-              value={inputMessage}
+              value={inputMessage + (interimTranscript ? ` ${interimTranscript}` : '')}
               onChange={(e) => setInputMessage(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Type your message..."
-              className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0f118a] focus:border-transparent resize-none bg-gray-50"
+              placeholder={isListening ? "Speak now..." : "Type or speak your message..."}
+              className={`w-full px-4 py-3 pr-12 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0f118a] focus:border-transparent resize-none ${
+                isListening ? 'bg-red-50 border-red-300' : 'bg-gray-50 border-gray-300'
+              }`}
               disabled={isLoading}
             />
           </div>
@@ -355,7 +523,7 @@ export function ChatBot({ onClose }: ChatBotProps) {
           </Button>
         </div>
         <p className="text-xs text-gray-400 mt-2 text-center">
-          AIRA - Powered by AWS Bedrock AI
+          AIRA - Powered by AWS Bedrock AI {speechSupported && '• Voice enabled'}
         </p>
       </div>
     </div>

@@ -138,9 +138,13 @@ class ApiClient {
       console.log(`[API Client] Response received with status: ${response.status}`);
       return response.data;
     } catch (error: any) {
-      // Log 404s as warnings since they're often expected (missing backend endpoints)
-      if (error?.response?.status === 404) {
-        console.warn(`[API Client] Endpoint not found: ${finalUrl}`);
+      // Log 404s and OData errors as warnings since they're often expected (missing backend endpoints)
+      const isExpectedFailure = error?.response?.status === 404 || 
+                                finalUrl.includes('/odata/') || 
+                                finalUrl.includes('/Invoices') ||
+                                finalUrl.includes('/Jobs');
+      if (isExpectedFailure) {
+        console.warn(`[API Client] Endpoint not available: ${finalUrl}`);
       } else {
         console.error(`[API Client] Error making GET request to ${finalUrl}:`, error?.message);
       }

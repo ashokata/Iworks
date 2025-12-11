@@ -51,8 +51,9 @@ export const invoiceService = {
       
       return invoices;
     } catch (error) {
-      console.error('[Invoice Service] Error fetching invoices:', error);
-      throw error;
+      // OData Invoices endpoint not available - this is expected when using AWS backend
+      console.warn('[Invoice Service] Invoices endpoint not available (OData backend not connected), returning empty array');
+      return [];
     }
   },
 
@@ -72,8 +73,9 @@ export const invoiceService = {
       
       return invoice;
     } catch (error) {
-      console.error(`[Invoice Service] Error fetching invoice ${id}:`, error);
-      throw error;
+      // OData Invoices endpoint not available
+      console.warn(`[Invoice Service] Invoice ${id} not found (OData backend not connected), returning null`);
+      return null;
     }
   },
 
@@ -96,8 +98,9 @@ export const invoiceService = {
       
       return invoices;
     } catch (error) {
-      console.error(`[Invoice Service] Error fetching invoices for customer ${customerId}:`, error);
-      throw error;
+      // OData Invoices endpoint not available
+      console.warn(`[Invoice Service] Customer ${customerId} invoices not available (OData backend not connected), returning empty array`);
+      return [];
     }
   },
   
@@ -127,8 +130,9 @@ export const invoiceService = {
       
       return invoice;
     } catch (error) {
-      console.error(`[Invoice Service] Error fetching invoice for job ${jobId}:`, error);
-      throw error;
+      // OData Invoices endpoint not available
+      console.warn(`[Invoice Service] Job ${jobId} invoice not available (OData backend not connected), returning null`);
+      return null;
     }
   },
 

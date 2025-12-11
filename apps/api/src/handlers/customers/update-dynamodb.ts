@@ -5,7 +5,7 @@ import { customerDynamoDBService } from '../../services/customer.dynamodb.servic
 const updateCustomerSchema = z.object({
   firstName: z.string().min(1).optional(),
   lastName: z.string().optional(),
-  email: z.string().email().optional(),
+  email: z.string().email().optional().or(z.literal('')), // Allow empty string or valid email
   phone: z.string().optional(),
   address: z.string().optional(),
   city: z.string().optional(),
