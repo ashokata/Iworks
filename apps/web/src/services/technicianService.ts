@@ -1,6 +1,11 @@
-import { apiClient } from './apiClient';
-import { transformEmployeeFromApi, transformEmployeeToApi } from '@/config/apiSchemas/employee.schema';
-import { extractODataResponse } from '@/config/apiSchemas/utils';
+/**
+ * Technician Service - PostgreSQL Backend
+ * 
+ * This service is a wrapper around employeeService for technician-specific operations.
+ * Technicians are employees with isDispatchEnabled = true.
+ */
+
+import { employeeService, Employee } from './employeeService';
 
 export interface Technician {
   id: string;
@@ -14,7 +19,6 @@ export interface Technician {
   status?: 'Active' | 'Inactive';
   profileImage?: string;
   isTechnician?: boolean;
-  // Extended fields for detail view
   role?: string;
   specialty?: string[];
   activeJobs?: number;
@@ -26,6 +30,8 @@ export interface Technician {
   certifications?: string[];
   performanceRating?: number;
   supervisor?: string;
+  colorHex?: string;
+  jobTitle?: string;
   emergencyContact?: {
     name: string;
     phone: string;
@@ -51,88 +57,115 @@ export interface Technician {
   }>;
 }
 
+// Transform Employee to Technician format
+const transformEmployeeToTechnician = (employee: Employee): Technician => {
+  const user = employee.user;
+  const fullName = user 
+    ? `${user.firstName || ''} ${user.lastName || ''}`.trim() 
+    : (employee as any).name || 'Unknown';
+  
+  return {
+    id: employee.id,
+    name: fullName,
+    email: user?.email || (employee as any).email || '',
+    phone: user?.phone || (employee as any).phone || '',
+    skills: employee.skills?.map(s => s.skill?.name || s.skillId) || [],
+    rating: (employee as any).rating || 5,
+    tenantId: employee.tenantId,
+    yearsOfExperience: (employee as any).yearsOfExperience || 0,
+    status: employee.isArchived ? 'Inactive' : 'Active',
+    profileImage: user?.avatarUrl || '',
+    isTechnician: employee.isDispatchEnabled,
+    role: user?.role || 'FIELD_TECH',
+    specialty: [],
+    activeJobs: 0,
+    completedJobs: 0,
+    availability: employee.isArchived ? 'Inactive' : 'Active',
+    lastActive: employee.updatedAt,
+    bio: employee.notes || '',
+    hireDate: employee.hireDate,
+    certifications: employee.certifications || [],
+    performanceRating: 5,
+    colorHex: employee.colorHex,
+    jobTitle: employee.jobTitle,
+    emergencyContact: employee.emergencyContactName ? {
+      name: employee.emergencyContactName,
+      phone: employee.emergencyContactPhone || '',
+      relationship: '',
+    } : undefined,
+  };
+};
+
 export const technicianService = {
   /**
-   * Get all technicians for the current tenant
+   * Get all technicians (dispatch-enabled employees)
    */
   getAllTechnicians: async (): Promise<Technician[]> => {
     try {
-      console.log('[Technician Service] Fetching all employees from OData API');
-      const response = await apiClient.get<any>('/odata/iworks/v1/Employees');
+      console.log('[Technician Service] Fetching technicians from PostgreSQL API');
       
-      console.log('[Technician Service] Raw OData response:', response);
+      // Get dispatch-enabled employees only
+      const employees = await employeeService.getDispatchableEmployees();
       
-      // Extract OData response (handles 'value' array)
-      const employeesData = extractODataResponse(response);
-      console.log('[Technician Service] Extracted employees count:', employeesData.length);
+      console.log('[Technician Service] Received employees:', employees.length);
       
-      // Transform to frontend format
-      const technicians: Technician[] = employeesData.map(transformEmployeeFromApi);
-      console.log('[Technician Service] Transformed technicians:', technicians.length);
+      // Transform to technician format
+      const technicians = employees.map(transformEmployeeToTechnician);
       
       return technicians;
-    } catch (error) {
-      console.error('[Technician Service] Error fetching technicians:', error);
-      throw error;
+    } catch (error: any) {
+      console.warn('[Technician Service] Error fetching technicians, returning empty array:', error.message);
+      return [];
     }
   },
 
   /**
-   * Get a technician by ID
+   * Get a single technician by ID
    */
-  getTechnicianById: async (id: string): Promise<Technician> => {
+  getTechnicianById: async (id: string): Promise<Technician | null> => {
     try {
-      console.log(`[Technician Service] Fetching employee ${id} from OData API`);
-      // Use numeric ID without quotes for OData
-      const response = await apiClient.get<any>(`/odata/iworks/v1/Employees(${id})`);
+      console.log('[Technician Service] Fetching technician:', id);
       
-      console.log('[Technician Service] Raw employee response:', response);
+      const employee = await employeeService.getEmployeeById(id);
       
-      // Transform to frontend format
-      const technician = transformEmployeeFromApi(response);
-      console.log('[Technician Service] Transformed technician:', technician);
+      if (!employee) {
+        return null;
+      }
       
-      return technician;
-    } catch (error) {
-      console.error(`[Technician Service] Error fetching technician ${id}:`, error);
-      throw error;
+      return transformEmployeeToTechnician(employee);
+    } catch (error: any) {
+      console.warn('[Technician Service] Error fetching technician:', error.message);
+      return null;
     }
   },
 
   /**
    * Create a new technician
    */
-  createTechnician: async (technicianData: Omit<Technician, 'id' | 'tenantId' | 'rating' | 'skills' | 'specialty' | 'certifications'> & {
-    skills: string;
-    specialty: string;
-    certifications: string;
-    isActive: boolean;
-  }): Promise<Technician> => {
-    let apiData: any;
+  createTechnician: async (technicianData: Partial<Technician>): Promise<Technician> => {
     try {
-      console.log('[Technician Service] Creating new employee via OData API');
-      console.log('[Technician Service] Input data:', JSON.stringify(technicianData, null, 2));
+      console.log('[Technician Service] Creating technician');
       
-      // Transform to API format and force isTechnician to true
-      apiData = transformEmployeeToApi({ ...technicianData, isTechnician: true } as any);
-      console.log('[Technician Service] Transformed API data:', JSON.stringify(apiData, null, 2));
+      // Split name into firstName and lastName
+      const nameParts = (technicianData.name || '').trim().split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
       
-      const response = await apiClient.post<any>('/odata/iworks/v1/Employees', apiData);
-      console.log('[Technician Service] Create response:', JSON.stringify(response, null, 2));
+      const employee = await employeeService.createEmployee({
+        email: technicianData.email || '',
+        firstName,
+        lastName,
+        phone: technicianData.phone,
+        role: 'FIELD_TECH',
+        jobTitle: technicianData.jobTitle || technicianData.role || 'Field Technician',
+        colorHex: technicianData.colorHex,
+        isDispatchEnabled: true,
+        canBeBookedOnline: true,
+      });
       
-      // Transform response back to frontend format
-      const technician = transformEmployeeFromApi(response);
-      return technician;
+      return transformEmployeeToTechnician(employee);
     } catch (error: any) {
       console.error('[Technician Service] Error creating technician:', error);
-      console.error('[Technician Service] Error details:', {
-        message: error?.message,
-        status: error?.response?.status,
-        statusText: error?.response?.statusText,
-        responseData: error?.response?.data,
-        requestData: apiData,
-        fullError: JSON.stringify(error, null, 2)
-      });
       throw error;
     }
   },
@@ -140,103 +173,60 @@ export const technicianService = {
   /**
    * Update a technician
    */
-  updateTechnician: async (id: string, technicianData: any): Promise<Technician> => {
+  updateTechnician: async (id: string, technicianData: Partial<Technician>): Promise<Technician> => {
     try {
-      console.log(`[Technician Service] Updating employee ${id} via OData API`);
-      console.log('[Technician Service] Input update data:', JSON.stringify(technicianData, null, 2));
+      console.log('[Technician Service] Updating technician:', id);
       
-      // Transform to API format and force isTechnician to true
-      const apiData = transformEmployeeToApi({ ...technicianData, isTechnician: true } as Technician);
-      console.log('[Technician Service] Transformed API update data:', JSON.stringify(apiData, null, 2));
+      // Split name into firstName and lastName if provided
+      let firstName: string | undefined;
+      let lastName: string | undefined;
       
-      // Use PATCH for partial updates with numeric ID
-      const response = await apiClient.patch<any>(`/odata/iworks/v1/Employees(${id})`, apiData);
-      console.log('[Technician Service] Update response:', JSON.stringify(response, null, 2));
+      if (technicianData.name) {
+        const nameParts = technicianData.name.trim().split(' ');
+        firstName = nameParts[0];
+        lastName = nameParts.slice(1).join(' ');
+      }
       
-      // Transform response back to frontend format
-      const technician = transformEmployeeFromApi(response);
-      return technician;
-    } catch (error: any) {
-      console.error(`[Technician Service] Error updating technician ${id}:`, error);
-      console.error('[Technician Service] Update error details:', {
-        message: error?.message,
-        status: error?.response?.status,
-        statusText: error?.response?.statusText,
-        responseData: error?.response?.data,
-        fullError: JSON.stringify(error, null, 2)
+      const employee = await employeeService.updateEmployee(id, {
+        firstName,
+        lastName,
+        phone: technicianData.phone,
+        jobTitle: technicianData.jobTitle || technicianData.role,
+        colorHex: technicianData.colorHex,
+        notes: technicianData.bio,
+        emergencyContactName: technicianData.emergencyContact?.name,
+        emergencyContactPhone: technicianData.emergencyContact?.phone,
       });
+      
+      return transformEmployeeToTechnician(employee);
+    } catch (error: any) {
+      console.error('[Technician Service] Error updating technician:', error);
       throw error;
     }
   },
 
   /**
-   * Delete a technician
+   * Delete (archive) a technician
    */
   deleteTechnician: async (id: string): Promise<void> => {
     try {
-      console.log(`[Technician Service] Deleting employee ${id} via OData API`);
-      await apiClient.delete(`/odata/iworks/v1/Employees('${id}')`);
-      console.log('[Technician Service] Delete successful');
-    } catch (error) {
-      console.error(`[Technician Service] Error deleting technician ${id}:`, error);
+      console.log('[Technician Service] Deleting technician:', id);
+      await employeeService.archiveEmployee(id);
+    } catch (error: any) {
+      console.error('[Technician Service] Error deleting technician:', error);
       throw error;
     }
   },
 
   /**
-   * Get technician schedule
+   * Get technician availability/schedule
    */
-  getTechnicianSchedule: async (id: string, startDate?: string, endDate?: string): Promise<any[]> => {
+  getTechnicianSchedule: async (id: string): Promise<any[]> => {
     try {
-      const queryParams = new URLSearchParams();
-      if (startDate) queryParams.append('startDate', startDate);
-      if (endDate) queryParams.append('endDate', endDate);
-      
-      const url = `/api/technicians/${id}/schedule${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
-      const response = await apiClient.get<any[]>(url);
-      return response;
-    } catch (err) {
-      console.log("API not available, returning mock schedule");
-      // Return mock schedule data
-      return [
-        {
-          id: 'job-001',
-          title: 'Maintenance Service',
-          startTime: '2025-07-22T09:00:00',
-          endTime: '2025-07-22T11:00:00',
-          status: 'Scheduled',
-          customer: 'John Smith'
-        },
-        {
-          id: 'job-002',
-          title: 'AC Repair',
-          startTime: '2025-07-22T13:00:00',
-          endTime: '2025-07-22T15:00:00',
-          status: 'Scheduled',
-          customer: 'Jane Doe'
-        }
-      ];
+      return await employeeService.getEmployeeSchedule(id);
+    } catch (error: any) {
+      console.warn('[Technician Service] Error fetching schedule:', error.message);
+      return [];
     }
   },
-
-  /**
-   * Get technician performance metrics
-   */
-  getTechnicianPerformance: async (id: string, period: 'week' | 'month' | 'year' = 'month'): Promise<any> => {
-    try {
-      const response = await apiClient.get<any>(`/api/technicians/${id}/performance?period=${period}`);
-      return response;
-    } catch (err) {
-      console.log("API not available, returning mock performance metrics");
-      // Return mock performance data
-      return {
-        completedJobs: 24,
-        averageRating: 4.7,
-        onTimePercentage: 92,
-        averageCompletionTime: 78, // minutes
-        revenueGenerated: 9850,
-        period
-      };
-    }
-  }
 };

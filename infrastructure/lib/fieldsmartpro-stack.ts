@@ -16,8 +16,24 @@ export class FieldSmartProStack extends cdk.Stack {
     // VPC for RDS
     const vpc = new ec2.Vpc(this, 'FieldSmartProVPC', {
       maxAzs: 2,
-      natGateways: 0,
+      natGateways: 1, // Need NAT for Lambda to access internet (for Prisma)
     });
+
+    // Security group for Lambda functions
+    const lambdaSg = new ec2.SecurityGroup(this, 'LambdaSecurityGroup', {
+      vpc,
+      description: 'Security group for Lambda functions',
+      allowAllOutbound: true,
+    });
+
+    // Security group for RDS
+    const dbSg = new ec2.SecurityGroup(this, 'DatabaseSecurityGroup', {
+      vpc,
+      description: 'Security group for Aurora PostgreSQL',
+    });
+
+    // Allow Lambda to connect to RDS
+    dbSg.addIngressRule(lambdaSg, ec2.Port.tcp(5432), 'Allow Lambda to connect to PostgreSQL');
 
     // Database credentials
     const dbSecret = new secretsmanager.Secret(this, 'DBSecret', {
@@ -37,15 +53,16 @@ export class FieldSmartProStack extends cdk.Stack {
       credentials: rds.Credentials.fromSecret(dbSecret),
       defaultDatabaseName: 'fieldsmartpro',
       vpc,
-      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+      securityGroups: [dbSg],
       serverlessV2MinCapacity: 0.5,
-      serverlessV2MaxCapacity: 2,
+      serverlessV2MaxCapacity: 4,
       writer: rds.ClusterInstance.serverlessV2('writer'),
       deletionProtection: false,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
-    // DynamoDB Tables
+    // DynamoDB Tables (keep for AI conversations and caching)
     const conversationsTable = new dynamodb.Table(this, 'ConversationsTable', {
       partitionKey: { name: 'conversationId', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
@@ -66,165 +83,142 @@ export class FieldSmartProStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
-    // Customers DynamoDB Table (for serverless customer storage)
-    const customersTable = new dynamodb.Table(this, 'CustomersTable', {
-      partitionKey: { name: 'customerId', type: dynamodb.AttributeType.STRING },
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-    });
+    // Construct DATABASE_URL for Prisma
+    const databaseUrl = `postgresql://${dbSecret.secretValueFromJson('username').unsafeUnwrap()}:${dbSecret.secretValueFromJson('password').unsafeUnwrap()}@${dbCluster.clusterEndpoint.hostname}:5432/fieldsmartpro?schema=public`;
 
-    customersTable.addGlobalSecondaryIndex({
-      indexName: 'tenantId-index',
-      partitionKey: { name: 'tenantId', type: dynamodb.AttributeType.STRING },
-      sortKey: { name: 'createdAt', type: dynamodb.AttributeType.NUMBER },
-    });
-
-    // Lambda environment
-    const lambdaEnv = {
-      DATABASE_URL: `postgresql://${dbSecret.secretValueFromJson('username').unsafeUnwrap()}:${dbSecret.secretValueFromJson('password').unsafeUnwrap()}@${dbCluster.clusterEndpoint.hostname}:5432/fieldsmartpro`,
+    // Lambda environment for PostgreSQL functions
+    const postgresLambdaEnv = {
+      DATABASE_URL: databaseUrl,
       DYNAMODB_CONVERSATIONS_TABLE: conversationsTable.tableName,
       DYNAMODB_CACHE_TABLE: cacheTable.tableName,
-      DYNAMODB_CUSTOMERS_TABLE: customersTable.tableName,
       NODE_ENV: 'production',
     };
 
-    // Lambda Functions
-    const createJobFn = new lambda.Function(this, 'CreateJobFunction', {
+    // Common Lambda configuration for PostgreSQL functions
+    const postgresLambdaConfig = {
       runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'handlers/jobs/create.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '../../apps/api/dist')),
-      environment: lambdaEnv,
+      environment: postgresLambdaEnv,
       vpc,
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+      securityGroups: [lambdaSg],
       timeout: cdk.Duration.seconds(30),
+      memorySize: 512, // More memory for Prisma
+    };
+
+    // ============================================================================
+    // CUSTOMER HANDLERS (PostgreSQL)
+    // ============================================================================
+    
+    const createCustomerFn = new lambda.Function(this, 'CreateCustomerFunction', {
+      ...postgresLambdaConfig,
+      handler: 'handlers/customers/create-postgres.handler',
+      description: 'Create customer in PostgreSQL',
     });
 
-    const chatFn = new lambda.Function(this, 'ChatFunction', {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'handlers/chat/index.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../apps/api/dist')),
-      environment: lambdaEnv,
-      vpc,
-      timeout: cdk.Duration.seconds(60),
+    const listCustomersFn = new lambda.Function(this, 'ListCustomersFunction', {
+      ...postgresLambdaConfig,
+      handler: 'handlers/customers/list-postgres.handler',
+      description: 'List customers from PostgreSQL',
     });
+
+    const getCustomerFn = new lambda.Function(this, 'GetCustomerFunction', {
+      ...postgresLambdaConfig,
+      handler: 'handlers/customers/get-postgres.handler',
+      description: 'Get customer from PostgreSQL',
+    });
+
+    const updateCustomerFn = new lambda.Function(this, 'UpdateCustomerFunction', {
+      ...postgresLambdaConfig,
+      handler: 'handlers/customers/update-postgres.handler',
+      description: 'Update customer in PostgreSQL',
+    });
+
+    // ============================================================================
+    // JOB HANDLERS (PostgreSQL)
+    // ============================================================================
+
+    const createJobFn = new lambda.Function(this, 'CreateJobFunction', {
+      ...postgresLambdaConfig,
+      handler: 'handlers/jobs/create.handler',
+      description: 'Create job in PostgreSQL',
+    });
+
+    // ============================================================================
+    // UTILITY HANDLERS
+    // ============================================================================
 
     const healthFn = new lambda.Function(this, 'HealthFunction', {
       runtime: lambda.Runtime.NODEJS_20_X,
       handler: 'handlers/health/index.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '../../apps/api/dist')),
-      environment: lambdaEnv,
-      vpc,
+      environment: {
+        NODE_ENV: 'production',
+      },
       timeout: cdk.Duration.seconds(10),
     });
 
     const seedFn = new lambda.Function(this, 'SeedFunction', {
-      runtime: lambda.Runtime.NODEJS_20_X,
+      ...postgresLambdaConfig,
       handler: 'handlers/seed/index.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../apps/api/dist')),
-      environment: lambdaEnv,
-      vpc,
+      description: 'Seed database with initial data',
       timeout: cdk.Duration.seconds(300), // 5 minutes for seeding
     });
 
     const migrateFn = new lambda.Function(this, 'MigrateFunction', {
-      runtime: lambda.Runtime.NODEJS_20_X,
+      ...postgresLambdaConfig,
       handler: 'handlers/migrate/index.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../apps/api/dist')),
-      environment: lambdaEnv,
-      vpc,
+      description: 'Run database migrations',
       timeout: cdk.Duration.seconds(300), // 5 minutes for migrations
     });
 
-    // Customer DynamoDB Lambdas (serverless - no VPC needed)
-    const dynamoDBCustomerEnv = {
-      DYNAMODB_CUSTOMERS_TABLE: customersTable.tableName,
-      NODE_ENV: 'production',
-    };
+    // ============================================================================
+    // CHAT & AI HANDLERS
+    // ============================================================================
 
-    const createCustomerDynamoDBFn = new lambda.Function(this, 'CreateCustomerDynamoDBFunction', {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'handlers/customers/create-dynamodb.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../apps/api/dist')),
-      environment: dynamoDBCustomerEnv,
-      timeout: cdk.Duration.seconds(30),
+    const chatFn = new lambda.Function(this, 'ChatFunction', {
+      ...postgresLambdaConfig,
+      handler: 'handlers/chat/index.handler',
+      description: 'Chat handler with Bedrock integration',
+      timeout: cdk.Duration.seconds(60),
     });
 
-    const listCustomersDynamoDBFn = new lambda.Function(this, 'ListCustomersDynamoDBFunction', {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'handlers/customers/list-dynamodb.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../apps/api/dist')),
-      environment: dynamoDBCustomerEnv,
-      timeout: cdk.Duration.seconds(30),
-    });
-
-    const getCustomerDynamoDBFn = new lambda.Function(this, 'GetCustomerDynamoDBFunction', {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'handlers/customers/get-dynamodb.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../apps/api/dist')),
-      environment: dynamoDBCustomerEnv,
-      timeout: cdk.Duration.seconds(30),
-    });
-
-    const updateCustomerDynamoDBFn = new lambda.Function(this, 'UpdateCustomerDynamoDBFunction', {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'handlers/customers/update-dynamodb.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../apps/api/dist')),
-      environment: dynamoDBCustomerEnv,
-      timeout: cdk.Duration.seconds(30),
-    });
-
-    // LLM Chat Lambda with Bedrock integration (serverless - no VPC needed)
-    const llmChatEnv = {
-      DYNAMODB_CUSTOMERS_TABLE: customersTable.tableName,
-      DYNAMODB_CONVERSATIONS_TABLE: conversationsTable.tableName,
-      BEDROCK_MODEL_ID: 'us.anthropic.claude-sonnet-4-20250514-v1:0',
-      BEDROCK_FALLBACK_MODEL: 'us.anthropic.claude-3-5-sonnet-20241022-v2:0',
-      BEDROCK_MAX_TOKENS: '4096',
-      BEDROCK_TEMPERATURE: '0.7',
-      NODE_ENV: 'production',
-    };
-
+    // LLM Chat Lambda with Bedrock integration (uses PostgreSQL for function calls)
     const llmChatFn = new lambda.Function(this, 'LLMChatFunction', {
-      runtime: lambda.Runtime.NODEJS_20_X,
+      ...postgresLambdaConfig,
       handler: 'handlers/llm-chat/index.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../apps/api/dist')),
-      environment: llmChatEnv,
-      timeout: cdk.Duration.seconds(90), // Longer timeout for LLM calls
-      memorySize: 512, // More memory for LLM processing
+      description: 'LLM chat with function calling (PostgreSQL)',
+      timeout: cdk.Duration.seconds(90),
+      memorySize: 1024, // More memory for LLM processing
+      environment: {
+        ...postgresLambdaEnv,
+        BEDROCK_MODEL_ID: 'us.anthropic.claude-sonnet-4-20250514-v1:0',
+        BEDROCK_FALLBACK_MODEL: 'us.anthropic.claude-3-5-sonnet-20241022-v2:0',
+        BEDROCK_MAX_TOKENS: '4096',
+        BEDROCK_TEMPERATURE: '0.7',
+      },
     });
 
-    // Grant Bedrock permissions to LLM Chat Lambda
-    llmChatFn.addToRolePolicy(new iam.PolicyStatement({
+    // Grant Bedrock permissions
+    const bedrockPolicy = new iam.PolicyStatement({
       actions: ['bedrock:InvokeModel', 'bedrock:InvokeModelWithResponseStream'],
       resources: ['*'],
-    }));
-
-    // Grant DynamoDB permissions to LLM Chat Lambda
-    customersTable.grantReadWriteData(llmChatFn);
-    conversationsTable.grantReadWriteData(llmChatFn);
-
-    // Grant permissions
-    [createJobFn, chatFn, healthFn, seedFn, migrateFn].forEach(fn => {
-      dbCluster.connections.allowDefaultPortFrom(fn);
     });
+    chatFn.addToRolePolicy(bedrockPolicy);
+    llmChatFn.addToRolePolicy(bedrockPolicy);
 
+    // Grant DynamoDB permissions for conversations
     conversationsTable.grantReadWriteData(chatFn);
+    conversationsTable.grantReadWriteData(llmChatFn);
     cacheTable.grantReadWriteData(chatFn);
-    
-    // Grant DynamoDB permissions to customer Lambdas
-    customersTable.grantReadWriteData(createCustomerDynamoDBFn);
-    customersTable.grantReadData(listCustomersDynamoDBFn);
-    customersTable.grantReadData(getCustomerDynamoDBFn);
-    customersTable.grantReadWriteData(updateCustomerDynamoDBFn);
 
-    chatFn.addToRolePolicy(new iam.PolicyStatement({
-      actions: ['bedrock:InvokeModel', 'bedrock:InvokeModelWithResponseStream'],
-      resources: ['*'],
-    }));
+    // ============================================================================
+    // API GATEWAY
+    // ============================================================================
 
-    // API Gateway
     const api = new apigateway.RestApi(this, 'FieldSmartProAPI', {
       restApiName: 'FieldSmartPro API',
-      description: 'Field service management API - Replaces Mendix',
+      description: 'Field service management API - PostgreSQL Backend',
       defaultCorsPreflightOptions: {
         allowOrigins: apigateway.Cors.ALL_ORIGINS,
         allowMethods: apigateway.Cors.ALL_METHODS,
@@ -232,22 +226,25 @@ export class FieldSmartProStack extends cdk.Stack {
       },
     });
 
-    // Routes
+    // Health endpoint
     const health = api.root.addResource('health');
     health.addMethod('GET', new apigateway.LambdaIntegration(healthFn));
 
-    // Customer endpoints - using DynamoDB
+    // Customer endpoints (PostgreSQL)
     const customers = api.root.addResource('customers');
-    customers.addMethod('GET', new apigateway.LambdaIntegration(listCustomersDynamoDBFn));
-    customers.addMethod('POST', new apigateway.LambdaIntegration(createCustomerDynamoDBFn));
+    customers.addMethod('GET', new apigateway.LambdaIntegration(listCustomersFn));
+    customers.addMethod('POST', new apigateway.LambdaIntegration(createCustomerFn));
     
     const customerById = customers.addResource('{customerId}');
-    customerById.addMethod('GET', new apigateway.LambdaIntegration(getCustomerDynamoDBFn));
-    customerById.addMethod('PUT', new apigateway.LambdaIntegration(updateCustomerDynamoDBFn));
+    customerById.addMethod('GET', new apigateway.LambdaIntegration(getCustomerFn));
+    customerById.addMethod('PUT', new apigateway.LambdaIntegration(updateCustomerFn));
+    customerById.addMethod('DELETE', new apigateway.LambdaIntegration(updateCustomerFn)); // Soft delete
 
+    // Job endpoints (PostgreSQL)
     const jobs = api.root.addResource('jobs');
     jobs.addMethod('POST', new apigateway.LambdaIntegration(createJobFn));
 
+    // Chat endpoints
     const chat = api.root.addResource('chat');
     chat.addMethod('POST', new apigateway.LambdaIntegration(chatFn));
 
@@ -255,13 +252,17 @@ export class FieldSmartProStack extends cdk.Stack {
     const llmChat = api.root.addResource('llm-chat');
     llmChat.addMethod('POST', new apigateway.LambdaIntegration(llmChatFn));
 
+    // Admin endpoints
     const migrate = api.root.addResource('migrate');
     migrate.addMethod('POST', new apigateway.LambdaIntegration(migrateFn));
 
     const seed = api.root.addResource('seed');
     seed.addMethod('POST', new apigateway.LambdaIntegration(seedFn));
 
-    // Outputs
+    // ============================================================================
+    // OUTPUTS
+    // ============================================================================
+
     new cdk.CfnOutput(this, 'ApiUrl', {
       value: api.url,
       description: 'API Gateway endpoint',
@@ -269,10 +270,17 @@ export class FieldSmartProStack extends cdk.Stack {
 
     new cdk.CfnOutput(this, 'DatabaseEndpoint', {
       value: dbCluster.clusterEndpoint.hostname,
+      description: 'Aurora PostgreSQL endpoint',
     });
 
     new cdk.CfnOutput(this, 'DatabaseSecretArn', {
       value: dbSecret.secretArn,
+      description: 'Database credentials secret ARN',
+    });
+
+    new cdk.CfnOutput(this, 'VpcId', {
+      value: vpc.vpcId,
+      description: 'VPC ID',
     });
   }
 }

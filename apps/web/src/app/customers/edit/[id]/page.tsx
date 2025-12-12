@@ -23,11 +23,36 @@ import {
 
 type AddressType = 'Primary' | 'Billing' | 'Service';
 
+// Map database address type to frontend address type
+const mapDbTypeToAddressType = (dbType: string | undefined): AddressType => {
+  if (!dbType) return 'Primary';
+  const typeMap: Record<string, AddressType> = {
+    'BOTH': 'Primary',
+    'SERVICE': 'Service',
+    'BILLING': 'Billing',
+  };
+  return typeMap[dbType] || 'Primary';
+};
+
 type FormCustomerAddress = CustomerAddress & {
   addressType?: AddressType;
   street2?: string;
   county?: string;
   country?: string;
+  isNew?: boolean; // Flag to track newly added addresses (not yet saved to DB)
+};
+
+// Generate a proper UUID v4
+const generateUUID = (): string => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback for older browsers
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
 };
 
 type FormData = {
@@ -91,14 +116,14 @@ export default function PetCustomerEditPage() {
     }
   }, [isAuthenticated, authLoading, router]);
 
-  // Fetch customer data with cache-first strategy
+  // Fetch customer data - always refetch to get latest addresses
   const { data: customer, isLoading, isError, error, refetch, dataUpdatedAt, isFetching } = useQuery({
     queryKey: ['customer', customerId],
     queryFn: () => customerService.getCustomerById(customerId),
     enabled: !!customerId && isAuthenticated,
-    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+    staleTime: 0, // Always consider data stale to refetch
     gcTime: 30 * 60 * 1000, // Keep in cache for 30 minutes
-    refetchOnMount: false, // Don't refetch if cache exists
+    refetchOnMount: 'always', // Always refetch on mount
     refetchOnWindowFocus: false, // Don't refetch on window focus
     refetchOnReconnect: false, // Don't refetch on reconnect
   });
@@ -119,8 +144,22 @@ export default function PetCustomerEditPage() {
         has_improved_card_on_file: customer.has_improved_card_on_file || false,
         is_contractor: customer.is_contractor || false,
         notes: customer.notes || '',
-        addresses: customer.addresses?.data || [],
-        tags: customer.tags.data || [],
+        // Handle both { data: [...] } format and direct array format
+        // Existing addresses from DB have isNew: false
+        addresses: (customer.addresses?.data || customer.addresses || []).map((addr: any) => ({
+          id: addr.id,
+          addressType: addr.addressType || mapDbTypeToAddressType(addr.type) || 'Primary',
+          street: addr.street || '',
+          street2: addr.streetLine2 || addr.street2 || '',
+          city: addr.city || '',
+          state: addr.state || '',
+          zipCode: addr.zipCode || addr.zip || '',
+          county: addr.county || '',
+          country: addr.country || 'US',
+          isPrimary: addr.isPrimary || false,
+          isNew: false, // Existing addresses from database
+        })),
+        tags: customer.tags?.data || customer.tags || [],
       });
     }
   }, [customer]);
@@ -197,13 +236,14 @@ export default function PetCustomerEditPage() {
       addresses: [
         ...prev.addresses,
         {
-          id: `temp-${Date.now()}`,
+          id: generateUUID(), // Proper UUID for the new address
           addressType: defaultType,
           street: '',
           city: '',
           state: '',
           zipCode: '',
-          isPrimary: defaultType === 'Primary'
+          isPrimary: defaultType === 'Primary',
+          isNew: true, // Flag to indicate this is a new address not yet in DB
         }
       ]
     }));
@@ -333,7 +373,7 @@ export default function PetCustomerEditPage() {
         await customerService.updateCustomer(customerId, customerUpdate);
         
         // Handle address updates
-        const existingAddresses = customer.addresses?.data || [];
+        const existingAddresses = customer.addresses?.data || customer.addresses || [];
         const currentAddresses = formData.addresses;
         
         // Delete removed addresses
@@ -350,32 +390,33 @@ export default function PetCustomerEditPage() {
         
         // Update existing addresses or create new ones
         for (const addr of currentAddresses) {
-          if (addr.id) {
-            // Update existing address - only send fields that can be updated
+          const addressPayload = {
+            street: addr.street,
+            city: addr.city,
+            state: addr.state,
+            zipCode: addr.zipCode,
+            street2: addr.street2,
+            county: addr.county,
+            country: addr.country,
+            addressType: addr.addressType,
+            isPrimary: addr.isPrimary,
+          };
+          
+          if (addr.isNew) {
+            // Create new address (isNew flag indicates it hasn't been saved to DB yet)
             try {
-              const updatePayload = {
-                street: addr.street,
-                city: addr.city,
-                state: addr.state,
-                zipCode: addr.zipCode,
-                street2: addr.street2,
-                county: addr.county,
-                country: addr.country,
-                addressType: addr.addressType,
-                isPrimary: addr.isPrimary
-              };
-              console.log('🔍 Updating address with payload:', updatePayload);
-              console.log('🔍 Address ID:', addr.id);
-              await customerService.updateCustomerAddress(customerId, String(addr.id), updatePayload);
+              console.log('[Address] Creating new address:', addressPayload);
+              await customerService.addCustomerAddress(customerId, addressPayload);
             } catch (err) {
-              console.warn('Failed to update address:', err);
+              console.warn('[Address] Failed to create address:', err);
             }
-          } else {
-            // Create new address
+          } else if (addr.id) {
+            // Update existing address
             try {
-              await customerService.addCustomerAddress(customerId, addr);
+              console.log('[Address] Updating address:', addr.id, addressPayload);
+              await customerService.updateCustomerAddress(customerId, String(addr.id), addressPayload);
             } catch (err) {
-              console.warn('Failed to create address:', err);
+              console.warn('[Address] Failed to update address:', err);
             }
           }
         }
@@ -390,7 +431,7 @@ export default function PetCustomerEditPage() {
         const updatedCustomerData = {
           ...customer,
           ...customerUpdate,
-          addresses: { ...customer.addresses, data: formData.addresses }
+          addresses: formData.addresses, // Store as array, not wrapped in { data: }
         };
         
         queryClient.setQueryData(['customer', customerId], updatedCustomerData);

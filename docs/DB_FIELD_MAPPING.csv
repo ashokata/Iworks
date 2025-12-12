@@ -1,0 +1,538 @@
+Entity,SQL Schema Field,SQL Type,SQL Constraints,Current Frontend Field,Current DynamoDB Field,Current Type,Status,Migration Priority,Notes
+,,,,,,,,
+=== CUSTOMERS ===,,,,,,,,
+customers,id,UUID,PRIMARY KEY,id,customerId,string,MAPPED,N/A,Frontend maps customerId to id
+customers,tenant_id,UUID,NOT NULL FK,tenantId,tenantId,string,MAPPED,N/A,Multi-tenant isolation
+customers,customer_number,VARCHAR(50),,N/A,N/A,N/A,MISSING,P2,Auto-generated customer reference number
+customers,type,customer_type ENUM,DEFAULT 'RESIDENTIAL',type,N/A,N/A,PARTIAL,P2,"Frontend has 'homeowner'/'business', SQL has RESIDENTIAL/COMMERCIAL/CONTRACTOR"
+customers,first_name,VARCHAR(100),,first_name / firstName,firstName,string,MAPPED,N/A,Different naming conventions
+customers,last_name,VARCHAR(100),,last_name / lastName,lastName,string,MAPPED,N/A,Different naming conventions
+customers,company_name,VARCHAR(255),,company,N/A,N/A,MISSING,P2,Not stored in DynamoDB
+customers,display_name,VARCHAR(255),GENERATED,display_name,N/A,N/A,MISSING,P3,Computed field - can be added
+customers,email,VARCHAR(255),,email,email,string,MAPPED,N/A,
+customers,mobile_phone,VARCHAR(20),,mobile_number,phone,string,MAPPED,N/A,Frontend uses mobile_number
+customers,home_phone,VARCHAR(20),,home_number,N/A,N/A,MISSING,P2,Not stored in DynamoDB
+customers,work_phone,VARCHAR(20),,work_number,N/A,N/A,MISSING,P2,Not stored in DynamoDB
+customers,preferred_contact_method,message_channel ENUM,DEFAULT 'SMS',N/A,N/A,N/A,MISSING,P3,New feature
+customers,notifications_enabled,BOOLEAN,DEFAULT true,notifications_enabled,N/A,N/A,MISSING,P2,Frontend has it but not stored
+customers,do_not_service,BOOLEAN,DEFAULT false,N/A,N/A,N/A,MISSING,P3,New feature
+customers,do_not_service_reason,TEXT,,N/A,N/A,N/A,MISSING,P3,New feature
+customers,lead_source_id,UUID,FK,N/A,N/A,N/A,MISSING,P3,Requires lead_sources table
+customers,referred_by_customer_id,UUID,FK,N/A,N/A,N/A,MISSING,P3,Referral tracking
+customers,lifetime_value,DECIMAL(12.2),DEFAULT 0,N/A,N/A,N/A,MISSING,P3,Calculated field
+customers,total_jobs,INTEGER,DEFAULT 0,N/A,N/A,N/A,MISSING,P3,Calculated field
+customers,notes,TEXT,,notes,notes,string,MAPPED,N/A,
+customers,custom_fields,JSONB,DEFAULT '{}',N/A,N/A,N/A,MISSING,P3,Extensibility
+customers,is_archived,BOOLEAN,DEFAULT false,N/A,N/A,N/A,MISSING,P3,Soft delete
+customers,archived_at,TIMESTAMPTZ,,N/A,N/A,N/A,MISSING,P3,Soft delete timestamp
+customers,created_by,UUID,FK,N/A,N/A,N/A,MISSING,P3,Audit trail
+customers,created_at,TIMESTAMPTZ,DEFAULT NOW(),createdAt,createdAt,number,MAPPED,N/A,Timestamp format differs
+customers,updated_at,TIMESTAMPTZ,DEFAULT NOW(),updatedAt,updatedAt,number,MAPPED,N/A,Timestamp format differs
+,,,,,,,,
+=== ADDRESSES (New Table) ===,,,,,,,,
+addresses,id,UUID,PRIMARY KEY,N/A,N/A,N/A,NEW TABLE,P1,Separate addresses table
+addresses,customer_id,UUID,NOT NULL FK,N/A,N/A,N/A,NEW TABLE,P1,Links to customer
+addresses,type,address_type ENUM,DEFAULT 'SERVICE',N/A,N/A,N/A,NEW TABLE,P1,"SERVICE/BILLING/BOTH"
+addresses,name,VARCHAR(100),,N/A,N/A,N/A,NEW TABLE,P2,Address label
+addresses,street,VARCHAR(255),NOT NULL,address,address,string,PARTIAL,P1,Currently embedded in customer
+addresses,street_line_2,VARCHAR(100),,addressLine2,N/A,N/A,MISSING,P2,
+addresses,city,VARCHAR(100),NOT NULL,city,city,string,PARTIAL,P1,Currently embedded in customer
+addresses,state,VARCHAR(50),NOT NULL,state,state,string,PARTIAL,P1,Currently embedded in customer
+addresses,zip,VARCHAR(20),NOT NULL,zipCode,zipCode,string,PARTIAL,P1,Currently embedded in customer
+addresses,country,VARCHAR(2),DEFAULT 'US',N/A,N/A,N/A,MISSING,P3,
+addresses,latitude,DECIMAL(10.7),,N/A,N/A,N/A,MISSING,P2,Geocoding
+addresses,longitude,DECIMAL(10.7),,N/A,N/A,N/A,MISSING,P2,Geocoding
+addresses,timezone,VARCHAR(50),,N/A,N/A,N/A,MISSING,P3,
+addresses,access_notes,TEXT,,N/A,N/A,N/A,MISSING,P2,Service notes
+addresses,gate_code,VARCHAR(50),,N/A,N/A,N/A,MISSING,P2,Access info
+addresses,is_primary,BOOLEAN,DEFAULT false,N/A,N/A,N/A,NEW TABLE,P1,
+addresses,is_verified,BOOLEAN,DEFAULT false,N/A,N/A,N/A,MISSING,P3,Address verification
+,,,,,,,,
+=== JOBS ===,,,,,,,,
+jobs,id,UUID,PRIMARY KEY,id,N/A,number,MAPPED,N/A,Frontend uses number type
+jobs,tenant_id,UUID,NOT NULL FK,tenantId,N/A,string,MAPPED,N/A,
+jobs,job_number,VARCHAR(50),NOT NULL UNIQUE,N/A,N/A,N/A,MISSING,P1,Auto-generated job reference
+jobs,customer_id,UUID,NOT NULL FK,customerId,N/A,N/A,MISSING,P1,Links to customer
+jobs,address_id,UUID,NOT NULL FK,N/A,N/A,N/A,MISSING,P1,Links to service address
+jobs,job_type_id,UUID,FK,jobType,N/A,N/A,PARTIAL,P2,Frontend has string jobType
+jobs,status,job_status ENUM,DEFAULT 'UNSCHEDULED',status,N/A,string,PARTIAL,P1,"Different enum values - need mapping"
+jobs,priority,job_priority ENUM,DEFAULT 'NORMAL',priority,N/A,string,PARTIAL,P1,"Different enum values - need mapping"
+jobs,source,job_source ENUM,DEFAULT 'MANUAL',N/A,N/A,N/A,MISSING,P2,Job origin tracking
+jobs,title,VARCHAR(255),NOT NULL,title,N/A,string,MAPPED,N/A,
+jobs,description,TEXT,,description,N/A,string,MAPPED,N/A,
+jobs,internal_notes,TEXT,,notes,N/A,string,PARTIAL,P2,Separate from customer-visible notes
+jobs,scheduled_start,TIMESTAMPTZ,,scheduledStart / date,N/A,string,PARTIAL,P1,Multiple date fields in frontend
+jobs,scheduled_end,TIMESTAMPTZ,,scheduledEnd,N/A,string,PARTIAL,P1,
+jobs,arrival_window_start,TIMESTAMPTZ,,N/A,N/A,N/A,MISSING,P2,Customer-facing arrival window
+jobs,arrival_window_end,TIMESTAMPTZ,,N/A,N/A,N/A,MISSING,P2,
+jobs,actual_start,TIMESTAMPTZ,,actualStart,N/A,string,MAPPED,N/A,
+jobs,actual_end,TIMESTAMPTZ,,actualEnd,N/A,string,MAPPED,N/A,
+jobs,estimated_duration,INTEGER,DEFAULT 60,estimatedDuration,N/A,number,MAPPED,N/A,
+jobs,parent_job_id,UUID,FK,parentJobId,N/A,N/A,PARTIAL,P3,Recurring jobs
+jobs,is_callback,BOOLEAN,DEFAULT false,callback,N/A,N/A,PARTIAL,P2,
+jobs,callback_reason,TEXT,,N/A,N/A,N/A,MISSING,P2,
+jobs,estimate_id,UUID,FK,N/A,N/A,N/A,MISSING,P2,Links to estimate
+jobs,invoice_id,UUID,FK,N/A,N/A,N/A,MISSING,P2,Links to invoice
+jobs,service_agreement_id,UUID,FK,N/A,N/A,N/A,MISSING,P3,Links to service agreement
+jobs,subtotal,DECIMAL(10.2),DEFAULT 0,N/A,N/A,N/A,MISSING,P1,From pricing
+jobs,discount_amount,DECIMAL(10.2),DEFAULT 0,N/A,N/A,N/A,MISSING,P2,
+jobs,tax_amount,DECIMAL(10.2),DEFAULT 0,N/A,N/A,N/A,MISSING,P2,
+jobs,total,DECIMAL(10.2),DEFAULT 0,N/A,N/A,N/A,MISSING,P1,From pricing
+jobs,dispatched_at,TIMESTAMPTZ,,N/A,N/A,N/A,MISSING,P2,Dispatch tracking
+jobs,completed_at,TIMESTAMPTZ,,N/A,N/A,N/A,MISSING,P2,
+jobs,cancelled_at,TIMESTAMPTZ,,N/A,N/A,N/A,MISSING,P2,
+jobs,cancellation_reason,TEXT,,N/A,N/A,N/A,MISSING,P2,
+jobs,custom_fields,JSONB,DEFAULT '{}',N/A,N/A,N/A,MISSING,P3,
+jobs,created_by,UUID,FK,N/A,N/A,N/A,MISSING,P3,
+jobs,created_at,TIMESTAMPTZ,DEFAULT NOW(),createdDate,N/A,string,MAPPED,N/A,
+jobs,updated_at,TIMESTAMPTZ,DEFAULT NOW(),changedDate,N/A,string,MAPPED,N/A,
+,,,,,,,,
+=== JOB_ASSIGNMENTS (New Table) ===,,,,,,,,
+job_assignments,id,UUID,PRIMARY KEY,N/A,N/A,N/A,NEW TABLE,P1,
+job_assignments,job_id,UUID,NOT NULL FK,N/A,N/A,N/A,NEW TABLE,P1,
+job_assignments,employee_id,UUID,NOT NULL FK,assignedTo / technicianId,N/A,string,PARTIAL,P1,Currently simple string
+job_assignments,role,assignment_role ENUM,DEFAULT 'PRIMARY',N/A,N/A,N/A,NEW TABLE,P2,PRIMARY/SECONDARY/HELPER
+job_assignments,commission_rate,DECIMAL(5.2),,N/A,N/A,N/A,MISSING,P3,
+job_assignments,notified_at,TIMESTAMPTZ,,N/A,N/A,N/A,MISSING,P2,
+job_assignments,accepted_at,TIMESTAMPTZ,,N/A,N/A,N/A,MISSING,P2,
+job_assignments,declined_at,TIMESTAMPTZ,,N/A,N/A,N/A,MISSING,P2,
+job_assignments,decline_reason,TEXT,,N/A,N/A,N/A,MISSING,P2,
+,,,,,,,,
+=== JOB_LINE_ITEMS ===,,,,,,,,
+job_line_items,id,UUID,PRIMARY KEY,id,N/A,number,MAPPED,N/A,
+job_line_items,job_id,UUID,NOT NULL FK,N/A,N/A,N/A,IMPLICIT,P1,Part of job object
+job_line_items,type,line_item_type ENUM,NOT NULL,itemType,N/A,string,PARTIAL,P1,"Service/Product vs SERVICE/MATERIAL/LABOR/FEE/DISCOUNT/TAX"
+job_line_items,service_id,UUID,FK,N/A,N/A,N/A,MISSING,P2,Links to services table
+job_line_items,material_id,UUID,FK,N/A,N/A,N/A,MISSING,P2,Links to materials table
+job_line_items,name,VARCHAR(255),NOT NULL,name,N/A,string,MAPPED,N/A,
+job_line_items,description,TEXT,,description,N/A,string,MAPPED,N/A,
+job_line_items,quantity,DECIMAL(10.3),DEFAULT 1,quantity,N/A,number,MAPPED,N/A,
+job_line_items,unit_price,DECIMAL(10.2),NOT NULL,unitPrice,N/A,number,MAPPED,N/A,
+job_line_items,unit_cost,DECIMAL(10.2),DEFAULT 0,N/A,N/A,N/A,MISSING,P2,Cost tracking
+job_line_items,discount_percent,DECIMAL(5.2),DEFAULT 0,N/A,N/A,N/A,MISSING,P2,
+job_line_items,discount_amount,DECIMAL(10.2),DEFAULT 0,N/A,N/A,N/A,MISSING,P2,
+job_line_items,tax_rate,DECIMAL(5.2),DEFAULT 0,N/A,N/A,N/A,MISSING,P2,
+job_line_items,is_taxable,BOOLEAN,DEFAULT true,taxable,N/A,boolean,PARTIAL,P2,
+job_line_items,total,DECIMAL(10.2),GENERATED,totalPrice,N/A,number,MAPPED,N/A,
+job_line_items,sort_order,INTEGER,DEFAULT 0,N/A,N/A,N/A,MISSING,P3,
+,,,,,,,,
+=== EMPLOYEES ===,,,,,,,,
+employees,id,UUID,PRIMARY KEY,id,N/A,string,MAPPED,N/A,
+employees,user_id,UUID,FK,N/A,N/A,N/A,MISSING,P1,Links to users table
+employees,tenant_id,UUID,NOT NULL FK,tenantId,N/A,string,MAPPED,N/A,
+employees,employee_number,VARCHAR(50),,N/A,N/A,N/A,MISSING,P2,
+employees,hire_date,DATE,,N/A,N/A,N/A,MISSING,P3,
+employees,termination_date,DATE,,N/A,N/A,N/A,MISSING,P3,
+employees,job_title,VARCHAR(100),,role,N/A,string,PARTIAL,P2,
+employees,department,VARCHAR(100),,N/A,N/A,N/A,MISSING,P3,
+employees,color_hex,VARCHAR(7),DEFAULT '#3B82F6',color / colorHex,N/A,string,MAPPED,N/A,Calendar display
+employees,hourly_rate,DECIMAL(10.2),,N/A,N/A,N/A,MISSING,P2,
+employees,overtime_rate,DECIMAL(10.2),,N/A,N/A,N/A,MISSING,P2,
+employees,commission_rate,DECIMAL(5.2),DEFAULT 0,N/A,N/A,N/A,MISSING,P3,
+employees,can_be_booked_online,BOOLEAN,DEFAULT true,N/A,N/A,N/A,MISSING,P2,
+employees,is_dispatch_enabled,BOOLEAN,DEFAULT true,N/A,N/A,N/A,MISSING,P2,
+employees,receives_dispatch_notifications,BOOLEAN,DEFAULT true,N/A,N/A,N/A,MISSING,P2,
+employees,service_area,JSONB,,N/A,N/A,N/A,MISSING,P2,Geographic bounds
+employees,max_daily_jobs,INTEGER,,N/A,N/A,N/A,MISSING,P2,
+employees,certifications,JSONB,DEFAULT '[]',N/A,N/A,N/A,MISSING,P3,
+employees,emergency_contact_name,VARCHAR(100),,N/A,N/A,N/A,MISSING,P3,
+employees,emergency_contact_phone,VARCHAR(20),,N/A,N/A,N/A,MISSING,P3,
+employees,notes,TEXT,,N/A,N/A,N/A,MISSING,P3,
+employees,is_archived,BOOLEAN,DEFAULT false,archived,N/A,boolean,PARTIAL,P3,
+,,,,,,,,
+=== INVOICES ===,,,,,,,,
+invoices,id,UUID,PRIMARY KEY,id,N/A,string,MAPPED,N/A,
+invoices,tenant_id,UUID,NOT NULL FK,tenantId,N/A,string,MAPPED,N/A,
+invoices,invoice_number,VARCHAR(50),NOT NULL UNIQUE,N/A,N/A,N/A,MISSING,P1,Auto-generated
+invoices,customer_id,UUID,NOT NULL FK,customerId,N/A,string,MAPPED,N/A,
+invoices,job_id,UUID,FK,jobId,N/A,string,MAPPED,N/A,
+invoices,status,invoice_status ENUM,DEFAULT 'DRAFT',status,N/A,string,PARTIAL,P1,"Different enum values"
+invoices,issue_date,DATE,NOT NULL DEFAULT CURRENT_DATE,createdAt,N/A,string,PARTIAL,P1,
+invoices,due_date,DATE,NOT NULL,dueDate,N/A,string,MAPPED,N/A,
+invoices,terms,payment_terms ENUM,DEFAULT 'DUE_ON_RECEIPT',N/A,N/A,N/A,MISSING,P2,
+invoices,po_number,VARCHAR(100),,N/A,N/A,N/A,MISSING,P3,
+invoices,message,TEXT,,notes,N/A,string,PARTIAL,P2,
+invoices,footer_notes,TEXT,,N/A,N/A,N/A,MISSING,P3,
+invoices,subtotal,DECIMAL(10.2),DEFAULT 0,subtotal,N/A,number,MAPPED,N/A,
+invoices,discount_amount,DECIMAL(10.2),DEFAULT 0,N/A,N/A,N/A,MISSING,P2,
+invoices,tax_rate,DECIMAL(5.2),DEFAULT 0,taxRate,N/A,number,MAPPED,N/A,
+invoices,tax_amount,DECIMAL(10.2),DEFAULT 0,tax,N/A,number,MAPPED,N/A,
+invoices,total,DECIMAL(10.2),DEFAULT 0,total,N/A,number,MAPPED,N/A,
+invoices,amount_paid,DECIMAL(10.2),DEFAULT 0,paidAmount,N/A,number,PARTIAL,P2,
+invoices,balance_due,DECIMAL(10.2),GENERATED,N/A,N/A,N/A,MISSING,P2,Calculated
+invoices,sent_at,TIMESTAMPTZ,,N/A,N/A,N/A,MISSING,P2,
+invoices,viewed_at,TIMESTAMPTZ,,N/A,N/A,N/A,MISSING,P2,
+invoices,paid_at,TIMESTAMPTZ,,paidDate,N/A,string,PARTIAL,P2,
+invoices,voided_at,TIMESTAMPTZ,,N/A,N/A,N/A,MISSING,P3,
+invoices,void_reason,TEXT,,N/A,N/A,N/A,MISSING,P3,
+invoices,qbo_invoice_id,VARCHAR(100),,N/A,N/A,N/A,MISSING,P3,QuickBooks integration
+invoices,stripe_invoice_id,VARCHAR(100),,N/A,N/A,N/A,MISSING,P3,Stripe integration
+,,,,,,,,
+=== TENANTS ===,,,,,,,,
+tenants,id,UUID,PRIMARY KEY,id,N/A,string,MAPPED,N/A,
+tenants,name,VARCHAR(255),NOT NULL,name,N/A,string,MAPPED,N/A,
+tenants,slug,VARCHAR(100),NOT NULL UNIQUE,slug,N/A,string,MAPPED,N/A,
+tenants,status,tenant_status ENUM,DEFAULT 'TRIAL',active,N/A,boolean,PARTIAL,P2,Enum vs boolean
+tenants,industry_id,UUID,FK,industry,N/A,string,PARTIAL,P2,String vs FK
+tenants,timezone,VARCHAR(50),DEFAULT 'America/New_York',N/A,N/A,N/A,MISSING,P2,
+tenants,locale,VARCHAR(10),DEFAULT 'en-US',N/A,N/A,N/A,MISSING,P3,
+tenants,currency,VARCHAR(3),DEFAULT 'USD',N/A,N/A,N/A,MISSING,P3,
+tenants,date_format,VARCHAR(20),DEFAULT 'MM/DD/YYYY',N/A,N/A,N/A,MISSING,P3,
+tenants,time_format,VARCHAR(10),DEFAULT '12h',N/A,N/A,N/A,MISSING,P3,
+tenants,settings,JSONB,DEFAULT '{}',settings,N/A,object,PARTIAL,P2,
+tenants,feature_flags,JSONB,DEFAULT '{}',N/A,N/A,N/A,MISSING,P2,
+,,,,,,,,
+=== USERS ===,,,,,,,,
+users,id,UUID,PRIMARY KEY,id,N/A,string,MAPPED,N/A,
+users,tenant_id,UUID,FK,tenantId,N/A,string,MAPPED,N/A,
+users,email,VARCHAR(255),NOT NULL,email,N/A,string,MAPPED,N/A,
+users,password_hash,VARCHAR(255),,N/A,N/A,N/A,INTERNAL,N/A,Not exposed to frontend
+users,first_name,VARCHAR(100),,name (combined),N/A,string,PARTIAL,P2,Frontend has combined name
+users,last_name,VARCHAR(100),,name (combined),N/A,string,PARTIAL,P2,
+users,phone,VARCHAR(20),,N/A,N/A,N/A,MISSING,P2,
+users,avatar_url,VARCHAR(500),,avatar,N/A,string,MAPPED,N/A,
+users,role,employee_role ENUM,DEFAULT 'FIELD_TECH',role,N/A,string,PARTIAL,P1,"Different enum values"
+users,is_active,BOOLEAN,DEFAULT true,N/A,N/A,N/A,MISSING,P2,
+users,is_verified,BOOLEAN,DEFAULT false,N/A,N/A,N/A,MISSING,P2,
+users,mfa_enabled,BOOLEAN,DEFAULT false,N/A,N/A,N/A,MISSING,P3,
+users,last_login_at,TIMESTAMPTZ,,N/A,N/A,N/A,MISSING,P3,
+users,preferences,JSONB,DEFAULT '{}',N/A,N/A,N/A,MISSING,P3,
+,,,,,,,,
+=== CHECKLIST_TEMPLATES (New Table) ===,,,,,,,,
+checklist_templates,id,UUID,PRIMARY KEY,id,N/A,string,PARTIAL,P2,Frontend has ChecklistTemplate type
+checklist_templates,tenant_id,UUID,NOT NULL FK,N/A,N/A,N/A,MISSING,P2,Multi-tenant
+checklist_templates,name,VARCHAR(100),NOT NULL,title,N/A,string,PARTIAL,P2,Frontend uses 'title'
+checklist_templates,description,TEXT,,N/A,N/A,N/A,MISSING,P3,
+checklist_templates,category,VARCHAR(100),,N/A,N/A,N/A,MISSING,P3,
+checklist_templates,is_required_for_completion,BOOLEAN,DEFAULT false,required,N/A,boolean,PARTIAL,P2,
+checklist_templates,sort_order,INTEGER,DEFAULT 0,N/A,N/A,N/A,MISSING,P3,
+checklist_templates,is_active,BOOLEAN,DEFAULT true,N/A,N/A,N/A,MISSING,P3,
+checklist_templates,created_at,TIMESTAMPTZ,DEFAULT NOW(),N/A,N/A,N/A,MISSING,P3,
+checklist_templates,updated_at,TIMESTAMPTZ,DEFAULT NOW(),N/A,N/A,N/A,MISSING,P3,
+,,,,,,,,
+=== CHECKLIST_TEMPLATE_ITEMS (New Table) ===,,,,,,,,
+checklist_template_items,id,UUID,PRIMARY KEY,id,N/A,string,PARTIAL,P2,
+checklist_template_items,checklist_template_id,UUID,NOT NULL FK,N/A,N/A,N/A,IMPLICIT,P2,Part of items array
+checklist_template_items,label,VARCHAR(255),NOT NULL,subject,N/A,string,PARTIAL,P2,Frontend uses 'subject'
+checklist_template_items,value_type,checklist_value_type ENUM,DEFAULT 'BOOLEAN',valueType,N/A,string,PARTIAL,P2,"Frontend: boolean/stop_light/text vs BOOLEAN/TEXT/NUMBER/STOPLIGHT/PHOTO/SIGNATURE/SELECT/MULTI_SELECT"
+checklist_template_items,is_required,BOOLEAN,DEFAULT false,required,N/A,boolean,PARTIAL,P2,
+checklist_template_items,default_value,VARCHAR(255),,N/A,N/A,N/A,MISSING,P3,
+checklist_template_items,options,JSONB,,N/A,N/A,N/A,MISSING,P3,For SELECT/MULTI_SELECT types
+checklist_template_items,help_text,TEXT,,subtitle,N/A,string,PARTIAL,P3,Frontend uses 'subtitle'
+checklist_template_items,sort_order,INTEGER,DEFAULT 0,orderIndex,N/A,number,PARTIAL,P2,Frontend uses 'orderIndex'
+checklist_template_items,created_at,TIMESTAMPTZ,DEFAULT NOW(),N/A,N/A,N/A,MISSING,P3,
+checklist_template_items,updated_at,TIMESTAMPTZ,DEFAULT NOW(),N/A,N/A,N/A,MISSING,P3,
+,,,,,,,,
+=== JOB_TEMPLATES (New Table) ===,,,,,,,,
+job_templates,id,UUID,PRIMARY KEY,id,N/A,string,PARTIAL,P2,Frontend has JobTemplate type
+job_templates,tenant_id,UUID,NOT NULL FK,N/A,N/A,N/A,MISSING,P2,Multi-tenant
+job_templates,name,VARCHAR(100),NOT NULL,name,N/A,string,MAPPED,P2,
+job_templates,description,TEXT,,description,N/A,string,MAPPED,P2,
+job_templates,job_type_id,UUID,FK,jobType,N/A,string,PARTIAL,P2,Frontend uses string
+job_templates,estimated_duration,INTEGER,DEFAULT 60,N/A,N/A,N/A,MISSING,P2,
+job_templates,default_priority,job_priority ENUM,DEFAULT 'NORMAL',N/A,N/A,N/A,MISSING,P2,
+job_templates,default_services,JSONB,DEFAULT '[]',serviceIds,N/A,string[],PARTIAL,P2,
+job_templates,default_materials,JSONB,DEFAULT '[]',materialIds,N/A,string[],PARTIAL,P2,
+job_templates,checklist_template_id,UUID,FK,checklistTemplateIds,N/A,string[],PARTIAL,P2,Frontend has array of IDs
+job_templates,instructions,TEXT,,N/A,N/A,N/A,MISSING,P3,
+job_templates,is_online_bookable,BOOLEAN,DEFAULT false,N/A,N/A,N/A,MISSING,P2,
+job_templates,color_hex,VARCHAR(7),,N/A,N/A,N/A,MISSING,P3,
+job_templates,sort_order,INTEGER,DEFAULT 0,N/A,N/A,N/A,MISSING,P3,
+job_templates,is_active,BOOLEAN,DEFAULT true,N/A,N/A,N/A,MISSING,P3,
+job_templates,created_at,TIMESTAMPTZ,DEFAULT NOW(),N/A,N/A,N/A,MISSING,P3,
+job_templates,updated_at,TIMESTAMPTZ,DEFAULT NOW(),N/A,N/A,N/A,MISSING,P3,
+,,,,,,,,
+=== JOB_CHECKLISTS (Instance from Template) ===,,,,,,,,
+job_checklists,id,UUID,PRIMARY KEY,id,N/A,string,PARTIAL,P2,
+job_checklists,job_id,UUID,NOT NULL FK,N/A,N/A,N/A,IMPLICIT,P2,Part of EnhancedJob.checklist
+job_checklists,checklist_template_id,UUID,FK,N/A,N/A,N/A,MISSING,P3,Links to template
+job_checklists,name,VARCHAR(100),NOT NULL,N/A,N/A,N/A,MISSING,P2,
+job_checklists,is_completed,BOOLEAN,DEFAULT false,N/A,N/A,N/A,MISSING,P2,Computed from items
+job_checklists,completed_at,TIMESTAMPTZ,,N/A,N/A,N/A,MISSING,P2,
+job_checklists,completed_by,UUID,FK,N/A,N/A,N/A,MISSING,P2,
+job_checklists,created_at,TIMESTAMPTZ,DEFAULT NOW(),N/A,N/A,N/A,MISSING,P3,
+job_checklists,updated_at,TIMESTAMPTZ,DEFAULT NOW(),N/A,N/A,N/A,MISSING,P3,
+,,,,,,,,
+=== JOB_CHECKLIST_ITEMS (Instance Items) ===,,,,,,,,
+job_checklist_items,id,UUID,PRIMARY KEY,id,N/A,string,PARTIAL,P2,Frontend has ChecklistItem
+job_checklist_items,job_checklist_id,UUID,NOT NULL FK,N/A,N/A,N/A,IMPLICIT,P2,
+job_checklist_items,template_item_id,UUID,FK,N/A,N/A,N/A,MISSING,P3,Links to template item
+job_checklist_items,label,VARCHAR(255),NOT NULL,subject,N/A,string,PARTIAL,P2,Frontend uses 'subject'
+job_checklist_items,value_type,checklist_value_type ENUM,DEFAULT 'BOOLEAN',valueType,N/A,string,PARTIAL,P2,
+job_checklist_items,is_required,BOOLEAN,DEFAULT false,required,N/A,boolean,PARTIAL,P2,
+job_checklist_items,value,TEXT,,value,N/A,any,PARTIAL,P2,
+job_checklist_items,photo_url,VARCHAR(500),,N/A,N/A,N/A,MISSING,P2,For PHOTO type
+job_checklist_items,completed_at,TIMESTAMPTZ,,N/A,N/A,N/A,MISSING,P2,
+job_checklist_items,completed_by,UUID,FK,N/A,N/A,N/A,MISSING,P2,
+job_checklist_items,sort_order,INTEGER,DEFAULT 0,orderIndex,N/A,number,PARTIAL,P2,
+job_checklist_items,created_at,TIMESTAMPTZ,DEFAULT NOW(),N/A,N/A,N/A,MISSING,P3,
+job_checklist_items,updated_at,TIMESTAMPTZ,DEFAULT NOW(),N/A,N/A,N/A,MISSING,P3,
+,,,,,,,,
+=== ESTIMATE_TEMPLATES (New Table) ===,,,,,,,,
+estimate_templates,id,UUID,PRIMARY KEY,N/A,N/A,N/A,NEW TABLE,P2,Not in frontend
+estimate_templates,tenant_id,UUID,NOT NULL FK,N/A,N/A,N/A,NEW TABLE,P2,
+estimate_templates,name,VARCHAR(100),NOT NULL,N/A,N/A,N/A,NEW TABLE,P2,
+estimate_templates,description,TEXT,,N/A,N/A,N/A,NEW TABLE,P3,
+estimate_templates,category,VARCHAR(100),,N/A,N/A,N/A,NEW TABLE,P3,
+estimate_templates,valid_days,INTEGER,DEFAULT 30,N/A,N/A,N/A,NEW TABLE,P2,Days until estimate expires
+estimate_templates,default_message,TEXT,,N/A,N/A,N/A,NEW TABLE,P3,
+estimate_templates,terms_and_conditions,TEXT,,N/A,N/A,N/A,NEW TABLE,P3,
+estimate_templates,is_active,BOOLEAN,DEFAULT true,N/A,N/A,N/A,NEW TABLE,P3,
+estimate_templates,created_at,TIMESTAMPTZ,DEFAULT NOW(),N/A,N/A,N/A,NEW TABLE,P3,
+estimate_templates,updated_at,TIMESTAMPTZ,DEFAULT NOW(),N/A,N/A,N/A,NEW TABLE,P3,
+,,,,,,,,
+=== ESTIMATE_TEMPLATE_OPTIONS (Good/Better/Best) ===,,,,,,,,
+estimate_template_options,id,UUID,PRIMARY KEY,N/A,N/A,N/A,NEW TABLE,P2,
+estimate_template_options,estimate_template_id,UUID,NOT NULL FK,N/A,N/A,N/A,NEW TABLE,P2,
+estimate_template_options,name,VARCHAR(100),NOT NULL,N/A,N/A,N/A,NEW TABLE,P2,e.g. "Good" "Better" "Best"
+estimate_template_options,description,TEXT,,N/A,N/A,N/A,NEW TABLE,P3,
+estimate_template_options,is_recommended,BOOLEAN,DEFAULT false,N/A,N/A,N/A,NEW TABLE,P2,Highlight recommended option
+estimate_template_options,discount_type,discount_type ENUM,DEFAULT 'NONE',N/A,N/A,N/A,NEW TABLE,P2,NONE/PERCENT/FIXED
+estimate_template_options,discount_value,DECIMAL(10.2),DEFAULT 0,N/A,N/A,N/A,NEW TABLE,P2,
+estimate_template_options,sort_order,INTEGER,DEFAULT 0,N/A,N/A,N/A,NEW TABLE,P3,
+estimate_template_options,created_at,TIMESTAMPTZ,DEFAULT NOW(),N/A,N/A,N/A,NEW TABLE,P3,
+estimate_template_options,updated_at,TIMESTAMPTZ,DEFAULT NOW(),N/A,N/A,N/A,NEW TABLE,P3,
+,,,,,,,,
+=== ESTIMATE_TEMPLATE_LINE_ITEMS ===,,,,,,,,
+estimate_template_line_items,id,UUID,PRIMARY KEY,N/A,N/A,N/A,NEW TABLE,P2,
+estimate_template_line_items,estimate_template_option_id,UUID,NOT NULL FK,N/A,N/A,N/A,NEW TABLE,P2,
+estimate_template_line_items,type,line_item_type ENUM,NOT NULL,N/A,N/A,N/A,NEW TABLE,P2,SERVICE/MATERIAL/LABOR/FEE
+estimate_template_line_items,service_id,UUID,FK,N/A,N/A,N/A,NEW TABLE,P2,Links to services
+estimate_template_line_items,material_id,UUID,FK,N/A,N/A,N/A,NEW TABLE,P2,Links to materials
+estimate_template_line_items,name,VARCHAR(255),NOT NULL,N/A,N/A,N/A,NEW TABLE,P2,
+estimate_template_line_items,description,TEXT,,N/A,N/A,N/A,NEW TABLE,P3,
+estimate_template_line_items,quantity,DECIMAL(10.3),DEFAULT 1,N/A,N/A,N/A,NEW TABLE,P2,
+estimate_template_line_items,unit_price,DECIMAL(10.2),NOT NULL,N/A,N/A,N/A,NEW TABLE,P2,
+estimate_template_line_items,is_optional,BOOLEAN,DEFAULT false,N/A,N/A,N/A,NEW TABLE,P2,Customer can opt out
+estimate_template_line_items,sort_order,INTEGER,DEFAULT 0,N/A,N/A,N/A,NEW TABLE,P3,
+estimate_template_line_items,created_at,TIMESTAMPTZ,DEFAULT NOW(),N/A,N/A,N/A,NEW TABLE,P3,
+estimate_template_line_items,updated_at,TIMESTAMPTZ,DEFAULT NOW(),N/A,N/A,N/A,NEW TABLE,P3,
+,,,,,,,,
+=== MESSAGE_TEMPLATES (New Table) ===,,,,,,,,
+message_templates,id,UUID,PRIMARY KEY,N/A,N/A,N/A,NEW TABLE,P2,SMS/Email templates
+message_templates,tenant_id,UUID,NOT NULL FK,N/A,N/A,N/A,NEW TABLE,P2,
+message_templates,name,VARCHAR(100),NOT NULL,N/A,N/A,N/A,NEW TABLE,P2,
+message_templates,channel,message_channel ENUM,NOT NULL,N/A,N/A,N/A,NEW TABLE,P2,SMS/EMAIL/PUSH/VOICE/IN_APP
+message_templates,trigger_type,message_trigger ENUM,DEFAULT 'MANUAL',N/A,N/A,N/A,NEW TABLE,P2,When to auto-send
+message_templates,subject,VARCHAR(255),,N/A,N/A,N/A,NEW TABLE,P2,For email
+message_templates,body,TEXT,NOT NULL,N/A,N/A,N/A,NEW TABLE,P2,Template with variables
+message_templates,variables,JSONB,DEFAULT '[]',N/A,N/A,N/A,NEW TABLE,P2,Available merge fields
+message_templates,delay_minutes,INTEGER,DEFAULT 0,N/A,N/A,N/A,NEW TABLE,P3,Delay before sending
+message_templates,is_active,BOOLEAN,DEFAULT true,N/A,N/A,N/A,NEW TABLE,P3,
+message_templates,created_at,TIMESTAMPTZ,DEFAULT NOW(),N/A,N/A,N/A,NEW TABLE,P3,
+message_templates,updated_at,TIMESTAMPTZ,DEFAULT NOW(),N/A,N/A,N/A,NEW TABLE,P3,
+,,,,,,,,
+=== SERVICES (Price Book) ===,,,,,,,,
+services,id,UUID,PRIMARY KEY,id,N/A,string,PARTIAL,P1,Frontend has ServiceItem
+services,tenant_id,UUID,NOT NULL FK,N/A,N/A,N/A,MISSING,P1,Multi-tenant
+services,category_id,UUID,FK,category,N/A,string,PARTIAL,P2,Frontend uses string name
+services,sku,VARCHAR(50),,N/A,N/A,N/A,MISSING,P3,Stock keeping unit
+services,name,VARCHAR(255),NOT NULL,name,N/A,string,MAPPED,P1,
+services,description,TEXT,,description,N/A,string,MAPPED,P1,
+services,unit_price,DECIMAL(10.2),NOT NULL,price,N/A,number,MAPPED,P1,
+services,unit_cost,DECIMAL(10.2),DEFAULT 0,cost,N/A,number,MAPPED,P1,
+services,unit_of_measure,VARCHAR(20),DEFAULT 'EACH',N/A,N/A,N/A,MISSING,P3,
+services,estimated_duration,INTEGER,DEFAULT 60,estimatedDuration,N/A,number,MAPPED,P2,
+services,is_taxable,BOOLEAN,DEFAULT true,taxable,N/A,boolean,MAPPED,P2,
+services,tax_rate_override,DECIMAL(5.2),,N/A,N/A,N/A,MISSING,P3,
+services,is_online_bookable,BOOLEAN,DEFAULT false,onlineBookingEnabled,N/A,boolean,MAPPED,P2,
+services,is_favorite,BOOLEAN,DEFAULT false,N/A,N/A,N/A,MISSING,P3,Quick access
+services,required_skills,JSONB,DEFAULT '[]',N/A,N/A,N/A,MISSING,P2,Skills needed for service
+services,image_url,VARCHAR(500),,N/A,N/A,N/A,MISSING,P3,
+services,sort_order,INTEGER,DEFAULT 0,N/A,N/A,N/A,MISSING,P3,
+services,is_active,BOOLEAN,DEFAULT true,N/A,N/A,N/A,MISSING,P3,
+services,created_at,TIMESTAMPTZ,DEFAULT NOW(),N/A,N/A,N/A,MISSING,P3,
+services,updated_at,TIMESTAMPTZ,DEFAULT NOW(),N/A,N/A,N/A,MISSING,P3,
+,,,,,,,,
+=== MATERIALS (Price Book) ===,,,,,,,,
+materials,id,UUID,PRIMARY KEY,id,N/A,string,PARTIAL,P1,Frontend has Material
+materials,tenant_id,UUID,NOT NULL FK,N/A,N/A,N/A,MISSING,P1,Multi-tenant
+materials,category_id,UUID,FK,N/A,N/A,N/A,MISSING,P2,
+materials,sku,VARCHAR(50),,N/A,N/A,N/A,MISSING,P3,
+materials,name,VARCHAR(255),NOT NULL,name,N/A,string,MAPPED,P1,
+materials,description,TEXT,,N/A,N/A,N/A,MISSING,P3,
+materials,unit_cost,DECIMAL(10.2),NOT NULL,unitCost,N/A,number,MAPPED,P1,
+materials,markup_percent,DECIMAL(5.2),DEFAULT 0,N/A,N/A,N/A,MISSING,P2,
+materials,unit_price,DECIMAL(10.2),GENERATED,N/A,N/A,N/A,MISSING,P2,Calculated from cost + markup
+materials,unit_of_measure,VARCHAR(20),DEFAULT 'EACH',N/A,N/A,N/A,MISSING,P3,
+materials,manufacturer,VARCHAR(100),,N/A,N/A,N/A,MISSING,P3,
+materials,manufacturer_part_number,VARCHAR(100),,N/A,N/A,N/A,MISSING,P3,
+materials,vendor_id,UUID,FK,N/A,N/A,N/A,MISSING,P3,
+materials,vendor_part_number,VARCHAR(100),,N/A,N/A,N/A,MISSING,P3,
+materials,is_taxable,BOOLEAN,DEFAULT true,taxable,N/A,boolean,MAPPED,P2,
+materials,qty_on_hand,INTEGER,DEFAULT 0,quantity,N/A,number,PARTIAL,P2,Frontend uses for job usage
+materials,reorder_point,INTEGER,,N/A,N/A,N/A,MISSING,P3,
+materials,reorder_quantity,INTEGER,,N/A,N/A,N/A,MISSING,P3,
+materials,image_url,VARCHAR(500),,N/A,N/A,N/A,MISSING,P3,
+materials,is_active,BOOLEAN,DEFAULT true,N/A,N/A,N/A,MISSING,P3,
+materials,created_at,TIMESTAMPTZ,DEFAULT NOW(),N/A,N/A,N/A,MISSING,P3,
+materials,updated_at,TIMESTAMPTZ,DEFAULT NOW(),N/A,N/A,N/A,MISSING,P3,
+,,,,,,,,
+=== CATEGORIES (Price Book) ===,,,,,,,,
+categories,id,UUID,PRIMARY KEY,id,N/A,string,PARTIAL,P2,Frontend has ServiceCategory
+categories,tenant_id,UUID,NOT NULL FK,N/A,N/A,N/A,MISSING,P2,
+categories,parent_id,UUID,FK,parentCategoryId,N/A,string,PARTIAL,P2,Hierarchical categories
+categories,name,VARCHAR(100),NOT NULL,name,N/A,string,MAPPED,P2,
+categories,description,TEXT,,description,N/A,string,MAPPED,P2,
+categories,type,VARCHAR(20),NOT NULL CHECK,N/A,N/A,N/A,MISSING,P2,SERVICE or MATERIAL
+categories,sort_order,INTEGER,DEFAULT 0,orderIndex,N/A,number,PARTIAL,P2,
+categories,is_active,BOOLEAN,DEFAULT true,active,N/A,boolean,PARTIAL,P2,
+categories,created_at,TIMESTAMPTZ,DEFAULT NOW(),N/A,N/A,N/A,MISSING,P3,
+categories,updated_at,TIMESTAMPTZ,DEFAULT NOW(),N/A,N/A,N/A,MISSING,P3,
+,,,,,,,,
+=== JOB_TYPES (New Table) ===,,,,,,,,
+job_types,id,UUID,PRIMARY KEY,N/A,N/A,N/A,NEW TABLE,P2,
+job_types,tenant_id,UUID,NOT NULL FK,N/A,N/A,N/A,NEW TABLE,P2,
+job_types,name,VARCHAR(100),NOT NULL,jobType,N/A,string,PARTIAL,P2,Frontend uses string directly
+job_types,description,TEXT,,N/A,N/A,N/A,NEW TABLE,P3,
+job_types,color_hex,VARCHAR(7),DEFAULT '#3B82F6',N/A,N/A,N/A,NEW TABLE,P2,Calendar display
+job_types,default_duration,INTEGER,DEFAULT 60,N/A,N/A,N/A,NEW TABLE,P2,
+job_types,default_priority,job_priority ENUM,DEFAULT 'NORMAL',N/A,N/A,N/A,NEW TABLE,P2,
+job_types,sort_order,INTEGER,DEFAULT 0,N/A,N/A,N/A,NEW TABLE,P3,
+job_types,is_active,BOOLEAN,DEFAULT true,N/A,N/A,N/A,NEW TABLE,P3,
+job_types,created_at,TIMESTAMPTZ,DEFAULT NOW(),N/A,N/A,N/A,NEW TABLE,P3,
+job_types,updated_at,TIMESTAMPTZ,DEFAULT NOW(),N/A,N/A,N/A,NEW TABLE,P3,
+,,,,,,,,
+=== ESTIMATES (New Table) ===,,,,,,,,
+estimates,id,UUID,PRIMARY KEY,N/A,N/A,N/A,NEW TABLE,P2,Customer quotes
+estimates,tenant_id,UUID,NOT NULL FK,N/A,N/A,N/A,NEW TABLE,P2,
+estimates,estimate_number,VARCHAR(50),NOT NULL UNIQUE,N/A,N/A,N/A,NEW TABLE,P2,Auto-generated EST000001
+estimates,customer_id,UUID,NOT NULL FK,N/A,N/A,N/A,NEW TABLE,P2,
+estimates,address_id,UUID,NOT NULL FK,N/A,N/A,N/A,NEW TABLE,P2,
+estimates,job_id,UUID,FK,N/A,N/A,N/A,NEW TABLE,P3,Links to job if converted
+estimates,status,estimate_status ENUM,DEFAULT 'DRAFT',N/A,N/A,N/A,NEW TABLE,P2,DRAFT/SENT/VIEWED/APPROVED/DECLINED/EXPIRED/CONVERTED
+estimates,title,VARCHAR(255),,N/A,N/A,N/A,NEW TABLE,P2,
+estimates,message,TEXT,,N/A,N/A,N/A,NEW TABLE,P3,
+estimates,terms_and_conditions,TEXT,,N/A,N/A,N/A,NEW TABLE,P3,
+estimates,valid_until,DATE,,N/A,N/A,N/A,NEW TABLE,P2,Expiration date
+estimates,sent_at,TIMESTAMPTZ,,N/A,N/A,N/A,NEW TABLE,P2,
+estimates,viewed_at,TIMESTAMPTZ,,N/A,N/A,N/A,NEW TABLE,P2,
+estimates,approved_at,TIMESTAMPTZ,,N/A,N/A,N/A,NEW TABLE,P2,
+estimates,declined_at,TIMESTAMPTZ,,N/A,N/A,N/A,NEW TABLE,P2,
+estimates,expired_at,TIMESTAMPTZ,,N/A,N/A,N/A,NEW TABLE,P3,
+estimates,approved_option_id,UUID,FK,N/A,N/A,N/A,NEW TABLE,P2,Which option customer chose
+estimates,signature_url,VARCHAR(500),,N/A,N/A,N/A,NEW TABLE,P2,Customer signature
+estimates,signed_name,VARCHAR(255),,N/A,N/A,N/A,NEW TABLE,P2,
+estimates,signed_at,TIMESTAMPTZ,,N/A,N/A,N/A,NEW TABLE,P2,
+estimates,subtotal,DECIMAL(10.2),DEFAULT 0,N/A,N/A,N/A,NEW TABLE,P2,
+estimates,discount_amount,DECIMAL(10.2),DEFAULT 0,N/A,N/A,N/A,NEW TABLE,P2,
+estimates,tax_amount,DECIMAL(10.2),DEFAULT 0,N/A,N/A,N/A,NEW TABLE,P2,
+estimates,total,DECIMAL(10.2),DEFAULT 0,N/A,N/A,N/A,NEW TABLE,P2,
+estimates,created_by,UUID,FK,N/A,N/A,N/A,NEW TABLE,P3,
+estimates,created_at,TIMESTAMPTZ,DEFAULT NOW(),N/A,N/A,N/A,NEW TABLE,P3,
+estimates,updated_at,TIMESTAMPTZ,DEFAULT NOW(),N/A,N/A,N/A,NEW TABLE,P3,
+,,,,,,,,
+=== PAYMENTS (New Table) ===,,,,,,,,
+payments,id,UUID,PRIMARY KEY,N/A,N/A,N/A,NEW TABLE,P1,Payment transactions
+payments,tenant_id,UUID,NOT NULL FK,N/A,N/A,N/A,NEW TABLE,P1,
+payments,invoice_id,UUID,NOT NULL FK,N/A,N/A,N/A,NEW TABLE,P1,Links to invoice
+payments,amount,DECIMAL(10.2),NOT NULL,N/A,N/A,N/A,NEW TABLE,P1,
+payments,method,payment_method ENUM,NOT NULL,paymentMethod,N/A,string,PARTIAL,P1,CREDIT_CARD/DEBIT_CARD/ACH/CHECK/CASH/FINANCING/OTHER
+payments,status,payment_status ENUM,DEFAULT 'PENDING',N/A,N/A,N/A,NEW TABLE,P1,PENDING/PROCESSING/COMPLETED/FAILED/REFUNDED/CANCELLED
+payments,transaction_id,VARCHAR(100),,N/A,N/A,N/A,NEW TABLE,P2,Gateway transaction ID
+payments,authorization_code,VARCHAR(50),,N/A,N/A,N/A,NEW TABLE,P3,
+payments,card_brand,VARCHAR(20),,N/A,N/A,N/A,NEW TABLE,P2,Visa/Mastercard/etc
+payments,card_last_four,VARCHAR(4),,N/A,N/A,N/A,NEW TABLE,P2,
+payments,check_number,VARCHAR(50),,N/A,N/A,N/A,NEW TABLE,P3,
+payments,processed_at,TIMESTAMPTZ,,N/A,N/A,N/A,NEW TABLE,P2,
+payments,failed_at,TIMESTAMPTZ,,N/A,N/A,N/A,NEW TABLE,P2,
+payments,failure_reason,TEXT,,N/A,N/A,N/A,NEW TABLE,P2,
+payments,refunded_at,TIMESTAMPTZ,,N/A,N/A,N/A,NEW TABLE,P3,
+payments,refund_amount,DECIMAL(10.2),,N/A,N/A,N/A,NEW TABLE,P3,
+payments,refund_reason,TEXT,,N/A,N/A,N/A,NEW TABLE,P3,
+payments,collected_by,UUID,FK,N/A,N/A,N/A,NEW TABLE,P2,
+payments,notes,TEXT,,N/A,N/A,N/A,NEW TABLE,P3,
+payments,stripe_payment_intent_id,VARCHAR(100),,N/A,N/A,N/A,NEW TABLE,P2,Stripe integration
+payments,stripe_charge_id,VARCHAR(100),,N/A,N/A,N/A,NEW TABLE,P3,
+payments,created_at,TIMESTAMPTZ,DEFAULT NOW(),N/A,N/A,N/A,NEW TABLE,P3,
+payments,updated_at,TIMESTAMPTZ,DEFAULT NOW(),N/A,N/A,N/A,NEW TABLE,P3,
+,,,,,,,,
+=== SERVICE_AGREEMENTS (Memberships) ===,,,,,,,,
+service_agreements,id,UUID,PRIMARY KEY,N/A,N/A,N/A,NEW TABLE,P2,Recurring service contracts
+service_agreements,tenant_id,UUID,NOT NULL FK,N/A,N/A,N/A,NEW TABLE,P2,
+service_agreements,agreement_number,VARCHAR(50),NOT NULL UNIQUE,N/A,N/A,N/A,NEW TABLE,P2,
+service_agreements,customer_id,UUID,NOT NULL FK,N/A,N/A,N/A,NEW TABLE,P2,
+service_agreements,address_id,UUID,NOT NULL FK,N/A,N/A,N/A,NEW TABLE,P2,
+service_agreements,plan_id,UUID,NOT NULL FK,N/A,N/A,N/A,NEW TABLE,P2,Links to service_plans
+service_agreements,status,agreement_status ENUM,DEFAULT 'PENDING',N/A,N/A,N/A,NEW TABLE,P2,PENDING/ACTIVE/EXPIRED/CANCELLED/SUSPENDED
+service_agreements,start_date,DATE,NOT NULL,N/A,N/A,N/A,NEW TABLE,P2,
+service_agreements,end_date,DATE,,N/A,N/A,N/A,NEW TABLE,P2,
+service_agreements,renewal_date,DATE,,N/A,N/A,N/A,NEW TABLE,P2,
+service_agreements,auto_renew,BOOLEAN,DEFAULT true,N/A,N/A,N/A,NEW TABLE,P2,
+service_agreements,monthly_amount,DECIMAL(10.2),NOT NULL,N/A,N/A,N/A,NEW TABLE,P2,
+service_agreements,visits_included,INTEGER,DEFAULT 0,N/A,N/A,N/A,NEW TABLE,P2,
+service_agreements,visits_used,INTEGER,DEFAULT 0,N/A,N/A,N/A,NEW TABLE,P2,
+service_agreements,visits_remaining,INTEGER,GENERATED,N/A,N/A,N/A,NEW TABLE,P2,Calculated
+service_agreements,covered_equipment,JSONB,DEFAULT '[]',N/A,N/A,N/A,NEW TABLE,P3,
+service_agreements,add_ons,JSONB,DEFAULT '[]',N/A,N/A,N/A,NEW TABLE,P3,
+service_agreements,signed_at,TIMESTAMPTZ,,N/A,N/A,N/A,NEW TABLE,P2,
+service_agreements,signature_url,VARCHAR(500),,N/A,N/A,N/A,NEW TABLE,P2,
+service_agreements,signed_name,VARCHAR(255),,N/A,N/A,N/A,NEW TABLE,P2,
+service_agreements,cancelled_at,TIMESTAMPTZ,,N/A,N/A,N/A,NEW TABLE,P3,
+service_agreements,cancellation_reason,TEXT,,N/A,N/A,N/A,NEW TABLE,P3,
+service_agreements,stripe_subscription_id,VARCHAR(100),,N/A,N/A,N/A,NEW TABLE,P2,Stripe integration
+service_agreements,notes,TEXT,,N/A,N/A,N/A,NEW TABLE,P3,
+service_agreements,created_by,UUID,FK,N/A,N/A,N/A,NEW TABLE,P3,
+service_agreements,created_at,TIMESTAMPTZ,DEFAULT NOW(),N/A,N/A,N/A,NEW TABLE,P3,
+service_agreements,updated_at,TIMESTAMPTZ,DEFAULT NOW(),N/A,N/A,N/A,NEW TABLE,P3,
+,,,,,,,,
+=== AI_AGENTS (New Table) ===,,,,,,,,
+ai_agents,id,UUID,PRIMARY KEY,N/A,N/A,N/A,NEW TABLE,P3,AI agent configurations
+ai_agents,tenant_id,UUID,NOT NULL FK,N/A,N/A,N/A,NEW TABLE,P3,
+ai_agents,type,ai_agent_type ENUM,NOT NULL,N/A,N/A,N/A,NEW TABLE,P3,VOICE_BOOKING/VOICE_SUPPORT/SCHEDULER/ESTIMATOR/DISPATCHER/CHAT
+ai_agents,name,VARCHAR(100),NOT NULL,N/A,N/A,N/A,NEW TABLE,P3,
+ai_agents,description,TEXT,,N/A,N/A,N/A,NEW TABLE,P3,
+ai_agents,provider,ai_provider ENUM,NOT NULL,N/A,N/A,N/A,NEW TABLE,P3,VAPI/RETELL/OPENAI/ANTHROPIC/BEDROCK/CUSTOM
+ai_agents,external_agent_id,VARCHAR(100),,N/A,N/A,N/A,NEW TABLE,P3,
+ai_agents,voice_id,VARCHAR(100),,N/A,N/A,N/A,NEW TABLE,P3,
+ai_agents,system_prompt,TEXT,,N/A,N/A,N/A,NEW TABLE,P3,
+ai_agents,knowledge_base_ids,JSONB,DEFAULT '[]',N/A,N/A,N/A,NEW TABLE,P3,
+ai_agents,tools,JSONB,DEFAULT '[]',N/A,N/A,N/A,NEW TABLE,P3,Function calling tools
+ai_agents,configuration,JSONB,DEFAULT '{}',N/A,N/A,N/A,NEW TABLE,P3,
+ai_agents,phone_number,VARCHAR(20),,N/A,N/A,N/A,NEW TABLE,P3,For voice agents
+ai_agents,transfer_phone_number,VARCHAR(20),,N/A,N/A,N/A,NEW TABLE,P3,
+ai_agents,is_active,BOOLEAN,DEFAULT true,N/A,N/A,N/A,NEW TABLE,P3,
+ai_agents,created_at,TIMESTAMPTZ,DEFAULT NOW(),N/A,N/A,N/A,NEW TABLE,P3,
+ai_agents,updated_at,TIMESTAMPTZ,DEFAULT NOW(),N/A,N/A,N/A,NEW TABLE,P3,
+,,,,,,,,
+=== AI_CONVERSATIONS (New Table) ===,,,,,,,,
+ai_conversations,id,UUID,PRIMARY KEY,conversationId,N/A,string,PARTIAL,P3,Current LLM has basic conversation
+ai_conversations,tenant_id,UUID,NOT NULL FK,tenantId,N/A,string,PARTIAL,P3,
+ai_conversations,agent_id,UUID,NOT NULL FK,N/A,N/A,N/A,NEW TABLE,P3,
+ai_conversations,customer_id,UUID,FK,N/A,N/A,N/A,MISSING,P3,
+ai_conversations,job_id,UUID,FK,N/A,N/A,N/A,MISSING,P3,
+ai_conversations,channel,message_channel ENUM,NOT NULL,N/A,N/A,N/A,NEW TABLE,P3,
+ai_conversations,status,conversation_status ENUM,DEFAULT 'IN_PROGRESS',N/A,N/A,N/A,NEW TABLE,P3,
+ai_conversations,external_call_id,VARCHAR(100),,N/A,N/A,N/A,NEW TABLE,P3,
+ai_conversations,phone_number,VARCHAR(20),,N/A,N/A,N/A,NEW TABLE,P3,
+ai_conversations,started_at,TIMESTAMPTZ,DEFAULT NOW(),timestamp,N/A,string,PARTIAL,P3,
+ai_conversations,ended_at,TIMESTAMPTZ,,N/A,N/A,N/A,NEW TABLE,P3,
+ai_conversations,duration_seconds,INTEGER,,N/A,N/A,N/A,NEW TABLE,P3,
+ai_conversations,transcript,TEXT,,history,N/A,array,PARTIAL,P3,Current stores as array
+ai_conversations,recording_url,VARCHAR(500),,N/A,N/A,N/A,NEW TABLE,P3,
+ai_conversations,summary,TEXT,,N/A,N/A,N/A,NEW TABLE,P3,
+ai_conversations,detected_intent,VARCHAR(100),,N/A,N/A,N/A,NEW TABLE,P3,
+ai_conversations,intent_confidence,DECIMAL(5.4),,N/A,N/A,N/A,NEW TABLE,P3,
+ai_conversations,sentiment_score,DECIMAL(4.3),,N/A,N/A,N/A,NEW TABLE,P3,
+ai_conversations,outcome,JSONB,DEFAULT '{}',metadata,N/A,object,PARTIAL,P3,
+ai_conversations,actions_taken,JSONB,DEFAULT '[]',suggestedActions,N/A,array,PARTIAL,P3,
+ai_conversations,cost_amount,DECIMAL(10.4),,tokensUsed,N/A,object,PARTIAL,P3,
+ai_conversations,cost_currency,VARCHAR(3),DEFAULT 'USD',N/A,N/A,N/A,NEW TABLE,P3,
+ai_conversations,metadata,JSONB,DEFAULT '{}',metadata,N/A,object,PARTIAL,P3,
+ai_conversations,created_at,TIMESTAMPTZ,DEFAULT NOW(),N/A,N/A,N/A,NEW TABLE,P3,
+ai_conversations,updated_at,TIMESTAMPTZ,DEFAULT NOW(),N/A,N/A,N/A,NEW TABLE,P3,
+,,,,,,,,
+=== STATUS LEGEND ===,,,,,,,,
+MAPPED,,,,"Field exists in both systems with compatible types",,,,
+PARTIAL,,,,"Field exists but needs transformation or has different types/values",,,,
+MISSING,,,,"Field exists in SQL but not in frontend/DynamoDB",,,,
+NEW TABLE,,,,"Entire table is new - doesn't exist in current system",,,,
+INTERNAL,,,,"Internal field not exposed to frontend",,,,
+IMPLICIT,,,,"Relationship implied through object structure",,,,
+,,,,,,,,
+=== PRIORITY LEGEND ===,,,,,,,,
+P1,,,,"Critical - Required for basic functionality",,,,
+P2,,,,"Important - Enhances user experience",,,,
+P3,,,,"Nice to have - Advanced features",,,,
+N/A,,,,"Already implemented or not applicable",,,,
+

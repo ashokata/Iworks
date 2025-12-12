@@ -3,424 +3,600 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Seeding database with demo data...');
+  console.log('🌱 Seeding database with demo data...\n');
+
+  // Create industry
+  const industry = await prisma.industry.upsert({
+    where: { slug: 'hvac' },
+    update: {},
+    create: {
+      name: 'HVAC & Plumbing',
+      slug: 'hvac',
+      icon: '🔧',
+      defaultServices: JSON.stringify(['AC Repair', 'Heating Service', 'Plumbing']),
+    },
+  });
+  console.log('✅ Created industry:', industry.name);
+
+  // Create plan
+  const plan = await prisma.plan.upsert({
+    where: { slug: 'pro' },
+    update: {},
+    create: {
+      name: 'Pro Plan',
+      slug: 'pro',
+      tier: 'PRO',
+      description: 'Full-featured plan for growing businesses',
+      monthlyPrice: 99.00,
+      annualPrice: 990.00,
+      maxUsers: 25,
+      maxCustomers: 5000,
+      maxJobsPerMonth: 500,
+      features: JSON.stringify({
+        scheduling: true,
+        invoicing: true,
+        reporting: true,
+        aiAssistant: true,
+        multiUser: true,
+      }),
+    },
+  });
+  console.log('✅ Created plan:', plan.name);
 
   // Create demo tenant
   const tenant = await prisma.tenant.upsert({
-    where: { id: 'local-tenant' },
+    where: { slug: 'local-tenant' },
     update: {},
     create: {
       id: 'local-tenant',
       name: 'Local Development',
-      subdomain: 'local',
-      isActive: true,
+      slug: 'local-tenant',
+      status: 'ACTIVE',
+      industryId: industry.id,
+      timezone: 'America/Chicago',
     },
   });
   console.log('✅ Created tenant:', tenant.name);
 
-  // Create demo users
-  const users = await Promise.all([
-    prisma.user.upsert({
-      where: { email: 'admin@fieldsmartpro.local' },
-      update: {},
-      create: {
-        email: 'admin@fieldsmartpro.local',
-        passwordHash: 'demo-hash', // In production, use bcrypt
-        firstName: 'Admin',
-        lastName: 'User',
-        role: 'ADMIN',
-        phone: '555-0100',
-        tenantId: tenant.id,
-      },
-    }),
-    prisma.user.upsert({
-      where: { email: 'tech1@fieldsmartpro.local' },
-      update: {},
-      create: {
-        email: 'tech1@fieldsmartpro.local',
-        passwordHash: 'demo-hash',
-        firstName: 'Mike',
-        lastName: 'Johnson',
-        role: 'TECHNICIAN',
-        phone: '555-0101',
-        tenantId: tenant.id,
-      },
-    }),
-    prisma.user.upsert({
-      where: { email: 'tech2@fieldsmartpro.local' },
-      update: {},
-      create: {
-        email: 'tech2@fieldsmartpro.local',
-        passwordHash: 'demo-hash',
-        firstName: 'Sarah',
-        lastName: 'Williams',
-        role: 'TECHNICIAN',
-        phone: '555-0102',
-        tenantId: tenant.id,
-      },
-    }),
-  ]);
-  console.log(`✅ Created ${users.length} users`);
+  // Create subscription
+  await prisma.subscription.upsert({
+    where: { id: 'local-sub' },
+    update: {},
+    create: {
+      id: 'local-sub',
+      tenantId: tenant.id,
+      planId: plan.id,
+      status: 'ACTIVE',
+      billingCycle: 'MONTHLY',
+      seatCount: 5,
+    },
+  });
+  console.log('✅ Created subscription');
 
-  // Create demo customers
-  const customers = await Promise.all([
-    prisma.customer.create({
-      data: {
-        firstName: 'John',
-        lastName: 'Smith',
-        email: 'john.smith@example.com',
-        phone: '555-1001',
-        address: '123 Main Street',
-        city: 'Springfield',
-        state: 'IL',
-        zipCode: '62701',
-        notes: 'Preferred customer - VIP service',
+  // Create demo users
+  const adminUser = await prisma.user.upsert({
+    where: { id: 'admin-user' },
+    update: {},
+    create: {
+      id: 'admin-user',
+      email: 'admin@fieldsmartpro.local',
+      passwordHash: 'demo-hash',
+      firstName: 'Admin',
+      lastName: 'User',
+      role: 'ADMIN',
+      phone: '555-0100',
+      tenantId: tenant.id,
+      isActive: true,
+      isVerified: true,
+    },
+  });
+
+  const techUser1 = await prisma.user.upsert({
+    where: { id: 'tech-user-1' },
+    update: {},
+    create: {
+      id: 'tech-user-1',
+      email: 'mike@fieldsmartpro.local',
+      passwordHash: 'demo-hash',
+      firstName: 'Mike',
+      lastName: 'Johnson',
+      role: 'FIELD_TECH',
+      phone: '555-0101',
+      tenantId: tenant.id,
+      isActive: true,
+      isVerified: true,
+    },
+  });
+
+  const techUser2 = await prisma.user.upsert({
+    where: { id: 'tech-user-2' },
+    update: {},
+    create: {
+      id: 'tech-user-2',
+      email: 'sarah@fieldsmartpro.local',
+      passwordHash: 'demo-hash',
+      firstName: 'Sarah',
+      lastName: 'Williams',
+      role: 'FIELD_TECH',
+      phone: '555-0102',
+      tenantId: tenant.id,
+      isActive: true,
+      isVerified: true,
+    },
+  });
+  console.log('✅ Created 3 users');
+
+  // Create employees for technicians
+  const employee1 = await prisma.employee.upsert({
+    where: { id: 'emp-1' },
+    update: {},
+    create: {
+      id: 'emp-1',
+      userId: techUser1.id,
+      tenantId: tenant.id,
+      employeeNumber: 'EMP-001',
+      hireDate: new Date('2023-01-15'),
+      jobTitle: 'Senior Technician',
+      department: 'Field Service',
+      colorHex: '#3B82F6',
+      hourlyRate: 35.00,
+      overtimeRate: 52.50,
+      canBeBookedOnline: true,
+      isDispatchEnabled: true,
+    },
+  });
+
+  const employee2 = await prisma.employee.upsert({
+    where: { id: 'emp-2' },
+    update: {},
+    create: {
+      id: 'emp-2',
+      userId: techUser2.id,
+      tenantId: tenant.id,
+      employeeNumber: 'EMP-002',
+      hireDate: new Date('2023-06-01'),
+      jobTitle: 'Technician',
+      department: 'Field Service',
+      colorHex: '#10B981',
+      hourlyRate: 28.00,
+      overtimeRate: 42.00,
+      canBeBookedOnline: true,
+      isDispatchEnabled: true,
+    },
+  });
+  console.log('✅ Created 2 employees');
+
+  // Create job types
+  const jobTypes = await Promise.all([
+    prisma.jobType.upsert({
+      where: { id: 'jt-repair' },
+      update: {},
+      create: {
+        id: 'jt-repair',
         tenantId: tenant.id,
+        name: 'Repair',
+        description: 'Equipment repair and troubleshooting',
+        colorHex: '#EF4444',
+        defaultDuration: 90,
+        defaultPriority: 'NORMAL',
       },
     }),
-    prisma.customer.create({
-      data: {
-        firstName: 'Emily',
-        lastName: 'Davis',
-        email: 'emily.davis@example.com',
-        phone: '555-1002',
-        address: '456 Oak Avenue',
-        city: 'Springfield',
-        state: 'IL',
-        zipCode: '62702',
+    prisma.jobType.upsert({
+      where: { id: 'jt-install' },
+      update: {},
+      create: {
+        id: 'jt-install',
         tenantId: tenant.id,
+        name: 'Installation',
+        description: 'New equipment installation',
+        colorHex: '#3B82F6',
+        defaultDuration: 180,
+        defaultPriority: 'NORMAL',
       },
     }),
-    prisma.customer.create({
-      data: {
-        firstName: 'Robert',
-        lastName: 'Brown',
-        email: 'robert.brown@example.com',
-        phone: '555-1003',
-        address: '789 Pine Road',
-        city: 'Riverside',
-        state: 'IL',
-        zipCode: '60546',
-        notes: 'Commercial account - office building',
+    prisma.jobType.upsert({
+      where: { id: 'jt-maintenance' },
+      update: {},
+      create: {
+        id: 'jt-maintenance',
         tenantId: tenant.id,
+        name: 'Maintenance',
+        description: 'Scheduled maintenance and tune-ups',
+        colorHex: '#10B981',
+        defaultDuration: 60,
+        defaultPriority: 'LOW',
       },
     }),
-    prisma.customer.create({
-      data: {
-        firstName: 'Jennifer',
-        lastName: 'Wilson',
-        email: 'jennifer.wilson@example.com',
-        phone: '555-1004',
-        address: '321 Elm Street',
-        city: 'Aurora',
-        state: 'IL',
-        zipCode: '60505',
+    prisma.jobType.upsert({
+      where: { id: 'jt-emergency' },
+      update: {},
+      create: {
+        id: 'jt-emergency',
         tenantId: tenant.id,
-      },
-    }),
-    prisma.customer.create({
-      data: {
-        firstName: 'Michael',
-        lastName: 'Taylor',
-        email: 'michael.taylor@example.com',
-        phone: '555-1005',
-        address: '654 Maple Drive',
-        city: 'Naperville',
-        state: 'IL',
-        zipCode: '60540',
-        notes: 'New customer - first service call',
-        tenantId: tenant.id,
-      },
-    }),
-    prisma.customer.create({
-      data: {
-        firstName: 'Sarah',
-        lastName: 'Martinez',
-        email: 'sarah.martinez@example.com',
-        phone: '555-1006',
-        address: '890 Birch Lane',
-        city: 'Joliet',
-        state: 'IL',
-        zipCode: '60431',
-        notes: 'Property manager - handles multiple units',
-        tenantId: tenant.id,
-      },
-    }),
-    prisma.customer.create({
-      data: {
-        firstName: 'David',
-        lastName: 'Anderson',
-        email: 'david.anderson@example.com',
-        phone: '555-1007',
-        address: '234 Cedar Court',
-        city: 'Schaumburg',
-        state: 'IL',
-        zipCode: '60173',
-        tenantId: tenant.id,
-      },
-    }),
-    prisma.customer.create({
-      data: {
-        firstName: 'Lisa',
-        lastName: 'Thompson',
-        email: 'lisa.thompson@example.com',
-        phone: '555-1008',
-        address: '567 Willow Way',
-        city: 'Evanston',
-        state: 'IL',
-        zipCode: '60201',
-        notes: 'Recurring monthly maintenance contract',
-        tenantId: tenant.id,
-      },
-    }),
-    prisma.customer.create({
-      data: {
-        firstName: 'James',
-        lastName: 'Garcia',
-        email: 'james.garcia@example.com',
-        phone: '555-1009',
-        address: '901 Spruce Street',
-        city: 'Oak Park',
-        state: 'IL',
-        zipCode: '60302',
-        tenantId: tenant.id,
-      },
-    }),
-    prisma.customer.create({
-      data: {
-        firstName: 'Patricia',
-        lastName: 'Rodriguez',
-        email: 'patricia.rodriguez@example.com',
-        phone: '555-1010',
-        address: '1234 Ash Boulevard',
-        city: 'Skokie',
-        state: 'IL',
-        zipCode: '60076',
-        notes: 'Prefers afternoon appointments only',
-        tenantId: tenant.id,
-      },
-    }),
-    prisma.customer.create({
-      data: {
-        firstName: 'Christopher',
-        lastName: 'Lee',
-        email: 'christopher.lee@example.com',
-        phone: '555-1011',
-        address: '456 Hickory Hills',
-        city: 'Downers Grove',
-        state: 'IL',
-        zipCode: '60515',
-        notes: 'Commercial - Restaurant equipment',
-        tenantId: tenant.id,
-      },
-    }),
-    prisma.customer.create({
-      data: {
-        firstName: 'Amanda',
-        lastName: 'White',
-        email: 'amanda.white@example.com',
-        phone: '555-1012',
-        address: '789 Poplar Place',
-        city: 'Wheaton',
-        state: 'IL',
-        zipCode: '60187',
-        tenantId: tenant.id,
-      },
-    }),
-    prisma.customer.create({
-      data: {
-        firstName: 'Daniel',
-        lastName: 'Harris',
-        email: 'daniel.harris@example.com',
-        phone: '555-1013',
-        address: '321 Chestnut Circle',
-        city: 'Elmhurst',
-        state: 'IL',
-        zipCode: '60126',
-        notes: 'Senior citizen - discounted rates apply',
-        tenantId: tenant.id,
-      },
-    }),
-    prisma.customer.create({
-      data: {
-        firstName: 'Michelle',
-        lastName: 'Clark',
-        email: 'michelle.clark@example.com',
-        phone: '555-1014',
-        address: '654 Redwood Drive',
-        city: 'Arlington Heights',
-        state: 'IL',
-        zipCode: '60004',
-        tenantId: tenant.id,
-      },
-    }),
-    prisma.customer.create({
-      data: {
-        firstName: 'Thomas',
-        lastName: 'Lewis',
-        email: 'thomas.lewis@example.com',
-        phone: '555-1015',
-        address: '987 Magnolia Street',
-        city: 'Palatine',
-        state: 'IL',
-        zipCode: '60067',
-        notes: 'Industrial client - large warehouse facility',
-        tenantId: tenant.id,
+        name: 'Emergency',
+        description: 'Emergency service calls',
+        colorHex: '#DC2626',
+        defaultDuration: 120,
+        defaultPriority: 'EMERGENCY',
       },
     }),
   ]);
-  console.log(`✅ Created ${customers.length} customers`);
+  console.log(`✅ Created ${jobTypes.length} job types`);
+
+  // Create categories
+  const serviceCategory = await prisma.category.upsert({
+    where: { id: 'cat-service' },
+    update: {},
+    create: {
+      id: 'cat-service',
+      tenantId: tenant.id,
+      name: 'Services',
+      type: 'SERVICE',
+    },
+  });
+
+  const materialCategory = await prisma.category.upsert({
+    where: { id: 'cat-material' },
+    update: {},
+    create: {
+      id: 'cat-material',
+      tenantId: tenant.id,
+      name: 'Materials',
+      type: 'MATERIAL',
+    },
+  });
+  console.log('✅ Created categories');
+
+  // Create services
+  const services = await Promise.all([
+    prisma.service.upsert({
+      where: { id: 'svc-ac-repair' },
+      update: {},
+      create: {
+        id: 'svc-ac-repair',
+        tenantId: tenant.id,
+        categoryId: serviceCategory.id,
+        sku: 'SVC-001',
+        name: 'AC Repair - Standard',
+        description: 'Standard air conditioning repair service',
+        unitPrice: 150.00,
+        unitCost: 50.00,
+        estimatedDuration: 90,
+        isTaxable: true,
+        isOnlineBookable: true,
+      },
+    }),
+    prisma.service.upsert({
+      where: { id: 'svc-heating' },
+      update: {},
+      create: {
+        id: 'svc-heating',
+        tenantId: tenant.id,
+        categoryId: serviceCategory.id,
+        sku: 'SVC-002',
+        name: 'Heating System Service',
+        description: 'Furnace inspection and maintenance',
+        unitPrice: 125.00,
+        unitCost: 40.00,
+        estimatedDuration: 60,
+        isTaxable: true,
+        isOnlineBookable: true,
+      },
+    }),
+    prisma.service.upsert({
+      where: { id: 'svc-plumbing' },
+      update: {},
+      create: {
+        id: 'svc-plumbing',
+        tenantId: tenant.id,
+        categoryId: serviceCategory.id,
+        sku: 'SVC-003',
+        name: 'Plumbing Repair',
+        description: 'General plumbing repair service',
+        unitPrice: 100.00,
+        unitCost: 30.00,
+        estimatedDuration: 60,
+        isTaxable: true,
+        isOnlineBookable: true,
+      },
+    }),
+  ]);
+  console.log(`✅ Created ${services.length} services`);
+
+  // Create materials
+  const materials = await Promise.all([
+    prisma.material.upsert({
+      where: { id: 'mat-filter' },
+      update: {},
+      create: {
+        id: 'mat-filter',
+        tenantId: tenant.id,
+        categoryId: materialCategory.id,
+        sku: 'MAT-001',
+        name: 'Air Filter - Standard',
+        description: '16x25x1 HVAC air filter',
+        unitCost: 8.00,
+        markupPercent: 50.00,
+        isTaxable: true,
+        qtyOnHand: 50,
+        reorderPoint: 10,
+      },
+    }),
+    prisma.material.upsert({
+      where: { id: 'mat-refrigerant' },
+      update: {},
+      create: {
+        id: 'mat-refrigerant',
+        tenantId: tenant.id,
+        categoryId: materialCategory.id,
+        sku: 'MAT-002',
+        name: 'Refrigerant R-410A',
+        description: 'AC refrigerant per pound',
+        unitCost: 25.00,
+        markupPercent: 60.00,
+        unitOfMeasure: 'LB',
+        isTaxable: true,
+        qtyOnHand: 100,
+        reorderPoint: 20,
+      },
+    }),
+  ]);
+  console.log(`✅ Created ${materials.length} materials`);
+
+  // Create demo customers with addresses
+  const customersData = [
+    { firstName: 'John', lastName: 'Smith', email: 'john.smith@example.com', phone: '555-1001', street: '123 Main Street', city: 'Springfield', state: 'IL', zip: '62701', notes: 'Preferred customer - VIP service' },
+    { firstName: 'Emily', lastName: 'Davis', email: 'emily.davis@example.com', phone: '555-1002', street: '456 Oak Avenue', city: 'Springfield', state: 'IL', zip: '62702' },
+    { firstName: 'Robert', lastName: 'Brown', email: 'robert.brown@example.com', phone: '555-1003', street: '789 Pine Road', city: 'Riverside', state: 'IL', zip: '60546', notes: 'Commercial account', type: 'COMMERCIAL' as const },
+    { firstName: 'Jennifer', lastName: 'Wilson', email: 'jennifer.wilson@example.com', phone: '555-1004', street: '321 Elm Street', city: 'Aurora', state: 'IL', zip: '60505' },
+    { firstName: 'Michael', lastName: 'Taylor', email: 'michael.taylor@example.com', phone: '555-1005', street: '654 Maple Drive', city: 'Naperville', state: 'IL', zip: '60540', notes: 'New customer' },
+    { firstName: 'Sarah', lastName: 'Martinez', email: 'sarah.martinez@example.com', phone: '555-1006', street: '890 Birch Lane', city: 'Joliet', state: 'IL', zip: '60431', notes: 'Property manager' },
+    { firstName: 'David', lastName: 'Anderson', email: 'david.anderson@example.com', phone: '555-1007', street: '234 Cedar Court', city: 'Schaumburg', state: 'IL', zip: '60173' },
+    { firstName: 'Lisa', lastName: 'Thompson', email: 'lisa.thompson@example.com', phone: '555-1008', street: '567 Willow Way', city: 'Evanston', state: 'IL', zip: '60201', notes: 'Monthly maintenance contract' },
+    { firstName: 'James', lastName: 'Garcia', email: 'james.garcia@example.com', phone: '555-1009', street: '901 Spruce Street', city: 'Oak Park', state: 'IL', zip: '60302' },
+    { firstName: 'Patricia', lastName: 'Rodriguez', email: 'patricia.rodriguez@example.com', phone: '555-1010', street: '1234 Ash Boulevard', city: 'Skokie', state: 'IL', zip: '60076', notes: 'Prefers afternoon appointments' },
+  ];
+
+  const customers = [];
+  for (let i = 0; i < customersData.length; i++) {
+    const data = customersData[i];
+    const customer = await prisma.customer.upsert({
+      where: { id: `customer-${i + 1}` },
+      update: {},
+      create: {
+        id: `customer-${i + 1}`,
+        tenantId: tenant.id,
+        customerNumber: `CUST-${String(i + 1).padStart(6, '0')}`,
+        type: data.type || 'RESIDENTIAL',
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        mobilePhone: data.phone,
+        notes: data.notes,
+        createdById: adminUser.id,
+        addresses: {
+          create: {
+            type: 'BOTH',
+            street: data.street,
+            city: data.city,
+            state: data.state,
+            zip: data.zip,
+            country: 'US',
+            isPrimary: true,
+          },
+        },
+      },
+      include: { addresses: true },
+    });
+    customers.push(customer);
+  }
+  console.log(`✅ Created ${customers.length} customers with addresses`);
 
   // Create demo jobs
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(9, 0, 0, 0);
+
+  const nextWeek = new Date();
+  nextWeek.setDate(nextWeek.getDate() + 7);
+  nextWeek.setHours(10, 0, 0, 0);
+
   const jobs = await Promise.all([
     prisma.job.create({
       data: {
+        tenantId: tenant.id,
         jobNumber: 'JOB-000001',
+        customerId: customers[0].id,
+        addressId: customers[0].addresses[0].id,
+        jobTypeId: jobTypes[2].id, // Maintenance
         title: 'HVAC System Maintenance',
         description: 'Annual HVAC system inspection and cleaning',
         status: 'SCHEDULED',
-        priority: 'MEDIUM',
-        scheduledDate: new Date('2025-12-15T09:00:00'),
-        estimatedDuration: 120, // 2 hours
-        customerId: customers[0].id,
-        assignedToId: users[1].id,
-        tenantId: tenant.id,
-        address: customers[0].address!,
-        city: customers[0].city!,
-        state: customers[0].state!,
-        zipCode: customers[0].zipCode!,
+        priority: 'NORMAL',
+        source: 'MANUAL',
+        scheduledStart: tomorrow,
+        scheduledEnd: new Date(tomorrow.getTime() + 2 * 60 * 60 * 1000),
+        estimatedDuration: 120,
+        createdById: adminUser.id,
+        assignments: {
+          create: {
+            employeeId: employee1.id,
+            role: 'PRIMARY',
+          },
+        },
       },
     }),
     prisma.job.create({
       data: {
+        tenantId: tenant.id,
         jobNumber: 'JOB-000002',
+        customerId: customers[1].id,
+        addressId: customers[1].addresses[0].id,
+        jobTypeId: jobTypes[0].id, // Repair
         title: 'Plumbing Repair',
         description: 'Fix leaking kitchen faucet',
         status: 'IN_PROGRESS',
         priority: 'HIGH',
-        scheduledDate: new Date('2025-12-10T10:00:00'),
+        source: 'PHONE',
+        scheduledStart: new Date(),
+        actualStart: new Date(),
         estimatedDuration: 60,
-        customerId: customers[1].id,
-        assignedToId: users[2].id,
-        tenantId: tenant.id,
-        address: customers[1].address!,
-        city: customers[1].city!,
-        state: customers[1].state!,
-        zipCode: customers[1].zipCode!,
+        createdById: adminUser.id,
+        assignments: {
+          create: {
+            employeeId: employee2.id,
+            role: 'PRIMARY',
+          },
+        },
       },
     }),
     prisma.job.create({
       data: {
+        tenantId: tenant.id,
         jobNumber: 'JOB-000003',
+        customerId: customers[2].id,
+        addressId: customers[2].addresses[0].id,
+        jobTypeId: jobTypes[3].id, // Emergency
         title: 'Electrical Inspection',
         description: 'Complete electrical system inspection for commercial building',
         status: 'SCHEDULED',
-        priority: 'URGENT',
-        scheduledDate: new Date('2025-12-11T08:00:00'),
-        estimatedDuration: 240, // 4 hours
-        customerId: customers[2].id,
-        assignedToId: users[1].id,
-        tenantId: tenant.id,
-        address: customers[2].address!,
-        city: customers[2].city!,
-        state: customers[2].state!,
-        zipCode: customers[2].zipCode!,
+        priority: 'EMERGENCY',
+        source: 'MANUAL',
+        scheduledStart: nextWeek,
+        scheduledEnd: new Date(nextWeek.getTime() + 4 * 60 * 60 * 1000),
+        estimatedDuration: 240,
+        createdById: adminUser.id,
+        assignments: {
+          create: [
+            { employeeId: employee1.id, role: 'PRIMARY' },
+            { employeeId: employee2.id, role: 'SECONDARY' },
+          ],
+        },
       },
     }),
     prisma.job.create({
       data: {
+        tenantId: tenant.id,
         jobNumber: 'JOB-000004',
+        customerId: customers[3].id,
+        addressId: customers[3].addresses[0].id,
+        jobTypeId: jobTypes[1].id, // Installation
         title: 'Water Heater Installation',
         description: 'Install new 50-gallon water heater',
         status: 'COMPLETED',
-        priority: 'MEDIUM',
-        scheduledDate: new Date('2025-12-05T13:00:00'),
-        completedDate: new Date('2025-12-05T16:30:00'),
+        priority: 'NORMAL',
+        source: 'MANUAL',
+        scheduledStart: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+        actualStart: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+        actualEnd: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000 + 3.5 * 60 * 60 * 1000),
+        completedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000 + 3.5 * 60 * 60 * 1000),
         estimatedDuration: 180,
-        actualDuration: 210,
-        customerId: customers[3].id,
-        assignedToId: users[2].id,
-        tenantId: tenant.id,
-        address: customers[3].address!,
-        city: customers[3].city!,
-        state: customers[3].state!,
-        zipCode: customers[3].zipCode!,
+        subtotal: 850.00,
+        taxAmount: 68.00,
+        total: 918.00,
+        createdById: adminUser.id,
+        assignments: {
+          create: {
+            employeeId: employee2.id,
+            role: 'PRIMARY',
+          },
+        },
+        lineItems: {
+          create: [
+            {
+              type: 'MATERIAL',
+              name: '50-gallon water heater',
+              quantity: 1,
+              unitPrice: 650.00,
+              unitCost: 450.00,
+              isTaxable: true,
+              sortOrder: 1,
+            },
+            {
+              type: 'LABOR',
+              name: 'Installation labor',
+              description: '3.5 hours',
+              quantity: 3.5,
+              unitPrice: 50.00,
+              unitCost: 35.00,
+              isTaxable: true,
+              sortOrder: 2,
+            },
+            {
+              type: 'MATERIAL',
+              name: 'Copper piping and fittings',
+              quantity: 1,
+              unitPrice: 25.00,
+              unitCost: 15.00,
+              isTaxable: true,
+              sortOrder: 3,
+            },
+          ],
+        },
       },
     }),
     prisma.job.create({
       data: {
+        tenantId: tenant.id,
         jobNumber: 'JOB-000005',
+        customerId: customers[4].id,
+        addressId: customers[4].addresses[0].id,
+        jobTypeId: jobTypes[0].id, // Repair
         title: 'AC Unit Repair',
         description: 'Diagnose and repair AC not cooling properly',
         status: 'ON_HOLD',
         priority: 'HIGH',
-        scheduledDate: new Date('2025-12-12T14:00:00'),
+        source: 'ONLINE_BOOKING',
+        scheduledStart: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
         estimatedDuration: 90,
-        customerId: customers[4].id,
-        tenantId: tenant.id,
-        address: customers[4].address!,
-        city: customers[4].city!,
-        state: customers[4].state!,
-        zipCode: customers[4].zipCode!,
+        internalNotes: 'Waiting for parts to arrive',
+        createdById: adminUser.id,
       },
     }),
   ]);
   console.log(`✅ Created ${jobs.length} jobs`);
 
-  // Create job notes for some jobs
-  await prisma.jobNote.createMany({
-    data: [
-      {
-        jobId: jobs[0].id,
-        note: 'Customer requested morning appointment',
-        createdBy: users[0].id,
-      },
-      {
-        jobId: jobs[1].id,
-        note: 'Customer will be home all day',
-        createdBy: users[2].id,
-      },
-      {
-        jobId: jobs[2].id,
-        note: 'Contact building manager before arrival',
-        createdBy: users[1].id,
-      },
-    ],
-  });
-  console.log('✅ Created job notes');
-
-  // Create invoices for completed job
+  // Create invoice for completed job
   const invoice = await prisma.invoice.create({
     data: {
+      tenantId: tenant.id,
       invoiceNumber: 'INV-000001',
+      customerId: customers[3].id,
       jobId: jobs[3].id,
       status: 'SENT',
+      issueDate: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000),
+      dueDate: new Date(Date.now() + 26 * 24 * 60 * 60 * 1000),
+      terms: 'NET_30',
       subtotal: 850.00,
-      tax: 68.00,
+      taxRate: 8.00,
+      taxAmount: 68.00,
       total: 918.00,
-      dueDate: new Date('2025-12-20'),
-      tenantId: tenant.id,
-      items: {
+      sentAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000),
+      createdById: adminUser.id,
+      lineItems: {
         create: [
           {
-            description: '50-gallon water heater',
+            type: 'MATERIAL',
+            name: '50-gallon water heater',
             quantity: 1,
             unitPrice: 650.00,
-            total: 650.00,
+            isTaxable: true,
             sortOrder: 1,
           },
           {
-            description: 'Installation labor (3.5 hours)',
+            type: 'LABOR',
+            name: 'Installation labor (3.5 hours)',
             quantity: 3.5,
             unitPrice: 50.00,
-            total: 175.00,
+            isTaxable: true,
             sortOrder: 2,
           },
           {
-            description: 'Copper piping and fittings',
+            type: 'MATERIAL',
+            name: 'Copper piping and fittings',
             quantity: 1,
             unitPrice: 25.00,
-            total: 25.00,
+            isTaxable: true,
             sortOrder: 3,
           },
         ],
@@ -429,18 +605,81 @@ async function main() {
   });
   console.log('✅ Created invoice:', invoice.invoiceNumber);
 
+  // Create checklist template
+  const checklistTemplate = await prisma.checklistTemplate.create({
+    data: {
+      tenantId: tenant.id,
+      name: 'HVAC Maintenance Checklist',
+      description: 'Standard checklist for HVAC maintenance visits',
+      category: 'HVAC',
+      isRequiredForCompletion: true,
+      items: {
+        create: [
+          { label: 'Check thermostat operation', valueType: 'BOOLEAN', isRequired: true, sortOrder: 1 },
+          { label: 'Inspect air filter', valueType: 'STOPLIGHT', isRequired: true, sortOrder: 2 },
+          { label: 'Check refrigerant levels', valueType: 'BOOLEAN', isRequired: true, sortOrder: 3 },
+          { label: 'Inspect electrical connections', valueType: 'BOOLEAN', isRequired: true, sortOrder: 4 },
+          { label: 'Clean condenser coils', valueType: 'BOOLEAN', sortOrder: 5 },
+          { label: 'Test system operation', valueType: 'BOOLEAN', isRequired: true, sortOrder: 6 },
+          { label: 'Customer notes', valueType: 'TEXT', sortOrder: 7 },
+          { label: 'Before photo', valueType: 'PHOTO', sortOrder: 8 },
+          { label: 'After photo', valueType: 'PHOTO', sortOrder: 9 },
+          { label: 'Customer signature', valueType: 'SIGNATURE', isRequired: true, sortOrder: 10 },
+        ],
+      },
+    },
+  });
+  console.log('✅ Created checklist template');
+
+  // Create message templates
+  await prisma.messageTemplate.createMany({
+    data: [
+      {
+        tenantId: tenant.id,
+        name: 'Appointment Confirmation',
+        channel: 'SMS',
+        triggerType: 'JOB_SCHEDULED',
+        body: 'Hi {{customer.firstName}}, your appointment is confirmed for {{job.scheduledStart}}. Reply STOP to unsubscribe.',
+        variables: JSON.stringify(['customer.firstName', 'job.scheduledStart']),
+      },
+      {
+        tenantId: tenant.id,
+        name: 'Tech En Route',
+        channel: 'SMS',
+        triggerType: 'TECH_EN_ROUTE',
+        body: 'Hi {{customer.firstName}}, {{technician.firstName}} is on the way! ETA: {{eta}}',
+        variables: JSON.stringify(['customer.firstName', 'technician.firstName', 'eta']),
+      },
+      {
+        tenantId: tenant.id,
+        name: 'Invoice Sent',
+        channel: 'EMAIL',
+        triggerType: 'INVOICE_SENT',
+        subject: 'Invoice #{{invoice.number}} from FieldSmartPro',
+        body: 'Hi {{customer.firstName}},\n\nPlease find attached invoice #{{invoice.number}} for {{invoice.total}}.\n\nThank you for your business!',
+        variables: JSON.stringify(['customer.firstName', 'invoice.number', 'invoice.total']),
+      },
+    ],
+  });
+  console.log('✅ Created message templates');
+
   console.log('\n🎉 Database seeded successfully!');
   console.log('\n📊 Summary:');
   console.log(`   - 1 Tenant: ${tenant.name}`);
-  console.log(`   - ${users.length} Users (1 admin, 2 technicians)`);
-  console.log(`   - ${customers.length} Customers`);
+  console.log(`   - 3 Users (1 admin, 2 technicians)`);
+  console.log(`   - 2 Employees`);
+  console.log(`   - ${jobTypes.length} Job Types`);
+  console.log(`   - ${services.length} Services`);
+  console.log(`   - ${materials.length} Materials`);
+  console.log(`   - ${customers.length} Customers with addresses`);
   console.log(`   - ${jobs.length} Jobs`);
-  console.log(`   - 1 Invoice with 3 line items`);
+  console.log(`   - 1 Invoice`);
+  console.log(`   - 1 Checklist Template`);
+  console.log(`   - 3 Message Templates`);
   console.log('\n🔑 Demo Credentials:');
   console.log(`   - Admin: admin@fieldsmartpro.local`);
-  console.log(`   - Tech 1: tech1@fieldsmartpro.local`);
-  console.log(`   - Tech 2: tech2@fieldsmartpro.local`);
-  console.log(`   - Password: (demo-hash)`);
+  console.log(`   - Tech 1: mike@fieldsmartpro.local`);
+  console.log(`   - Tech 2: sarah@fieldsmartpro.local`);
 }
 
 main()

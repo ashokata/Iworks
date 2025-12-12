@@ -1,3 +1,6 @@
+// Re-export all database types for convenience
+export * from './database.types';
+
 export interface Tenant {
   id: string;
   name: string;

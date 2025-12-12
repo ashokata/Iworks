@@ -1,77 +1,258 @@
-// src/services/customerService.ts - NEW LAMBDA API VERSION
+/**
+ * Customer Service - PostgreSQL Backend
+ * 
+ * This service handles all customer-related API calls.
+ * Uses the new database types that match the PostgreSQL schema.
+ */
+
 import { API_CONFIG } from '@/config/api.config';
-
-export interface CustomerAddress {
-  id: string;
-  street: string;
-  city: string;
-  state: string;
-  zipCode: string;
-  isPrimary: boolean;
-}
-
-export interface Customer {
-  id: string;
-  firstName: string;
-  lastName: string;
-  display_name: string;  // Computed from firstName + lastName
-  email: string;
-  phone: string;
-  mobile_number?: string;  // Alias for phone
-  home_number?: string | null;
-  work_number?: string | null;
-  address?: string;
-  city?: string;
-  state?: string;
-  zipCode?: string;
-  notes?: string;
-  tenantId: string;
-  createdAt: string;
-  updatedAt: string;
-  type?: 'homeowner' | 'business';
-  is_contractor?: boolean;
-  company?: string | null;
-  job_title?: string | null;
-  tags?: any;
-  addresses?: any;
-}
-
-export interface CreateCustomerRequest {
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  address?: string;
-  city?: string;
-  state?: string;
-  zipCode?: string;
-  notes?: string;
-}
+import type {
+  Customer,
+  Address,
+  CustomerType,
+  CreateCustomerRequest,
+  UpdateCustomerRequest,
+  CustomerFilters,
+  PaginatedResponse,
+} from '@/types/database.types';
 
 // Get tenant ID from environment
 const getTenantId = () => {
   return process.env.NEXT_PUBLIC_TENANT_ID || 'local-tenant';
 };
 
+// Transform API response to frontend Customer type
+const transformCustomer = (apiCustomer: any): Customer => {
+  const firstName = apiCustomer.firstName || apiCustomer.first_name || '';
+  const lastName = apiCustomer.lastName || apiCustomer.last_name || '';
+  const companyName = apiCustomer.companyName || apiCustomer.company_name || apiCustomer.company || '';
+  const mobilePhone = apiCustomer.mobilePhone || apiCustomer.mobile_number || apiCustomer.phone || '';
+  const homePhone = apiCustomer.homePhone || apiCustomer.home_number || '';
+  const workPhone = apiCustomer.workPhone || apiCustomer.work_number || '';
+  const displayName = apiCustomer.display_name || apiCustomer.displayName || companyName || `${firstName} ${lastName}`.trim() || 'Unknown';
+  const createdAt = apiCustomer.createdAt || apiCustomer.created_at || new Date().toISOString();
+  const updatedAt = apiCustomer.updatedAt || apiCustomer.updated_at || new Date().toISOString();
+  const isArchived = apiCustomer.isArchived ?? apiCustomer.archived ?? false;
+  
+  return {
+    id: apiCustomer.id || apiCustomer.customerId,
+    tenantId: apiCustomer.tenantId,
+    customerNumber: apiCustomer.customerNumber || apiCustomer.customer_number,
+    type: (apiCustomer.type || 'RESIDENTIAL').toUpperCase() as CustomerType,
+    firstName,
+    lastName,
+    companyName,
+    displayName,
+    email: apiCustomer.email || '',
+    mobilePhone,
+    homePhone,
+    workPhone,
+    preferredContactMethod: apiCustomer.preferredContactMethod || 'SMS',
+    notificationsEnabled: apiCustomer.notificationsEnabled ?? true,
+    doNotService: apiCustomer.doNotService ?? false,
+    doNotServiceReason: apiCustomer.doNotServiceReason,
+    leadSourceId: apiCustomer.leadSourceId,
+    referredByCustomerId: apiCustomer.referredByCustomerId,
+    lifetimeValue: apiCustomer.lifetimeValue || 0,
+    totalJobs: apiCustomer.totalJobs || 0,
+    notes: apiCustomer.notes || '',
+    customFields: apiCustomer.customFields || {},
+    isArchived,
+    archivedAt: apiCustomer.archivedAt,
+    createdById: apiCustomer.createdById,
+    addresses: transformAddresses(apiCustomer.addresses || apiCustomer.address),
+    tags: apiCustomer.tags || [],
+    createdAt,
+    updatedAt,
+    // Snake_case aliases for backward compatibility
+    display_name: displayName,
+    first_name: firstName,
+    last_name: lastName,
+    mobile_number: mobilePhone,
+    home_number: homePhone,
+    work_number: workPhone,
+    company: companyName,
+    archived: isArchived,
+    created_at: createdAt,
+    updated_at: updatedAt,
+  };
+};
+
+// Transform addresses from various formats
+const transformAddresses = (addressData: any): Address[] => {
+  if (!addressData) return [];
+  
+  // If it's an array of addresses
+  if (Array.isArray(addressData)) {
+    return addressData.map((addr: any) => ({
+      id: addr.id || `addr-${Date.now()}`,
+      customerId: addr.customerId || '',
+      type: addr.type || 'BOTH',
+      name: addr.name,
+      street: addr.street || addr.address || '',
+      streetLine2: addr.streetLine2 || addr.street2 || addr.addressLine2 || '',
+      city: addr.city || '',
+      state: addr.state || '',
+      zip: addr.zip || addr.zipCode || '',
+      country: addr.country || 'US',
+      latitude: addr.latitude,
+      longitude: addr.longitude,
+      timezone: addr.timezone,
+      accessNotes: addr.accessNotes,
+      gateCode: addr.gateCode,
+      isPrimary: addr.isPrimary ?? true,
+      isVerified: addr.isVerified ?? false,
+      createdAt: addr.createdAt || new Date().toISOString(),
+      updatedAt: addr.updatedAt || new Date().toISOString(),
+    }));
+  }
+  
+  // If it's a single address string (legacy format)
+  if (typeof addressData === 'string') {
+    return [{
+      id: `addr-legacy-${Date.now()}`,
+      customerId: '',
+      type: 'BOTH',
+      street: addressData,
+      streetLine2: '',
+      city: '',
+      state: '',
+      zip: '',
+      country: 'US',
+      isPrimary: true,
+      isVerified: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }];
+  }
+  
+  // If it's a nested object with data array (old format)
+  if (addressData.data && Array.isArray(addressData.data)) {
+    return transformAddresses(addressData.data);
+  }
+  
+  return [];
+};
+
+// Build request body for create/update
+// Accepts both camelCase and snake_case input for flexibility
+const buildRequestBody = (data: any): Record<string, any> => {
+  const body: Record<string, any> = {};
+  
+  // Extract values from either camelCase or snake_case input
+  let firstName = data.firstName || data.first_name;
+  let lastName = data.lastName || data.last_name;
+  const displayName = data.displayName || data.display_name;
+  const companyName = data.companyName || data.company_name || data.company;
+  const mobilePhone = data.mobilePhone || data.mobile_number || data.phone;
+  const homePhone = data.homePhone || data.home_number;
+  const workPhone = data.workPhone || data.work_number;
+  const jobTitle = data.jobTitle || data.job_title;
+  const isContractor = data.isContractor || data.is_contractor;
+  const notificationsEnabled = data.notificationsEnabled ?? data.notifications_enabled;
+  
+  // If display_name is provided but firstName/lastName are not, split display_name
+  if (displayName && !firstName && !lastName) {
+    const parts = displayName.trim().split(' ');
+    if (parts.length >= 2) {
+      firstName = parts[0];
+      lastName = parts.slice(1).join(' ');
+    } else {
+      firstName = displayName;
+    }
+  }
+  
+  // Map fields to both camelCase and snake_case for backend compatibility
+  if (firstName !== undefined) {
+    body.firstName = firstName;
+    body.first_name = firstName;
+  }
+  if (lastName !== undefined) {
+    body.lastName = lastName;
+    body.last_name = lastName;
+  }
+  if (displayName !== undefined) {
+    body.display_name = displayName;
+    body.displayName = displayName;
+  }
+  if (companyName !== undefined) {
+    body.companyName = companyName;
+    body.company_name = companyName;
+    body.company = companyName;
+  }
+  if (data.email !== undefined) body.email = data.email;
+  if (mobilePhone !== undefined) {
+    body.mobilePhone = mobilePhone;
+    body.mobile_number = mobilePhone;
+    body.phone = mobilePhone;
+  }
+  if (homePhone !== undefined) {
+    body.homePhone = homePhone;
+    body.home_number = homePhone;
+  }
+  if (workPhone !== undefined) {
+    body.workPhone = workPhone;
+    body.work_number = workPhone;
+  }
+  if (jobTitle !== undefined) body.jobTitle = jobTitle;
+  if (isContractor !== undefined) body.isContractor = isContractor;
+  if (data.type !== undefined) body.type = data.type?.toUpperCase?.() || data.type;
+  if (data.notes !== undefined) body.notes = data.notes;
+  if (data.preferredContactMethod !== undefined) body.preferredContactMethod = data.preferredContactMethod;
+  if (notificationsEnabled !== undefined) {
+    body.notificationsEnabled = notificationsEnabled;
+    body.notifications_enabled = notificationsEnabled;
+  }
+  
+  // Handle update-specific fields
+  if ('doNotService' in data && data.doNotService !== undefined) {
+    body.doNotService = data.doNotService;
+  }
+  if ('doNotServiceReason' in data && data.doNotServiceReason !== undefined) {
+    body.doNotServiceReason = data.doNotServiceReason;
+  }
+  
+  // Handle address fields (for create)
+  if ('street' in data && data.street) {
+    body.street = data.street;
+    body.address = data.street;
+  }
+  if ('streetLine2' in data) body.streetLine2 = data.streetLine2;
+  if ('city' in data) body.city = data.city;
+  if ('state' in data) body.state = data.state;
+  if ('zip' in data) {
+    body.zip = data.zip;
+    body.zipCode = data.zip;
+  }
+  if ('country' in data) body.country = data.country;
+  
+  return body;
+};
+
 // Export service interface with methods
 export const customerService = {
-  // Get all customers
-  getAllCustomers: async (): Promise<Customer[]> => {
+  /**
+   * Get all customers with optional filters
+   */
+  getAllCustomers: async (filters?: CustomerFilters): Promise<Customer[]> => {
     try {
-      const tenantIdUsed = getTenantId();
-      console.log(`[Customer Service] Fetching customers from Lambda API`);
-      console.log(`[Customer Service] API URL:`, API_CONFIG.BASE_URL);
-      console.log(`[Customer Service] Tenant ID:`, tenantIdUsed);
+      const tenantId = getTenantId();
+      console.log('[Customer Service] Fetching customers from PostgreSQL API');
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/c288bfc6-fede-4b2e-ba41-31212e9a87d0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'customerService.ts:getAllCustomers',message:'Fetching customers',data:{url:`${API_CONFIG.BASE_URL}/customers`,tenantId:tenantIdUsed},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'LIST1'})}).catch(()=>{});
-      // #endregion
+      // Build query string
+      const params = new URLSearchParams();
+      if (filters?.search) params.append('search', filters.search);
+      if (filters?.type) params.append('type', filters.type);
+      if (filters?.includeArchived) params.append('includeArchived', 'true');
       
-      const response = await fetch(`${API_CONFIG.BASE_URL}/customers`, {
+      const queryString = params.toString();
+      const url = `${API_CONFIG.BASE_URL}/customers${queryString ? `?${queryString}` : ''}`;
+      
+      const response = await fetch(url, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'x-tenant-id': tenantIdUsed,
+          'x-tenant-id': tenantId,
         },
       });
 
@@ -80,53 +261,71 @@ export const customerService = {
       }
 
       const data = await response.json();
-      console.log('[Customer Service] Received customers:', data);
+      console.log('[Customer Service] Received customers:', data.customers?.length || 0);
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/c288bfc6-fede-4b2e-ba41-31212e9a87d0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'customerService.ts:getAllCustomers',message:'Customers received',data:{count:data.customers?.length,customers:data.customers?.map((c:any)=>({id:c.customerId,firstName:c.firstName,lastName:c.lastName}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'LIST2'})}).catch(()=>{});
-      // #endregion
-      
-      // API returns { customers: [...], count: ... }
-      const customers = data.customers || [];
-      
-      // Add display_name and other computed fields, map customerId to id
-      return customers.map((c: any) => ({
-        ...c,
-        id: c.customerId || c.id,  // Map customerId to id for frontend
-        first_name: c.firstName,   // Add snake_case alias for filters
-        last_name: c.lastName,     // Add snake_case alias for filters
-        display_name: `${c.firstName || ''} ${c.lastName || ''}`.trim(),
-        mobile_number: c.phone,  // Map phone to mobile_number
-        type: 'homeowner' as const,
-        is_contractor: false,
-        tags: { data: [], object: 'list', url: '' },
-        addresses: c.address ? {
-          data: [{
-            id: 1,
-            street: c.address,
-            city: c.city || '',
-            state: c.state || '',
-            zipCode: c.zipCode || '',
-            isPrimary: true
-          }],
-          object: 'list',
-          url: ''
-        } : { data: [], object: 'list', url: '' }
-      }));
+      // Transform each customer
+      const customers = (data.customers || []).map(transformCustomer);
+      return customers;
     } catch (error: any) {
       console.error('[Customer Service] Error fetching customers:', error);
       throw error;
     }
   },
   
-  // Get a customer by ID
+  /**
+   * Get paginated customers
+   */
+  getCustomersPaginated: async (
+    limit: number = 50,
+    offset: number = 0,
+    filters?: CustomerFilters
+  ): Promise<PaginatedResponse<Customer>> => {
+    try {
+      const tenantId = getTenantId();
+      
+      const params = new URLSearchParams();
+      params.append('limit', limit.toString());
+      params.append('offset', offset.toString());
+      if (filters?.search) params.append('search', filters.search);
+      if (filters?.type) params.append('type', filters.type);
+      if (filters?.includeArchived) params.append('includeArchived', 'true');
+      
+      const url = `${API_CONFIG.BASE_URL}/customers?${params.toString()}`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-tenant-id': tenantId,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const customers = (data.customers || []).map(transformCustomer);
+      
+      return {
+        data: customers,
+        total: data.total || customers.length,
+        limit,
+        offset,
+        hasMore: offset + customers.length < (data.total || customers.length),
+      };
+    } catch (error: any) {
+      console.error('[Customer Service] Error fetching paginated customers:', error);
+      throw error;
+    }
+  },
+  
+  /**
+   * Get a customer by ID
+   */
   getCustomerById: async (id: string): Promise<Customer | null> => {
     try {
-      // #region agent log
-      console.log(`[DEBUG-GET0] Fetching customer with ID: ${id}`);
-      console.log(`[DEBUG-GET0] Full URL: ${API_CONFIG.BASE_URL}/customers/${id}`);
-      fetch('http://127.0.0.1:7242/ingest/c288bfc6-fede-4b2e-ba41-31212e9a87d0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'customerService.ts:getCustomerById',message:'Fetching customer',data:{id,url:`${API_CONFIG.BASE_URL}/customers/${id}`},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'GET0'})}).catch(()=>{});
-      // #endregion
+      console.log(`[Customer Service] Fetching customer: ${id}`);
       
       const response = await fetch(`${API_CONFIG.BASE_URL}/customers/${id}`, {
         method: 'GET',
@@ -136,71 +335,38 @@ export const customerService = {
         },
       });
 
-      // #region agent log
-      console.log(`[DEBUG-GET1] Response status: ${response.status}`);
-      fetch('http://127.0.0.1:7242/ingest/c288bfc6-fede-4b2e-ba41-31212e9a87d0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'customerService.ts:getCustomerById',message:'Response status',data:{status:response.status,ok:response.ok},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'GET1'})}).catch(()=>{});
-      // #endregion
-
       if (response.status === 404) {
-        console.log('[DEBUG-GET2] Customer not found (404)');
+        console.log('[Customer Service] Customer not found');
         return null;
       }
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.log(`[DEBUG-GET2] Error response: ${errorText}`);
-        fetch('http://127.0.0.1:7242/ingest/c288bfc6-fede-4b2e-ba41-31212e9a87d0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'customerService.ts:getCustomerById',message:'Error response',data:{status:response.status,errorText},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'GET2'})}).catch(()=>{});
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
-      // #region agent log
-      console.log('[DEBUG-GET3] Raw response data:', JSON.stringify(data));
-      fetch('http://127.0.0.1:7242/ingest/c288bfc6-fede-4b2e-ba41-31212e9a87d0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'customerService.ts:getCustomerById',message:'Raw response',data:{rawData:data},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'GET3'})}).catch(()=>{});
-      // #endregion
       
-      // Handle both { customer: ... } wrapper and direct customer object
-      const customer = data.customer || data;
-      
-      // Map customerId to id for frontend compatibility
-      const customerId = customer.customerId || customer.id;
-      
-      // Add display_name and other computed fields
-      return {
-        ...customer,
-        id: customerId,  // Ensure id is set for frontend
-        first_name: customer.firstName,   // Add snake_case alias
-        last_name: customer.lastName,     // Add snake_case alias
-        display_name: `${customer.firstName || ''} ${customer.lastName || ''}`.trim(),
-        mobile_number: customer.phone,  // Map phone to mobile_number
-        type: 'homeowner' as const,
-        is_contractor: false,
-        tags: { data: [], object: 'list', url: '' },
-        addresses: customer.address ? {
-          data: [{
-            id: 1,
-            street: customer.address,
-            city: customer.city || '',
-            state: customer.state || '',
-            zipCode: customer.zipCode || '',
-            isPrimary: true
-          }],
-          object: 'list',
-          url: ''
-        } : { data: [], object: 'list', url: '' }
-      };
+      // Handle { customer: ... } wrapper
+      const customerData = data.customer || data;
+      return transformCustomer(customerData);
     } catch (error: any) {
       console.error(`[Customer Service] Error fetching customer ${id}:`, error);
       throw error;
     }
   },
   
-  // Search customers
-  searchCustomers: async (query: string): Promise<Customer[]> => {
+  /**
+   * Search customers by query
+   */
+  searchCustomers: async (query: string, limit: number = 20): Promise<Customer[]> => {
     try {
       console.log(`[Customer Service] Searching customers: "${query}"`);
       
-      const response = await fetch(`${API_CONFIG.BASE_URL}/customers?search=${encodeURIComponent(query)}`, {
+      const params = new URLSearchParams();
+      params.append('search', query);
+      params.append('limit', limit.toString());
+      
+      const response = await fetch(`${API_CONFIG.BASE_URL}/customers?${params.toString()}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -213,22 +379,21 @@ export const customerService = {
       }
 
       const data = await response.json();
-      return data.customers || [];
+      return (data.customers || []).map(transformCustomer);
     } catch (error: any) {
       console.error('[Customer Service] Error searching customers:', error);
       throw error;
     }
   },
   
-  // Create a new customer
-  createCustomer: async (customerData: CreateCustomerRequest | any): Promise<Customer> => {
+  /**
+   * Create a new customer
+   */
+  createCustomer: async (customerData: CreateCustomerRequest): Promise<Customer> => {
     try {
-      // #region agent log
-      console.log('[DEBUG-FE1] Raw customerData received:', JSON.stringify(customerData));
-      console.log('[DEBUG-FE1] API URL:', `${API_CONFIG.BASE_URL}/customers`);
-      console.log('[DEBUG-FE1] Tenant ID:', getTenantId());
-      fetch('http://127.0.0.1:7242/ingest/c288bfc6-fede-4b2e-ba41-31212e9a87d0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'customerService.ts:createCustomer',message:'Raw customerData',data:{customerData,apiUrl:`${API_CONFIG.BASE_URL}/customers`,tenantId:getTenantId()},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'FE1'})}).catch(()=>{});
-      // #endregion
+      console.log('[Customer Service] Creating customer');
+      
+      const body = buildRequestBody(customerData);
       
       const response = await fetch(`${API_CONFIG.BASE_URL}/customers`, {
         method: 'POST',
@@ -236,52 +401,34 @@ export const customerService = {
           'Content-Type': 'application/json',
           'x-tenant-id': getTenantId(),
         },
-        body: JSON.stringify(customerData),
+        body: JSON.stringify(body),
       });
-
-      // #region agent log
-      console.log('[DEBUG-FE2] Response status:', response.status);
-      fetch('http://127.0.0.1:7242/ingest/c288bfc6-fede-4b2e-ba41-31212e9a87d0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'customerService.ts:createCustomer',message:'Response received',data:{status:response.status,ok:response.ok},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'FE2'})}).catch(()=>{});
-      // #endregion
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        // #region agent log
-        console.log('[DEBUG-FE3] Error response data:', JSON.stringify(errorData));
-        fetch('http://127.0.0.1:7242/ingest/c288bfc6-fede-4b2e-ba41-31212e9a87d0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'customerService.ts:createCustomer',message:'Error response',data:{errorData,status:response.status},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'FE3'})}).catch(()=>{});
-        // #endregion
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log('[Customer Service] Customer created:', data);
+      console.log('[Customer Service] Customer created successfully');
       
-      // Handle { customer: ... } wrapper and map customerId to id
-      const customer = data.customer || data;
-      return {
-        ...customer,
-        id: customer.customerId || customer.id,
-        display_name: `${customer.firstName} ${customer.lastName}`.trim(),
-        mobile_number: customer.phone,
-      };
+      // Handle { customer: ... } wrapper
+      const customerResponse = data.customer || data;
+      return transformCustomer(customerResponse);
     } catch (error: any) {
       console.error('[Customer Service] Error creating customer:', error);
       throw error;
     }
   },
   
-  // Update a customer
-  updateCustomer: async (id: string, customerData: Partial<CreateCustomerRequest>): Promise<Customer> => {
+  /**
+   * Update a customer
+   */
+  updateCustomer: async (id: string, customerData: UpdateCustomerRequest): Promise<Customer> => {
     try {
-      // #region agent log
-      const updateUrl = `${API_CONFIG.BASE_URL}/customers/${id}`;
-      const tenantIdUsed = getTenantId();
-      console.log(`[DEBUG-UPD1] Updating customer at URL: ${updateUrl}`);
-      console.log(`[DEBUG-UPD1] Customer ID: ${id}`);
-      console.log(`[DEBUG-UPD1] Tenant ID: ${tenantIdUsed}`);
-      console.log(`[DEBUG-UPD1] Data:`, JSON.stringify(customerData));
-      fetch('http://127.0.0.1:7242/ingest/c288bfc6-fede-4b2e-ba41-31212e9a87d0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'customerService.ts:updateCustomer',message:'Update request',data:{id,url:updateUrl,tenantId:tenantIdUsed,customerData},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'UPD1'})}).catch(()=>{});
-      // #endregion
+      console.log(`[Customer Service] Updating customer: ${id}`);
+      
+      const body = buildRequestBody(customerData);
       
       const response = await fetch(`${API_CONFIG.BASE_URL}/customers/${id}`, {
         method: 'PUT',
@@ -289,44 +436,32 @@ export const customerService = {
           'Content-Type': 'application/json',
           'x-tenant-id': getTenantId(),
         },
-        body: JSON.stringify(customerData),
+        body: JSON.stringify(body),
       });
-
-      // #region agent log
-      console.log(`[DEBUG-UPD2] Response status: ${response.status}`);
-      fetch('http://127.0.0.1:7242/ingest/c288bfc6-fede-4b2e-ba41-31212e9a87d0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'customerService.ts:updateCustomer',message:'Response received',data:{status:response.status,ok:response.ok},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'UPD2'})}).catch(()=>{});
-      // #endregion
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        // #region agent log
-        console.log(`[DEBUG-UPD3] Error data:`, JSON.stringify(errorData));
-        fetch('http://127.0.0.1:7242/ingest/c288bfc6-fede-4b2e-ba41-31212e9a87d0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'customerService.ts:updateCustomer',message:'Error response',data:{errorData,status:response.status},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'UPD3'})}).catch(()=>{});
-        // #endregion
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
 
-      const customer = await response.json();
-      console.log('[Customer Service] Customer updated:', customer);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/c288bfc6-fede-4b2e-ba41-31212e9a87d0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'customerService.ts:updateCustomer',message:'Update response data',data:{customer},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'UPD4'})}).catch(()=>{});
-      // #endregion
-      return customer;
+      const data = await response.json();
+      console.log('[Customer Service] Customer updated successfully');
+      
+      // Handle { customer: ... } wrapper
+      const customerResponse = data.customer || data;
+      return transformCustomer(customerResponse);
     } catch (error: any) {
-      // #region agent log
-      console.error(`[DEBUG-UPD-ERR] Error updating customer ${id}:`, error.message);
-      console.error(`[DEBUG-UPD-ERR] Error stack:`, error.stack);
-      console.error(`[DEBUG-UPD-ERR] Error type:`, error.constructor.name);
-      fetch('http://127.0.0.1:7242/ingest/c288bfc6-fede-4b2e-ba41-31212e9a87d0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'customerService.ts:updateCustomer',message:'Exception caught',data:{id,errorMessage:error.message,errorName:error.name,errorStack:error.stack},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'UPD-ERR'})}).catch(()=>{});
-      // #endregion
+      console.error(`[Customer Service] Error updating customer ${id}:`, error);
       throw error;
     }
   },
   
-  // Delete a customer
+  /**
+   * Delete (archive) a customer
+   */
   deleteCustomer: async (id: string): Promise<void> => {
     try {
-      console.log(`[Customer Service] Deleting customer ${id}`);
+      console.log(`[Customer Service] Archiving customer: ${id}`);
       
       const response = await fetch(`${API_CONFIG.BASE_URL}/customers/${id}`, {
         method: 'DELETE',
@@ -341,10 +476,160 @@ export const customerService = {
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
 
-      console.log('[Customer Service] Customer deleted successfully');
+      console.log('[Customer Service] Customer archived successfully');
     } catch (error: any) {
-      console.error(`[Customer Service] Error deleting customer ${id}:`, error);
+      console.error(`[Customer Service] Error archiving customer ${id}:`, error);
+      throw error;
+    }
+  },
+  
+  /**
+   * Add an address to a customer
+   */
+  addAddress: async (customerId: string, address: Partial<Address>): Promise<Address> => {
+    try {
+      console.log(`[Customer Service] Adding address to customer: ${customerId}`);
+      
+      const response = await fetch(`${API_CONFIG.BASE_URL}/customers/${customerId}/addresses`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-tenant-id': getTenantId(),
+        },
+        body: JSON.stringify(address),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('[Customer Service] Address added successfully');
+      return data.address || data;
+    } catch (error: any) {
+      console.error(`[Customer Service] Error adding address:`, error);
+      throw error;
+    }
+  },
+  
+  /**
+   * Add an address to a customer (alias for edit page compatibility)
+   */
+  addCustomerAddress: async (customerId: string, address: any): Promise<Address> => {
+    try {
+      console.log(`[Customer Service] Adding address to customer: ${customerId}`, address);
+      
+      // Map frontend address format to backend
+      const addressData = {
+        type: address.addressType || address.type || 'SERVICE',
+        name: address.name,
+        street: address.street,
+        streetLine2: address.streetLine2 || address.street2,
+        city: address.city,
+        state: address.state,
+        zip: address.zip || address.zipCode,
+        country: address.country || 'US',
+        accessNotes: address.accessNotes,
+        gateCode: address.gateCode,
+        isPrimary: address.isPrimary ?? false,
+      };
+      
+      const response = await fetch(`${API_CONFIG.BASE_URL}/customers/${customerId}/addresses`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-tenant-id': getTenantId(),
+        },
+        body: JSON.stringify(addressData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('[Customer Service] Address added successfully:', data);
+      return data.address || data;
+    } catch (error: any) {
+      console.error(`[Customer Service] Error adding address:`, error);
+      throw error;
+    }
+  },
+  
+  /**
+   * Update an address for a customer
+   */
+  updateCustomerAddress: async (customerId: string, addressId: string, address: any): Promise<Address> => {
+    try {
+      console.log(`[Customer Service] Updating address ${addressId} for customer: ${customerId}`, address);
+      
+      // Map frontend address format to backend
+      const addressData = {
+        type: address.addressType || address.type,
+        name: address.name,
+        street: address.street,
+        streetLine2: address.streetLine2 || address.street2,
+        city: address.city,
+        state: address.state,
+        zip: address.zip || address.zipCode,
+        country: address.country,
+        accessNotes: address.accessNotes,
+        gateCode: address.gateCode,
+        isPrimary: address.isPrimary,
+      };
+      
+      const response = await fetch(`${API_CONFIG.BASE_URL}/customers/${customerId}/addresses/${addressId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-tenant-id': getTenantId(),
+        },
+        body: JSON.stringify(addressData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('[Customer Service] Address updated successfully:', data);
+      return data.address || data;
+    } catch (error: any) {
+      console.error(`[Customer Service] Error updating address ${addressId}:`, error);
+      throw error;
+    }
+  },
+  
+  /**
+   * Delete an address from a customer
+   */
+  deleteCustomerAddress: async (customerId: string, addressId: string): Promise<void> => {
+    try {
+      console.log(`[Customer Service] Deleting address ${addressId} for customer: ${customerId}`);
+      
+      const response = await fetch(`${API_CONFIG.BASE_URL}/customers/${customerId}/addresses/${addressId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-tenant-id': getTenantId(),
+        },
+      });
+
+      if (!response.ok && response.status !== 204) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      console.log('[Customer Service] Address deleted successfully');
+    } catch (error: any) {
+      console.error(`[Customer Service] Error deleting address ${addressId}:`, error);
       throw error;
     }
   },
 };
+
+// Re-export types for convenience
+export type { Customer, Address, CustomerType, CreateCustomerRequest, UpdateCustomerRequest };

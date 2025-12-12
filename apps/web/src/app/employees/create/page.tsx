@@ -181,13 +181,22 @@ export default function CreateEmployeePage() {
 
   const createEmployeeMutation = useMutation({
     mutationFn: (empData: CreateEmployeeRequest) => {
-      const transformedData: Partial<Employee> = {
-        ...empData,
-        skills: empData.skills ? empData.skills.split(',').map(s => s.trim()) : [],
-        specialty: empData.specialty ? empData.specialty.split(',').map(s => s.trim()) : [],
-        certifications: empData.certifications ? empData.certifications.split(',').map(s => s.trim()) : [],
+      // Split name into firstName and lastName
+      const nameParts = (empData.name || '').trim().split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+      
+      const transformedData = {
+        email: empData.email,
+        firstName,
+        lastName,
+        phone: empData.phone,
+        role: empData.isTechnician ? 'FIELD_TECH' : 'OFFICE_STAFF',
+        jobTitle: empData.role || (empData.isTechnician ? 'Field Technician' : 'Staff'),
+        isDispatchEnabled: empData.isTechnician,
+        canBeBookedOnline: empData.isTechnician,
       };
-      return employeeService.createEmployee(transformedData);
+      return employeeService.createEmployee(transformedData as any);
     },
     onSuccess: () => {
       setShowSuccess(true);
@@ -204,13 +213,20 @@ export default function CreateEmployeePage() {
 
   const updateEmployeeMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: CreateEmployeeRequest }) => {
-      const transformedData: Partial<Employee> = {
-        ...data,
-        skills: data.skills ? data.skills.split(',').map(s => s.trim()) : [],
-        specialty: data.specialty ? data.specialty.split(',').map(s => s.trim()) : [],
-        certifications: data.certifications ? data.certifications.split(',').map(s => s.trim()) : [],
+      // Split name into firstName and lastName
+      const nameParts = (data.name || '').trim().split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+      
+      const transformedData = {
+        firstName,
+        lastName,
+        phone: data.phone,
+        jobTitle: data.role || (data.isTechnician ? 'Field Technician' : 'Staff'),
+        isDispatchEnabled: data.isTechnician,
+        notes: data.bio,
       };
-      return employeeService.updateEmployee(id, transformedData);
+      return employeeService.updateEmployee(id, transformedData as any);
     },
     onSuccess: () => {
       setShowSuccess(true);

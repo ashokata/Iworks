@@ -16,8 +16,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get tenant and user info from headers
-    const tenantId = request.headers.get('x-tenant-id') || 'tenant1';
+    // Get tenant and user info from headers or environment
+    // Use the configured tenant ID (local-tenant for local, tenant1 for AWS)
+    const tenantId = request.headers.get('x-tenant-id') || process.env.NEXT_PUBLIC_TENANT_ID || 'local-tenant';
     const userId = request.headers.get('x-user-id') || 'user-' + Date.now();
 
     // Build conversation history
@@ -27,10 +28,16 @@ export async function POST(request: NextRequest) {
       content: msg.content
     }));
 
-    // Call the AWS Lambda LLM Chat endpoint
-    const llmChatUrl = process.env.NEXT_PUBLIC_API_BASE_URL 
-      ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/llm-chat`
-      : 'https://gpajab36b7.execute-api.us-east-1.amazonaws.com/prod/llm-chat';
+    // Call the LLM Chat endpoint
+    // Use local API if NEXT_PUBLIC_API_BASE_URL is set to local, otherwise use AWS deployed endpoint
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+    const isLocalApi = apiBaseUrl.includes('localhost');
+    
+    // For local development with PostgreSQL, use local API (requires AWS credentials for Bedrock)
+    // For production or if local Bedrock isn't configured, use deployed AWS Lambda
+    const llmChatUrl = isLocalApi 
+      ? `${apiBaseUrl}/llm-chat`
+      : (process.env.NEXT_PUBLIC_LLM_API_URL || 'https://gpajab36b7.execute-api.us-east-1.amazonaws.com/prod/llm-chat');
 
     console.log('[AI Chat Stream] Calling Lambda:', {
       url: llmChatUrl,

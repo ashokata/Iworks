@@ -1,9 +1,12 @@
 /**
  * LLM Function Executor - Executes function calls from Bedrock LLM
- * Replaces Mendix client with direct DynamoDB operations
+ * Uses PostgreSQL via Prisma for data operations
  */
 
-import { customerDynamoDBService } from './customer.dynamodb.service';
+import { customerPostgresService } from './customer.postgres.service';
+import { jobPostgresService } from './job.postgres.service';
+import { invoicePostgresService } from './invoice.postgres.service';
+import { getPrismaClient } from './prisma.service';
 
 // Simple logger class
 class Logger {
@@ -71,19 +74,28 @@ export class LLMFunctionExecutor {
           return await this.searchCustomer(args as any, tenantId);
 
         case 'getCustomer':
-          return await this.getCustomer(args as any);
+          return await this.getCustomer(args as any, tenantId);
 
         case 'updateCustomer':
           return await this.updateCustomer(args as any, tenantId);
 
         case 'createJob':
-          return await this.createJob(args as any, tenantId);
+          return await this.createJob(args as any, tenantId, userId);
 
         case 'getJobStatus':
-          return await this.getJobStatus(args as any);
+          return await this.getJobStatus(args as any, tenantId);
+
+        case 'updateJob':
+          return await this.updateJob(args as any, tenantId, userId);
+
+        case 'createInvoice':
+          return await this.createInvoice(args as any, tenantId, userId);
 
         case 'updateInvoice':
-          return await this.updateInvoice(args as any);
+          return await this.updateInvoice(args as any, tenantId);
+
+        case 'getInvoice':
+          return await this.getInvoice(args as any, tenantId);
 
         case 'sendNotification':
           return await this.sendNotification(args as any);
@@ -111,7 +123,7 @@ export class LLMFunctionExecutor {
   }
 
   /**
-   * Create a new customer in DynamoDB
+   * Create a new customer in PostgreSQL
    */
   private async createCustomer(
     args: {
@@ -119,32 +131,45 @@ export class LLMFunctionExecutor {
       lastName: string;
       email?: string;
       phone: string;
-      address?: string;
+      companyName?: string;
+      type?: 'RESIDENTIAL' | 'COMMERCIAL' | 'CONTRACTOR';
+      street?: string;
+      city?: string;
+      state?: string;
+      zip?: string;
+      notes?: string;
     },
     tenantId: string
   ): Promise<FunctionResult> {
     this.logger.info('Creating customer', { firstName: args.firstName, lastName: args.lastName });
 
-    const customer = await customerDynamoDBService.createCustomer({
+    const customer = await customerPostgresService.createCustomer({
       tenantId,
       firstName: args.firstName,
       lastName: args.lastName,
-      email: args.email || '',
-      phone: args.phone,
-      address: args.address,
+      email: args.email,
+      mobilePhone: args.phone,
+      companyName: args.companyName,
+      type: args.type || 'RESIDENTIAL',
+      street: args.street,
+      city: args.city,
+      state: args.state,
+      zip: args.zip,
+      notes: args.notes,
     });
 
-    this.logger.info('Customer created successfully', { customerId: customer.customerId });
+    this.logger.info('Customer created successfully', { customerId: customer.id });
 
     return {
       status: 'success',
       data: {
-        customerId: customer.customerId,
+        customerId: customer.id,
+        customerNumber: customer.customerNumber,
         firstName: customer.firstName,
         lastName: customer.lastName,
         email: customer.email,
-        phone: customer.phone,
-        message: `Customer ${customer.firstName} ${customer.lastName} created successfully`,
+        phone: customer.mobilePhone,
+        message: `Customer ${customer.firstName} ${customer.lastName} (${customer.customerNumber}) created successfully`,
       },
     };
   }
@@ -158,6 +183,8 @@ export class LLMFunctionExecutor {
       phone?: string;
       email?: string;
       customerId?: string;
+      customerNumber?: string;
+      type?: 'RESIDENTIAL' | 'COMMERCIAL' | 'CONTRACTOR';
       limit?: number;
     },
     tenantId: string
@@ -166,12 +193,12 @@ export class LLMFunctionExecutor {
 
     // If customerId is provided, get specific customer
     if (args.customerId) {
-      const customer = await customerDynamoDBService.getCustomer(args.customerId);
-      if (customer && customer.tenantId === tenantId) {
+      const customer = await customerPostgresService.getCustomer(tenantId, args.customerId);
+      if (customer) {
         return {
           status: 'success',
           data: {
-            customers: [customer],
+            customers: [this.formatCustomerResponse(customer)],
             count: 1,
           },
         };
@@ -186,25 +213,56 @@ export class LLMFunctionExecutor {
       };
     }
 
-    // Search by query (name, email)
-    if (args.query) {
-      const customers = await customerDynamoDBService.searchCustomers(tenantId, args.query);
+    // If customerNumber is provided, get by number
+    if (args.customerNumber) {
+      const customer = await customerPostgresService.getCustomerByNumber(tenantId, args.customerNumber);
+      if (customer) {
+        return {
+          status: 'success',
+          data: {
+            customers: [this.formatCustomerResponse(customer)],
+            count: 1,
+          },
+        };
+      }
       return {
         status: 'success',
         data: {
-          customers: customers.slice(0, args.limit || 10),
+          customers: [],
+          count: 0,
+          message: 'No customer found with that customer number',
+        },
+      };
+    }
+
+    // Search by query (name, email, phone)
+    const searchQuery = args.query || args.phone || args.email;
+    if (searchQuery) {
+      const customers = await customerPostgresService.searchCustomers({
+        tenantId,
+        query: searchQuery,
+        type: args.type,
+        limit: args.limit || 10,
+      });
+      return {
+        status: 'success',
+        data: {
+          customers: customers.map(c => this.formatCustomerResponse(c)),
           count: customers.length,
         },
       };
     }
 
     // List all customers for tenant
-    const customers = await customerDynamoDBService.listCustomersByTenant(tenantId, args.limit || 10);
+    const { customers, total } = await customerPostgresService.listCustomers(tenantId, { 
+      limit: args.limit || 10 
+    });
     return {
       status: 'success',
       data: {
-        customers,
+        customers: customers.map(c => this.formatCustomerResponse(c)),
         count: customers.length,
+        total,
       },
     };
   }
@@ -212,10 +270,10 @@ export class LLMFunctionExecutor {
   /**
    * Get a specific customer by ID
    */
-  private async getCustomer(args: { customerId: string }): Promise<FunctionResult> {
+  private async getCustomer(args: { customerId: string }, tenantId: string): Promise<FunctionResult> {
     this.logger.info('Getting customer', { customerId: args.customerId });
 
-    const customer = await customerDynamoDBService.getCustomer(args.customerId);
+    const customer = await customerPostgresService.getCustomer(tenantId, args.customerId);
 
     if (!customer) {
       return {
@@ -229,7 +287,7 @@ export class LLMFunctionExecutor {
 
     return {
       status: 'success',
-      data: customer,
+      data: this.formatCustomerResponse(customer),
     };
   }
 
@@ -243,16 +301,62 @@ export class LLMFunctionExecutor {
       lastName?: string;
       email?: string;
       phone?: string;
-      address?: string;
+      companyName?: string;
       notes?: string;
+      doNotService?: boolean;
     },
     tenantId: string
   ): Promise<FunctionResult> {
     this.logger.info('Updating customer', { customerId: args.customerId });
 
-    // Verify customer exists and belongs to tenant
-    const existingCustomer = await customerDynamoDBService.getCustomer(args.customerId);
-    if (!existingCustomer) {
+    const { customerId, phone, ...updates } = args;
+    const updatedCustomer = await customerPostgresService.updateCustomer(tenantId, customerId, {
+      ...updates,
+      ...(phone && { mobilePhone: phone }),
+    });
+
+    if (!updatedCustomer) {
+      return {
+        status: 'error',
+        error: {
+          code: 'NOT_FOUND',
+          message: `Customer with ID ${customerId} not found`,
+        },
+      };
+    }
+
+    return {
+      status: 'success',
+      data: {
+        ...this.formatCustomerResponse(updatedCustomer),
+        message: `Customer ${updatedCustomer.firstName} ${updatedCustomer.lastName} updated successfully`,
+      },
+    };
+  }
+
+  /**
+   * Create a job
+   */
+  private async createJob(
+    args: {
+      customerId: string;
+      addressId?: string;
+      title: string;
+      description?: string;
+      jobTypeId?: string;
+      scheduledStart?: string;
+      scheduledEnd?: string;
+      priority?: 'LOW' | 'NORMAL' | 'HIGH' | 'EMERGENCY';
+      estimatedDuration?: number;
+    },
+    tenantId: string,
+    userId: string
+  ): Promise<FunctionResult> {
+    this.logger.info('Creating job', { customerId: args.customerId, title: args.title });
+
+    // Get customer to find address if not provided
+    const customer = await customerPostgresService.getCustomer(tenantId, args.customerId);
+    if (!customer) {
       return {
         status: 'error',
         error: {
@@ -262,102 +366,383 @@ export class LLMFunctionExecutor {
       };
     }
 
-    if (existingCustomer.tenantId !== tenantId) {
+    // Use provided addressId or find primary address
+    let addressId = args.addressId;
+    if (!addressId && customer.addresses.length > 0) {
+      const primaryAddress = customer.addresses.find(a => a.isPrimary) || customer.addresses[0];
+      addressId = primaryAddress.id;
+    }
+
+    if (!addressId) {
       return {
         status: 'error',
         error: {
-          code: 'FORBIDDEN',
-          message: 'You do not have access to this customer',
+          code: 'VALIDATION_ERROR',
+          message: 'Customer has no address. Please add an address first.',
         },
       };
     }
 
-    const { customerId, ...updates } = args;
-    const updatedCustomer = await customerDynamoDBService.updateCustomer(customerId, updates);
+    const job = await jobPostgresService.createJob({
+      tenantId,
+      customerId: args.customerId,
+      addressId,
+      title: args.title,
+      description: args.description,
+      jobTypeId: args.jobTypeId,
+      priority: args.priority || 'NORMAL',
+      scheduledStart: args.scheduledStart ? new Date(args.scheduledStart) : undefined,
+      scheduledEnd: args.scheduledEnd ? new Date(args.scheduledEnd) : undefined,
+      estimatedDuration: args.estimatedDuration || 60,
+      createdById: userId,
+    });
 
     return {
       status: 'success',
       data: {
-        ...updatedCustomer,
-        message: `Customer ${updatedCustomer?.firstName} ${updatedCustomer?.lastName} updated successfully`,
+        jobId: job.id,
+        jobNumber: job.jobNumber,
+        customerId: job.customerId,
+        customerName: `${job.customer.firstName || ''} ${job.customer.lastName || ''}`.trim() || job.customer.companyName,
+        title: job.title,
+        status: job.status,
+        priority: job.priority,
+        scheduledStart: job.scheduledStart,
+        scheduledEnd: job.scheduledEnd,
+        message: `Job ${job.jobNumber} created successfully for ${job.customer.firstName || job.customer.companyName}`,
       },
     };
   }
 
   /**
-   * Create a job (placeholder - needs job service implementation)
+   * Get job status
    */
-  private async createJob(
+  private async getJobStatus(
+    args: { jobId?: string; jobNumber?: string },
+    tenantId: string
+  ): Promise<FunctionResult> {
+    this.logger.info('Getting job status', { jobId: args.jobId, jobNumber: args.jobNumber });
+
+    let job;
+    if (args.jobId) {
+      job = await jobPostgresService.getJob(tenantId, args.jobId);
+    } else if (args.jobNumber) {
+      job = await jobPostgresService.getJobByNumber(tenantId, args.jobNumber);
+    } else {
+      return {
+        status: 'error',
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Please provide either jobId or jobNumber',
+        },
+      };
+    }
+
+    if (!job) {
+      return {
+        status: 'error',
+        error: {
+          code: 'NOT_FOUND',
+          message: `Job not found`,
+        },
+      };
+    }
+
+    return {
+      status: 'success',
+      data: {
+        jobId: job.id,
+        jobNumber: job.jobNumber,
+        title: job.title,
+        status: job.status,
+        priority: job.priority,
+        customerName: `${job.customer.firstName || ''} ${job.customer.lastName || ''}`.trim() || job.customer.companyName,
+        address: `${job.address.street}, ${job.address.city}, ${job.address.state} ${job.address.zip}`,
+        scheduledStart: job.scheduledStart,
+        scheduledEnd: job.scheduledEnd,
+        actualStart: job.actualStart,
+        actualEnd: job.actualEnd,
+        assignedTechnicians: job.assignments.map(a => ({
+          name: a.employee.user ? `${a.employee.user.firstName} ${a.employee.user.lastName}` : 'Unknown',
+          role: a.role,
+        })),
+        total: job.total,
+      },
+    };
+  }
+
+  /**
+   * Update a job
+   */
+  private async updateJob(
     args: {
-      customerId: string;
-      jobType: string;
-      problem?: string;
-      scheduledDate?: string;
-      priority?: string;
-      assignedTo?: string;
+      jobId?: string;
+      jobNumber?: string;
+      status?: 'UNSCHEDULED' | 'SCHEDULED' | 'DISPATCHED' | 'EN_ROUTE' | 'IN_PROGRESS' | 'ON_HOLD' | 'COMPLETED' | 'CANCELLED';
+      priority?: 'LOW' | 'NORMAL' | 'HIGH' | 'EMERGENCY';
+      scheduledStart?: string;
+      scheduledEnd?: string;
+      cancellationReason?: string;
+    },
+    tenantId: string,
+    userId: string
+  ): Promise<FunctionResult> {
+    this.logger.info('Updating job', { jobId: args.jobId, jobNumber: args.jobNumber });
+
+    // Find job by ID or number
+    let jobId = args.jobId;
+    if (!jobId && args.jobNumber) {
+      const job = await jobPostgresService.getJobByNumber(tenantId, args.jobNumber);
+      if (job) {
+        jobId = job.id;
+      }
+    }
+
+    if (!jobId) {
+      return {
+        status: 'error',
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Job not found',
+        },
+      };
+    }
+
+    const updatedJob = await jobPostgresService.updateJob(
+      tenantId,
+      jobId,
+      {
+        status: args.status,
+        priority: args.priority,
+        scheduledStart: args.scheduledStart ? new Date(args.scheduledStart) : undefined,
+        scheduledEnd: args.scheduledEnd ? new Date(args.scheduledEnd) : undefined,
+        cancellationReason: args.cancellationReason,
+      },
+      userId
+    );
+
+    if (!updatedJob) {
+      return {
+        status: 'error',
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Job not found',
+        },
+      };
+    }
+
+    return {
+      status: 'success',
+      data: {
+        jobId: updatedJob.id,
+        jobNumber: updatedJob.jobNumber,
+        status: updatedJob.status,
+        priority: updatedJob.priority,
+        message: `Job ${updatedJob.jobNumber} updated successfully`,
+      },
+    };
+  }
+
+  /**
+   * Create an invoice from a job
+   */
+  private async createInvoice(
+    args: {
+      jobId: string;
+      dueDate?: string;
+      terms?: 'DUE_ON_RECEIPT' | 'NET_7' | 'NET_15' | 'NET_30' | 'NET_60';
+    },
+    tenantId: string,
+    userId: string
+  ): Promise<FunctionResult> {
+    this.logger.info('Creating invoice', { jobId: args.jobId });
+
+    const invoice = await invoicePostgresService.createInvoiceFromJob(tenantId, args.jobId, {
+      dueDate: args.dueDate ? new Date(args.dueDate) : undefined,
+      terms: args.terms,
+      createdById: userId,
+    });
+
+    if (!invoice) {
+      return {
+        status: 'error',
+        error: {
+          code: 'NOT_FOUND',
+          message: `Job with ID ${args.jobId} not found`,
+        },
+      };
+    }
+
+    return {
+      status: 'success',
+      data: {
+        invoiceId: invoice.id,
+        invoiceNumber: invoice.invoiceNumber,
+        jobId: invoice.jobId,
+        jobNumber: invoice.job?.jobNumber,
+        customerName: `${invoice.customer.firstName || ''} ${invoice.customer.lastName || ''}`.trim() || invoice.customer.companyName,
+        status: invoice.status,
+        total: invoice.total,
+        dueDate: invoice.dueDate,
+        message: `Invoice ${invoice.invoiceNumber} created successfully`,
+      },
+    };
+  }
+
+  /**
+   * Update an invoice
+   */
+  private async updateInvoice(
+    args: {
+      invoiceId?: string;
+      invoiceNumber?: string;
+      status?: 'DRAFT' | 'SENT' | 'VIEWED' | 'PARTIAL' | 'PAID' | 'OVERDUE' | 'VOID';
+      paymentAmount?: number;
+      paymentMethod?: 'CREDIT_CARD' | 'DEBIT_CARD' | 'ACH' | 'CHECK' | 'CASH' | 'FINANCING' | 'OTHER';
+      voidReason?: string;
     },
     tenantId: string
   ): Promise<FunctionResult> {
-    this.logger.info('Creating job', { customerId: args.customerId, jobType: args.jobType });
+    this.logger.info('Updating invoice', { invoiceId: args.invoiceId, invoiceNumber: args.invoiceNumber });
 
-    // TODO: Implement job creation with DynamoDB
-    // For now, return a mock response
-    const jobId = `job-${Date.now()}`;
+    // Find invoice by ID or number
+    let invoiceId = args.invoiceId;
+    if (!invoiceId && args.invoiceNumber) {
+      const invoice = await invoicePostgresService.getInvoiceByNumber(tenantId, args.invoiceNumber);
+      if (invoice) {
+        invoiceId = invoice.id;
+      }
+    }
+
+    if (!invoiceId) {
+      return {
+        status: 'error',
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Invoice not found',
+        },
+      };
+    }
+
+    // If payment amount is provided, add payment
+    if (args.paymentAmount && args.paymentMethod) {
+      const payment = await invoicePostgresService.addPayment(tenantId, invoiceId, {
+        amount: args.paymentAmount,
+        method: args.paymentMethod,
+      });
+
+      if (!payment) {
+        return {
+          status: 'error',
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Invoice not found',
+          },
+        };
+      }
+
+      const updatedInvoice = await invoicePostgresService.getInvoice(tenantId, invoiceId);
+      return {
+        status: 'success',
+        data: {
+          invoiceId: updatedInvoice?.id,
+          invoiceNumber: updatedInvoice?.invoiceNumber,
+          status: updatedInvoice?.status,
+          total: updatedInvoice?.total,
+          amountPaid: updatedInvoice?.amountPaid,
+          balanceDue: Number(updatedInvoice?.total) - Number(updatedInvoice?.amountPaid),
+          message: `Payment of $${args.paymentAmount} recorded successfully`,
+        },
+      };
+    }
+
+    // Otherwise, update status
+    const updatedInvoice = await invoicePostgresService.updateInvoice(tenantId, invoiceId, {
+      status: args.status,
+      voidReason: args.voidReason,
+    });
+
+    if (!updatedInvoice) {
+      return {
+        status: 'error',
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Invoice not found',
+        },
+      };
+    }
 
     return {
       status: 'success',
       data: {
-        jobId,
-        customerId: args.customerId,
-        jobType: args.jobType,
-        problem: args.problem,
-        scheduledDate: args.scheduledDate,
-        priority: args.priority || 'medium',
-        status: 'scheduled',
-        message: `Job ${jobId} created successfully for customer ${args.customerId}`,
+        invoiceId: updatedInvoice.id,
+        invoiceNumber: updatedInvoice.invoiceNumber,
+        status: updatedInvoice.status,
+        message: `Invoice ${updatedInvoice.invoiceNumber} updated successfully`,
       },
     };
   }
 
   /**
-   * Get job status (placeholder - needs job service implementation)
+   * Get an invoice
    */
-  private async getJobStatus(args: { jobId: string; includeHistory?: boolean }): Promise<FunctionResult> {
-    this.logger.info('Getting job status', { jobId: args.jobId });
+  private async getInvoice(
+    args: { invoiceId?: string; invoiceNumber?: string },
+    tenantId: string
+  ): Promise<FunctionResult> {
+    this.logger.info('Getting invoice', { invoiceId: args.invoiceId, invoiceNumber: args.invoiceNumber });
 
-    // TODO: Implement job status retrieval with DynamoDB
+    let invoice;
+    if (args.invoiceId) {
+      invoice = await invoicePostgresService.getInvoice(tenantId, args.invoiceId);
+    } else if (args.invoiceNumber) {
+      invoice = await invoicePostgresService.getInvoiceByNumber(tenantId, args.invoiceNumber);
+    } else {
+      return {
+        status: 'error',
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Please provide either invoiceId or invoiceNumber',
+        },
+      };
+    }
+
+    if (!invoice) {
+      return {
+        status: 'error',
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Invoice not found',
+        },
+      };
+    }
+
     return {
       status: 'success',
       data: {
-        jobId: args.jobId,
-        status: 'in_progress',
-        message: 'Job status retrieved (mock data)',
-      },
-    };
-  }
-
-  /**
-   * Update invoice (placeholder - needs invoice service implementation)
-   */
-  private async updateInvoice(args: {
-    invoiceId: string;
-    amount?: number;
-    status?: string;
-    paymentMethod?: string;
-    notes?: string;
-  }): Promise<FunctionResult> {
-    this.logger.info('Updating invoice', { invoiceId: args.invoiceId });
-
-    // TODO: Implement invoice update with DynamoDB
-    return {
-      status: 'success',
-      data: {
-        invoiceId: args.invoiceId,
-        amount: args.amount,
-        status: args.status,
-        paymentMethod: args.paymentMethod,
-        notes: args.notes,
-        message: `Invoice ${args.invoiceId} updated successfully`,
+        invoiceId: invoice.id,
+        invoiceNumber: invoice.invoiceNumber,
+        customerName: `${invoice.customer.firstName || ''} ${invoice.customer.lastName || ''}`.trim() || invoice.customer.companyName,
+        jobNumber: invoice.job?.jobNumber,
+        status: invoice.status,
+        issueDate: invoice.issueDate,
+        dueDate: invoice.dueDate,
+        subtotal: invoice.subtotal,
+        taxAmount: invoice.taxAmount,
+        total: invoice.total,
+        amountPaid: invoice.amountPaid,
+        balanceDue: Number(invoice.total) - Number(invoice.amountPaid),
+        lineItems: invoice.lineItems.map(item => ({
+          name: item.name,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+        })),
+        payments: invoice.payments.map(p => ({
+          amount: p.amount,
+          method: p.method,
+          status: p.status,
+          date: p.processedAt,
+        })),
       },
     };
   }
@@ -385,7 +770,36 @@ export class LLMFunctionExecutor {
       },
     };
   }
+
+  /**
+   * Format customer response for consistency
+   */
+  private formatCustomerResponse(customer: any) {
+    const primaryAddress = customer.addresses?.find((a: any) => a.isPrimary) || customer.addresses?.[0];
+    return {
+      customerId: customer.id,
+      customerNumber: customer.customerNumber,
+      type: customer.type,
+      firstName: customer.firstName,
+      lastName: customer.lastName,
+      companyName: customer.companyName,
+      displayName: customer.companyName || `${customer.firstName || ''} ${customer.lastName || ''}`.trim(),
+      email: customer.email,
+      phone: customer.mobilePhone,
+      homePhone: customer.homePhone,
+      workPhone: customer.workPhone,
+      address: primaryAddress ? {
+        street: primaryAddress.street,
+        city: primaryAddress.city,
+        state: primaryAddress.state,
+        zip: primaryAddress.zip,
+      } : null,
+      totalJobs: customer.totalJobs,
+      lifetimeValue: customer.lifetimeValue,
+      notes: customer.notes,
+      createdAt: customer.createdAt,
+    };
+  }
 }
 
 export const llmFunctionExecutor = new LLMFunctionExecutor();
-
