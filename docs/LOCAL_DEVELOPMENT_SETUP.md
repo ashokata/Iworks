@@ -72,6 +72,10 @@ API_KEY="local-dev-api-key"
 NODE_ENV="development"
 LOG_LEVEL="info"
 PORT=4000
+
+# VAPI Voice Agent (optional - for voice call features)
+VAPI_API_KEY="your-vapi-api-key-here"
+API_BASE_URL="http://localhost:4000"  # For webhooks (use ngrok for public URL)
 ```
 
 **Frontend (`apps/web/.env.local`):**
@@ -116,6 +120,20 @@ npm run dev
 cd apps/web
 npm run dev
 ```
+
+**Terminal 3 - ngrok (for VAPI webhooks - optional):**
+```bash
+# Install ngrok if not already installed
+npm install -g ngrok
+
+# Configure your authtoken (get from https://dashboard.ngrok.com/get-started/your-authtoken)
+ngrok config add-authtoken YOUR_NGROK_AUTHTOKEN
+
+# Start ngrok tunnel to expose local API
+ngrok http 4000
+```
+
+This will give you a public URL like `https://abc123.ngrok-free.dev` that you can use for VAPI webhook configuration.
 
 ### 7. Access the Application
 
@@ -250,6 +268,120 @@ POST /jobs                     - Create job
 ### LLM Chat (requires AWS credentials)
 ```
 POST /llm-chat                 - AI chat with function calling
+```
+
+### VAPI Voice Agent
+```
+POST /webhooks/vapi/:tenantId  - VAPI webhook handler
+GET  /api/tenants/:tenantId/vapi/config - Get VAPI config
+PUT  /api/tenants/:tenantId/vapi/config - Update VAPI config
+POST /api/tenants/:tenantId/vapi/provision - Provision VAPI assistant
+GET  /api/tenants/:tenantId/vapi/calls - Call history
+GET  /api/tenants/:tenantId/vapi/analytics - Analytics
+```
+
+---
+
+## VAPI Voice Agent Setup (Optional)
+
+VAPI integration allows voice calls to create customers and service requests automatically.
+
+### 1. Get VAPI API Key
+
+1. Sign up at https://dashboard.vapi.ai
+2. Get your API key from the dashboard
+3. Add it to `apps/api/.env`:
+   ```env
+   VAPI_API_KEY="your-vapi-api-key-here"
+   ```
+
+### 2. Set Up ngrok for Webhooks
+
+VAPI needs a public URL to send webhooks to your local API:
+
+1. **Install ngrok:**
+   ```bash
+   npm install -g ngrok
+   ```
+
+2. **Get your authtoken:**
+   - Go to https://dashboard.ngrok.com/get-started/your-authtoken
+   - Copy your authtoken
+
+3. **Configure ngrok:**
+   ```bash
+   ngrok config add-authtoken YOUR_AUTHTOKEN
+   ```
+
+4. **Start ngrok tunnel:**
+   ```bash
+   ngrok http 4000
+   ```
+
+5. **Copy the public URL** (e.g., `https://abc123.ngrok-free.dev`)
+
+### 3. Provision VAPI for a Tenant
+
+Run the provisioning script:
+
+```bash
+cd apps/api
+npx tsx scripts/create-demo-tenant.ts
+```
+
+Or use the API:
+
+```bash
+# Provision VAPI assistant and phone number
+curl -X POST http://localhost:4000/api/tenants/demo-hvac-tenant/vapi/provision \
+  -H "Content-Type: application/json" \
+  -H "x-tenant-id: demo-hvac-tenant"
+```
+
+### 4. Update VAPI Assistant Webhook URL
+
+After starting ngrok, update the assistant's webhook URL:
+
+```powershell
+$headers = @{
+    "Authorization" = "Bearer YOUR_VAPI_API_KEY"
+    "Content-Type" = "application/json"
+}
+
+$body = @{
+    serverUrl = "https://YOUR_NGROK_URL.ngrok-free.dev/webhooks/vapi/demo-hvac-tenant"
+} | ConvertTo-Json
+
+Invoke-RestMethod -Uri "https://api.vapi.ai/assistant/ASSISTANT_ID" -Method PATCH -Headers $headers -Body $body
+```
+
+### 5. Test Voice Calls
+
+Call the phone number assigned to your tenant's assistant. The call will:
+- Create an unverified customer
+- Create a service request
+- Optionally book an appointment (if enabled)
+
+View the results in the web app under **Customers > Unverified** tab.
+
+### VAPI Scripts
+
+**Create demo tenant:**
+```bash
+cd apps/api
+npx tsx scripts/create-demo-tenant.ts
+```
+
+**Test VAPI connection:**
+```bash
+cd apps/api
+VAPI_API_KEY="your-key" npx tsx scripts/test-vapi-connection.ts
+```
+
+**Validate VAPI call data:**
+```bash
+cd apps/api
+npx tsx scripts/validate-vapi-call.ts
 ```
 
 ---
@@ -455,5 +587,17 @@ cd apps/api && npx prisma migrate reset
 
 # Generate Prisma Client
 cd apps/api && npx prisma generate
+
+# Start ngrok for VAPI webhooks
+ngrok http 4000
+
+# Create demo tenant with VAPI
+cd apps/api && npx tsx scripts/create-demo-tenant.ts
+
+# Test VAPI connection
+cd apps/api && VAPI_API_KEY="your-key" npx tsx scripts/test-vapi-connection.ts
+
+# Validate VAPI call data
+cd apps/api && npx tsx scripts/validate-vapi-call.ts
 ```
 
