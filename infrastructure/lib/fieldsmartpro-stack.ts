@@ -183,6 +183,21 @@ export class FieldSmartProStack extends cdk.Stack {
       timeout: cdk.Duration.seconds(60),
     });
 
+    // ============================================================================
+    // VAPI VOICE AGENT WEBHOOK HANDLER
+    // ============================================================================
+
+    const vapiWebhookFn = new lambda.Function(this, 'VapiWebhookFunction', {
+      ...postgresLambdaConfig,
+      handler: 'handlers/vapi-webhook/index.handler',
+      description: 'VAPI voice agent webhook handler',
+      timeout: cdk.Duration.seconds(30),
+      environment: {
+        ...postgresLambdaEnv,
+        VAPI_API_KEY: process.env.VAPI_API_KEY || '',
+      },
+    });
+
     // LLM Chat Lambda with Bedrock integration (uses PostgreSQL for function calls)
     const llmChatFn = new lambda.Function(this, 'LLMChatFunction', {
       ...postgresLambdaConfig,
@@ -258,6 +273,12 @@ export class FieldSmartProStack extends cdk.Stack {
 
     const seed = api.root.addResource('seed');
     seed.addMethod('POST', new apigateway.LambdaIntegration(seedFn));
+
+    // VAPI Webhook endpoints
+    const webhooks = api.root.addResource('webhooks');
+    const vapiWebhooks = webhooks.addResource('vapi');
+    const vapiTenantWebhook = vapiWebhooks.addResource('{tenantId}');
+    vapiTenantWebhook.addMethod('POST', new apigateway.LambdaIntegration(vapiWebhookFn));
 
     // ============================================================================
     // OUTPUTS

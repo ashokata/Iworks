@@ -7,3 +7,7 @@ Pet/
 .env.production.local
 build-output.txt
 nul
+
+# Testing
+coverage/
+*.log

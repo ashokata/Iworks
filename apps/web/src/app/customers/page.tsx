@@ -43,6 +43,7 @@ export default function CustomersPage() {
   const [showBottomPagination, setShowBottomPagination] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState<'table' | 'card'>('table');
+  const [activeTab, setActiveTab] = useState<'all' | 'verified' | 'unverified'>('all');
   
   const {
     data: customers,
@@ -129,6 +130,37 @@ export default function CustomersPage() {
     };
   }, []);
 
+  // Handle customer verification
+  const verifyCustomerMutation = useMutation({
+    mutationFn: async (id: string) => {
+      console.log('[Verify] Starting verification for customer:', id);
+      const customer = customers?.find(c => c.id === id);
+      if (!customer) throw new Error('Customer not found');
+      
+      console.log('[Verify] Calling updateCustomer with verificationStatus: VERIFIED');
+      const result = await customerService.updateCustomer(id, {
+        verificationStatus: 'VERIFIED',
+      });
+      console.log('[Verify] Update successful:', result);
+      return result;
+    },
+    onSuccess: async (data) => {
+      console.log('[Verify] Mutation successful, invalidating queries');
+      // Invalidate and refetch customers
+      await queryClient.invalidateQueries({ queryKey: ['customers'] });
+      await refetch();
+      console.log('[Verify] Queries invalidated and refetched');
+    },
+    onError: (error: any) => {
+      console.error('[Verify] Error:', error);
+      const errorMessage = error?.response?.data?.message 
+        || error?.response?.data?.error?.message 
+        || error?.message 
+        || 'Failed to verify customer. Please try again.';
+      alert(`Error: ${errorMessage}`);
+    },
+  });
+
   // Handle customer deletion (archive)
   const deleteCustomerMutation = useMutation({
         mutationFn: (id: string) => customerService.deleteCustomer(id),
@@ -203,8 +235,14 @@ export default function CustomersPage() {
     setDeleteConfirmName('');
   };
 
-  // Filter customers based on search term and filter fields
+  // Filter customers based on search term, filter fields, and verification status
   const filteredCustomers = customers?.filter((customer: Customer) => {
+    // Filter by verification status tab
+    const verificationStatus = (customer as any).verificationStatus || (customer as any).verification_status || 'VERIFIED';
+    const matchesTab = activeTab === 'all' || 
+      (activeTab === 'verified' && verificationStatus === 'VERIFIED') ||
+      (activeTab === 'unverified' && (verificationStatus === 'UNVERIFIED' || verificationStatus === 'PENDING'));
+    
     // Filter by search term
     const matchesSearch = !searchTerm || 
       (customer.first_name && customer.first_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -225,8 +263,19 @@ export default function CustomersPage() {
     // Filter by email
     const matchesEmail = !filterEmail || (customer.email && customer.email.toLowerCase().includes(filterEmail.toLowerCase()));
     
-    return matchesSearch && matchesCustomerId && matchesFirstName && matchesLastName && matchesEmail;
+    return matchesTab && matchesSearch && matchesCustomerId && matchesFirstName && matchesLastName && matchesEmail;
   });
+
+  // Count customers by verification status
+  const verifiedCount = customers?.filter((c: Customer) => {
+    const status = (c as any).verificationStatus || (c as any).verification_status || 'VERIFIED';
+    return status === 'VERIFIED';
+  }).length || 0;
+  
+  const unverifiedCount = customers?.filter((c: Customer) => {
+    const status = (c as any).verificationStatus || (c as any).verification_status || 'VERIFIED';
+    return status === 'UNVERIFIED' || status === 'PENDING';
+  }).length || 0;
 
   // Pagination logic
   const totalPages = Math.ceil((filteredCustomers?.length || 0) / itemsPerPage);
@@ -234,10 +283,10 @@ export default function CustomersPage() {
   const endIndex = startIndex + itemsPerPage;
   const paginatedCustomers = filteredCustomers?.slice(startIndex, endIndex);
 
-  // Reset to page 1 when filters change
+  // Reset to page 1 when filters or tab change
   useEffect(() => {
     setCurrentPage(1);
-  }, [filterCustomerId, filterFirstName, filterLastName, filterEmail, searchTerm]);
+  }, [filterCustomerId, filterFirstName, filterLastName, filterEmail, searchTerm, activeTab]);
 
   if (authLoading) {
     return (
@@ -307,6 +356,65 @@ export default function CustomersPage() {
               <PlusIcon className="h-4 w-4 mr-2" />
               New Customer
             </Button>
+          </div>
+        </div>
+
+        {/* Verification Status Tabs */}
+        <div className="mb-4">
+          <div className="border-b border-gray-200">
+            <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+              <button
+                onClick={() => setActiveTab('all')}
+                className={`${
+                  activeTab === 'all'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm flex items-center`}
+              >
+                All Customers
+                <span className={`ml-2 py-0.5 px-2.5 rounded-full text-xs font-medium ${
+                  activeTab === 'all' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'
+                }`}>
+                  {customers?.length || 0}
+                </span>
+              </button>
+              <button
+                onClick={() => setActiveTab('verified')}
+                className={`${
+                  activeTab === 'verified'
+                    ? 'border-green-500 text-green-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm flex items-center`}
+              >
+                <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Verified
+                <span className={`ml-2 py-0.5 px-2.5 rounded-full text-xs font-medium ${
+                  activeTab === 'verified' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'
+                }`}>
+                  {verifiedCount}
+                </span>
+              </button>
+              <button
+                onClick={() => setActiveTab('unverified')}
+                className={`${
+                  activeTab === 'unverified'
+                    ? 'border-amber-500 text-amber-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm flex items-center`}
+              >
+                <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                Unverified
+                <span className={`ml-2 py-0.5 px-2.5 rounded-full text-xs font-medium ${
+                  activeTab === 'unverified' ? 'bg-amber-100 text-amber-600' : 'bg-gray-100 text-gray-600'
+                }`}>
+                  {unverifiedCount}
+                </span>
+              </button>
+            </nav>
           </div>
         </div>
 
@@ -569,6 +677,9 @@ export default function CustomersPage() {
                     Type
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Tags
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -624,6 +735,38 @@ export default function CustomersPage() {
                             {customer.type ? (customer.type.charAt(0).toUpperCase() + customer.type.slice(1)) : 'Homeowner'}
                           </span>
                         </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {(() => {
+                            const verificationStatus = (customer as any).verificationStatus || (customer as any).verification_status || 'VERIFIED';
+                            const createdSource = (customer as any).createdSource || (customer as any).created_source || 'WEB';
+                            if (verificationStatus === 'VERIFIED') {
+                              return (
+                                <span className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                                  <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                  </svg>
+                                  Verified
+                                </span>
+                              );
+                            } else {
+                              return (
+                                <div className="flex flex-col gap-1">
+                                  <span className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-800">
+                                    <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                    </svg>
+                                    Unverified
+                                  </span>
+                                  {createdSource === 'VOICE_AGENT' && (
+                                    <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-blue-50 text-blue-700">
+                                      📞 Voice
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            }
+                          })()}
+                        </td>
                         <td className="px-6 py-4">
                           <div className="flex flex-wrap gap-1">
                             {(customer.tags?.data || customer.tags || []).length ? (customer.tags?.data || customer.tags || []).slice(0, 2).map((tag: string) => (
@@ -643,25 +786,44 @@ export default function CustomersPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <div className="flex justify-end space-x-3">
-                            <Link
-                              href={`/customers/view/${customer.id}`}
-                              className="text-blue-600 hover:text-blue-900 transition-colors"
-                            >
-                              View
-                            </Link>
-                            <Link
-                              href={`/customers/edit/${customer.id}`}
-                              className="text-indigo-600 hover:text-indigo-900 transition-colors"
-                            >
-                              Edit
-                            </Link>
-                            <button
-                              onClick={() => handleDeleteCustomer(customer.id, customer.display_name || `${customer.first_name} ${customer.last_name}`)}
-                              className="text-red-600 hover:text-red-900 transition-colors"
-                              disabled={deleteCustomerMutation.isPending || !isOnline}
-                            >
-                              Delete
-                            </button>
+                            {(() => {
+                              const verificationStatus = (customer as any).verificationStatus || (customer as any).verification_status || 'VERIFIED';
+                              const isUnverified = verificationStatus === 'UNVERIFIED' || verificationStatus === 'PENDING';
+                              
+                              return (
+                                <>
+                                  {isUnverified && (
+                                    <button
+                                      onClick={() => verifyCustomerMutation.mutate(customer.id)}
+                                      className="text-green-600 hover:text-green-900 transition-colors font-medium"
+                                      disabled={verifyCustomerMutation.isPending || !isOnline}
+                                      title="Verify customer"
+                                    >
+                                      {verifyCustomerMutation.isPending ? 'Verifying...' : 'Verify'}
+                                    </button>
+                                  )}
+                                  <Link
+                                    href={`/customers/view/${customer.id}`}
+                                    className="text-blue-600 hover:text-blue-900 transition-colors"
+                                  >
+                                    View
+                                  </Link>
+                                  <Link
+                                    href={`/customers/edit/${customer.id}`}
+                                    className="text-indigo-600 hover:text-indigo-900 transition-colors"
+                                  >
+                                    Edit
+                                  </Link>
+                                  <button
+                                    onClick={() => handleDeleteCustomer(customer.id, customer.display_name || `${customer.first_name} ${customer.last_name}`)}
+                                    className="text-red-600 hover:text-red-900 transition-colors"
+                                    disabled={deleteCustomerMutation.isPending || !isOnline}
+                                  >
+                                    Delete
+                                  </button>
+                                </>
+                              );
+                            })()}
                           </div>
                         </td>
                       </tr>
@@ -950,25 +1112,44 @@ export default function CustomersPage() {
 
                     {/* Actions */}
                     <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                      <Link
-                        href={`/customers/view/${customer.id}`}
-                        className="text-xs font-medium text-blue-600 hover:text-blue-900 transition-colors"
-                      >
-                        View
-                      </Link>
-                      <Link
-                        href={`/customers/edit/${customer.id}`}
-                        className="text-xs font-medium text-indigo-600 hover:text-indigo-900 transition-colors"
-                      >
-                        Edit
-                      </Link>
-                      <button
-                        onClick={() => handleDeleteCustomer(customer.id, customer.display_name || `${customer.first_name} ${customer.last_name}`)}
-                        className="text-xs font-medium text-red-600 hover:text-red-900 transition-colors"
-                        disabled={deleteCustomerMutation.isPending || !isOnline}
-                      >
-                        Delete
-                      </button>
+                      {(() => {
+                        const verificationStatus = (customer as any).verificationStatus || (customer as any).verification_status || 'VERIFIED';
+                        const isUnverified = verificationStatus === 'UNVERIFIED' || verificationStatus === 'PENDING';
+                        
+                        return (
+                          <>
+                            {isUnverified && (
+                              <button
+                                onClick={() => verifyCustomerMutation.mutate(customer.id)}
+                                className="text-xs font-medium text-green-600 hover:text-green-900 transition-colors"
+                                disabled={verifyCustomerMutation.isPending || !isOnline}
+                                title="Verify customer"
+                              >
+                                {verifyCustomerMutation.isPending ? 'Verifying...' : 'Verify'}
+                              </button>
+                            )}
+                            <Link
+                              href={`/customers/view/${customer.id}`}
+                              className="text-xs font-medium text-blue-600 hover:text-blue-900 transition-colors"
+                            >
+                              View
+                            </Link>
+                            <Link
+                              href={`/customers/edit/${customer.id}`}
+                              className="text-xs font-medium text-indigo-600 hover:text-indigo-900 transition-colors"
+                            >
+                              Edit
+                            </Link>
+                            <button
+                              onClick={() => handleDeleteCustomer(customer.id, customer.display_name || `${customer.first_name} ${customer.last_name}`)}
+                              className="text-xs font-medium text-red-600 hover:text-red-900 transition-colors"
+                              disabled={deleteCustomerMutation.isPending || !isOnline}
+                            >
+                              Delete
+                            </button>
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>

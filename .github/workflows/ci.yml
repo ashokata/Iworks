@@ -1,0 +1,170 @@
+name: CI - Test Suite
+
+on:
+  push:
+    branches: [main, develop, customers-dynamodb]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  NODE_VERSION: '20.x'
+
+jobs:
+  # Lint and Format Check
+  lint:
+    name: Lint Code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint (if configured)
+        run: npm run lint --if-present
+        continue-on-error: true
+
+  # Unit Tests - API
+  test-api:
+    name: Test API (Unit)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: fieldsmartpro_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npm run generate --workspace=@fieldsmartpro/api
+
+      - name: Run Prisma migrations (if needed)
+        run: npm run migrate --workspace=@fieldsmartpro/api
+        continue-on-error: true
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5433/fieldsmartpro_test
+
+      - name: Run API tests
+        run: npm run test --workspace=@fieldsmartpro/api
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5433/fieldsmartpro_test
+          NODE_ENV: test
+
+      - name: Upload API test coverage
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          files: ./apps/api/coverage/coverage-final.json
+          flags: api
+          name: api-coverage
+        continue-on-error: true
+
+  # Unit Tests - Web
+  test-web:
+    name: Test Web (Unit + Component)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Web tests
+        run: npm run test --workspace=@fieldsmartpro/web
+        env:
+          NODE_ENV: test
+
+      - name: Upload Web test coverage
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          files: ./apps/web/coverage/coverage-final.json
+          flags: web
+          name: web-coverage
+        continue-on-error: true
+
+  # Build Check
+  build:
+    name: Build Applications
+    runs-on: ubuntu-latest
+    needs: [test-api, test-web]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npm run generate --workspace=@fieldsmartpro/api
+
+      - name: Build all applications
+        run: npm run build
+        env:
+          SKIP_ENV_VALIDATION: true
+
+  # Test Summary
+  test-summary:
+    name: Test Summary
+    runs-on: ubuntu-latest
+    needs: [lint, test-api, test-web, build]
+    if: always()
+
+    steps:
+      - name: Check test results
+        run: |
+          echo "Lint: ${{ needs.lint.result }}"
+          echo "API Tests: ${{ needs.test-api.result }}"
+          echo "Web Tests: ${{ needs.test-web.result }}"
+          echo "Build: ${{ needs.build.result }}"
+
+      - name: Set final status
+        if: |
+          needs.test-api.result != 'success' ||
+          needs.test-web.result != 'success' ||
+          needs.build.result != 'success'
+        run: exit 1

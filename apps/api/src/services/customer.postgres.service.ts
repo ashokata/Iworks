@@ -34,6 +34,7 @@ export interface UpdateCustomerInput {
   doNotService?: boolean;
   doNotServiceReason?: string;
   notificationsEnabled?: boolean;
+  verificationStatus?: 'VERIFIED' | 'UNVERIFIED' | 'PENDING';
 }
 
 export interface CustomerWithAddresses extends Customer {
@@ -185,6 +186,7 @@ class CustomerPostgresService {
         doNotService: input.doNotService,
         doNotServiceReason: input.doNotServiceReason,
         notificationsEnabled: input.notificationsEnabled,
+        verificationStatus: input.verificationStatus,
       },
       include: {
         addresses: true,

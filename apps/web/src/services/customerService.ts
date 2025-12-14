@@ -64,6 +64,8 @@ const transformCustomer = (apiCustomer: any): Customer => {
     tags: apiCustomer.tags || [],
     createdAt,
     updatedAt,
+    verificationStatus: apiCustomer.verificationStatus || apiCustomer.verification_status || 'VERIFIED',
+    createdSource: apiCustomer.createdSource || apiCustomer.created_source || 'WEB',
     // Snake_case aliases for backward compatibility
     display_name: displayName,
     first_name: firstName,
@@ -75,6 +77,8 @@ const transformCustomer = (apiCustomer: any): Customer => {
     archived: isArchived,
     created_at: createdAt,
     updated_at: updatedAt,
+    verification_status: apiCustomer.verificationStatus || apiCustomer.verification_status || 'VERIFIED',
+    created_source: apiCustomer.createdSource || apiCustomer.created_source || 'WEB',
   };
 };
 
@@ -210,6 +214,10 @@ const buildRequestBody = (data: any): Record<string, any> => {
   }
   if ('doNotServiceReason' in data && data.doNotServiceReason !== undefined) {
     body.doNotServiceReason = data.doNotServiceReason;
+  }
+  if ('verificationStatus' in data && data.verificationStatus !== undefined) {
+    body.verificationStatus = data.verificationStatus;
+    body.verification_status = data.verificationStatus;
   }
   
   // Handle address fields (for create)
@@ -426,9 +434,10 @@ export const customerService = {
    */
   updateCustomer: async (id: string, customerData: UpdateCustomerRequest): Promise<Customer> => {
     try {
-      console.log(`[Customer Service] Updating customer: ${id}`);
+      console.log(`[Customer Service] Updating customer: ${id}`, customerData);
       
       const body = buildRequestBody(customerData);
+      console.log(`[Customer Service] Request body:`, body);
       
       const response = await fetch(`${API_CONFIG.BASE_URL}/customers/${id}`, {
         method: 'PUT',

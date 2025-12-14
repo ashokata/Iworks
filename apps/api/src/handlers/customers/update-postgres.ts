@@ -33,6 +33,8 @@ const updateCustomerSchema = z.object({
   is_contractor: z.boolean().optional(),
   isArchived: z.boolean().optional(),
   archived: z.boolean().optional(),
+  verificationStatus: z.enum(['VERIFIED', 'UNVERIFIED', 'PENDING']).optional(),
+  verification_status: z.enum(['VERIFIED', 'UNVERIFIED', 'PENDING']).optional(),
 }).passthrough(); // Allow additional fields
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
@@ -126,6 +128,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       doNotService: body.doNotService,
       doNotServiceReason: body.doNotServiceReason,
       notificationsEnabled: body.notificationsEnabled ?? body.notifications_enabled,
+      verificationStatus: body.verificationStatus || body.verification_status,
     };
 
     // Remove undefined values
@@ -178,6 +181,10 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
           zip: primaryAddress.zip,
         } : null,
         addresses: customer.addresses,
+        verificationStatus: (customer as any).verificationStatus || 'VERIFIED',
+        verification_status: (customer as any).verificationStatus || 'VERIFIED',
+        createdSource: (customer as any).createdSource || 'WEB',
+        created_source: (customer as any).createdSource || 'WEB',
         tenantId: customer.tenantId,
         createdAt: customer.createdAt,
         created_at: customer.createdAt,

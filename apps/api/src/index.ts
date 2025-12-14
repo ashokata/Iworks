@@ -22,6 +22,9 @@ try {
   console.log('LLM chat handler not available for local development');
 }
 
+// Import VAPI routes
+import vapiRoutes from './routes/vapi.routes';
+
 const app = express();
 const PORT = process.env.PORT || 4000;
 
@@ -35,6 +38,9 @@ app.use((req, res, next) => {
   req.headers['x-user-id'] = req.headers['x-user-id'] || 'local-user';
   next();
 });
+
+// Register VAPI routes
+app.use(vapiRoutes);
 
 // Health check
 app.get('/health', async (req, res) => {
@@ -708,6 +714,14 @@ app.listen(PORT, () => {
   if (llmChatHandler) {
     console.log(`   POST /llm-chat    - LLM chat with function calling`);
   }
+  console.log(`   `);
+  console.log(`   📞 VAPI Voice Agent:`);
+  console.log(`   POST /webhooks/vapi/:tenantId - VAPI webhook`);
+  console.log(`   GET  /api/tenants/:tenantId/vapi/config - Get config`);
+  console.log(`   PUT  /api/tenants/:tenantId/vapi/config - Update config`);
+  console.log(`   POST /api/tenants/:tenantId/vapi/provision - Provision VAPI`);
+  console.log(`   GET  /api/tenants/:tenantId/vapi/calls - Call history`);
+  console.log(`   GET  /api/tenants/:tenantId/vapi/analytics - Analytics`);
   console.log(`\n`);
 });
 

@@ -15,6 +15,8 @@ export type BillingCycle = 'MONTHLY' | 'QUARTERLY' | 'ANNUAL';
 export type PlanTier = 'STARTER' | 'ESSENTIALS' | 'PRO' | 'ENTERPRISE';
 
 export type CustomerType = 'RESIDENTIAL' | 'COMMERCIAL' | 'CONTRACTOR';
+export type CustomerVerificationStatus = 'VERIFIED' | 'UNVERIFIED' | 'PENDING';
+export type CustomerCreatedSource = 'WEB' | 'MOBILE' | 'VOICE_AGENT' | 'API' | 'IMPORT';
 export type AddressType = 'SERVICE' | 'BILLING' | 'BOTH';
 
 export type EmployeeRole = 'OWNER' | 'ADMIN' | 'OFFICE_STAFF' | 'DISPATCHER' | 'FIELD_TECH' | 'SALES_REP';
@@ -275,9 +277,13 @@ export interface Customer {
   createdBy?: User;
   addresses: Address[];
   tags: Tag[];
+  verificationStatus?: CustomerVerificationStatus;
+  createdSource?: CustomerCreatedSource;
   createdAt: string;
   updatedAt: string;
   // Snake_case aliases for backward compatibility with frontend pages
+  verification_status?: CustomerVerificationStatus;
+  created_source?: CustomerCreatedSource;
   display_name?: string;
   first_name?: string;
   last_name?: string;
@@ -1074,6 +1080,7 @@ export interface UpdateCustomerRequest {
   doNotService?: boolean;
   doNotServiceReason?: string;
   notes?: string;
+  verificationStatus?: CustomerVerificationStatus;
 }
 
 export interface CreateJobRequest {
