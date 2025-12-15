@@ -663,8 +663,390 @@ async function main() {
   });
   console.log('✅ Created message templates');
 
+  // ============================================================================
+  // PRICEBOOK SYSTEM - Industry Templates
+  // ============================================================================
+  console.log('\n📚 Seeding pricebook industries...');
+
+  // Create Pricebook Industries
+  const hvacIndustry = await prisma.pricebookIndustry.upsert({
+    where: { slug: 'hvac' },
+    update: {},
+    create: {
+      name: 'HVAC',
+      slug: 'hvac',
+      description: 'Heating, Ventilation, and Air Conditioning services',
+      icon: '❄️',
+      isActive: true,
+    },
+  });
+
+  const plumbingIndustry = await prisma.pricebookIndustry.upsert({
+    where: { slug: 'plumbing' },
+    update: {},
+    create: {
+      name: 'Plumbing',
+      slug: 'plumbing',
+      description: 'Residential and commercial plumbing services',
+      icon: '🔧',
+      isActive: true,
+    },
+  });
+
+  const electricalIndustry = await prisma.pricebookIndustry.upsert({
+    where: { slug: 'electrical' },
+    update: {},
+    create: {
+      name: 'Electrical',
+      slug: 'electrical',
+      description: 'Electrical installation and repair services',
+      icon: '⚡',
+      isActive: true,
+    },
+  });
+
+  const landscapingIndustry = await prisma.pricebookIndustry.upsert({
+    where: { slug: 'landscaping' },
+    update: {},
+    create: {
+      name: 'Landscaping',
+      slug: 'landscaping',
+      description: 'Lawn care and landscape maintenance',
+      icon: '🌿',
+      isActive: true,
+    },
+  });
+
+  const cleaningIndustry = await prisma.pricebookIndustry.upsert({
+    where: { slug: 'cleaning' },
+    update: {},
+    create: {
+      name: 'Cleaning',
+      slug: 'cleaning',
+      description: 'Residential and commercial cleaning services',
+      icon: '🧹',
+      isActive: true,
+    },
+  });
+
+  console.log('✅ Created 5 pricebook industries');
+
+  // HVAC Categories
+  const hvacInstallCategory = await prisma.pricebookCategory.upsert({
+    where: { id: 'pcat-hvac-install' },
+    update: {},
+    create: {
+      id: 'pcat-hvac-install',
+      pricebookIndustryId: hvacIndustry.id,
+      name: 'Installation',
+      description: 'HVAC system installation services',
+      orderIndex: 1,
+    },
+  });
+
+  const hvacRepairCategory = await prisma.pricebookCategory.upsert({
+    where: { id: 'pcat-hvac-repair' },
+    update: {},
+    create: {
+      id: 'pcat-hvac-repair',
+      pricebookIndustryId: hvacIndustry.id,
+      name: 'Repair & Service',
+      description: 'HVAC repair and maintenance services',
+      orderIndex: 2,
+    },
+  });
+
+  const hvacMaintenanceCategory = await prisma.pricebookCategory.upsert({
+    where: { id: 'pcat-hvac-maintenance' },
+    update: {},
+    create: {
+      id: 'pcat-hvac-maintenance',
+      pricebookIndustryId: hvacIndustry.id,
+      name: 'Preventive Maintenance',
+      description: 'Regular maintenance and tune-ups',
+      orderIndex: 3,
+    },
+  });
+
+  // Plumbing Categories
+  const plumbingInstallCategory = await prisma.pricebookCategory.upsert({
+    where: { id: 'pcat-plumbing-install' },
+    update: {},
+    create: {
+      id: 'pcat-plumbing-install',
+      pricebookIndustryId: plumbingIndustry.id,
+      name: 'Installation',
+      description: 'Plumbing installation services',
+      orderIndex: 1,
+    },
+  });
+
+  const plumbingRepairCategory = await prisma.pricebookCategory.upsert({
+    where: { id: 'pcat-plumbing-repair' },
+    update: {},
+    create: {
+      id: 'pcat-plumbing-repair',
+      pricebookIndustryId: plumbingIndustry.id,
+      name: 'Repair & Service',
+      description: 'Plumbing repair services',
+      orderIndex: 2,
+    },
+  });
+
+  // Electrical Categories
+  const electricalInstallCategory = await prisma.pricebookCategory.upsert({
+    where: { id: 'pcat-electrical-install' },
+    update: {},
+    create: {
+      id: 'pcat-electrical-install',
+      pricebookIndustryId: electricalIndustry.id,
+      name: 'Installation',
+      description: 'Electrical installation services',
+      orderIndex: 1,
+    },
+  });
+
+  const electricalRepairCategory = await prisma.pricebookCategory.upsert({
+    where: { id: 'pcat-electrical-repair' },
+    update: {},
+    create: {
+      id: 'pcat-electrical-repair',
+      pricebookIndustryId: electricalIndustry.id,
+      name: 'Repair & Service',
+      description: 'Electrical repair services',
+      orderIndex: 2,
+    },
+  });
+
+  console.log('✅ Created pricebook categories');
+
+  // HVAC Services
+  await prisma.pricebookService.upsert({
+    where: { id: 'psvc-hvac-ac-install' },
+    update: {},
+    create: {
+      id: 'psvc-hvac-ac-install',
+      pricebookCategoryId: hvacInstallCategory.id,
+      name: 'Central AC Installation - Standard',
+      description: 'Install new central air conditioning system (up to 3 tons)',
+      sku: 'HVAC-INST-001',
+      unitPrice: 3500.00,
+      unitCost: 2200.00,
+      estimatedDuration: 480,
+      orderIndex: 1,
+    },
+  });
+
+  await prisma.pricebookService.upsert({
+    where: { id: 'psvc-hvac-furnace-install' },
+    update: {},
+    create: {
+      id: 'psvc-hvac-furnace-install',
+      pricebookCategoryId: hvacInstallCategory.id,
+      name: 'Furnace Installation - Standard',
+      description: 'Install new gas furnace (up to 100,000 BTU)',
+      sku: 'HVAC-INST-002',
+      unitPrice: 2800.00,
+      unitCost: 1800.00,
+      estimatedDuration: 360,
+      orderIndex: 2,
+    },
+  });
+
+  await prisma.pricebookService.upsert({
+    where: { id: 'psvc-hvac-ac-repair' },
+    update: {},
+    create: {
+      id: 'psvc-hvac-ac-repair',
+      pricebookCategoryId: hvacRepairCategory.id,
+      name: 'AC Repair - Diagnostic & Fix',
+      description: 'Diagnose and repair AC not cooling',
+      sku: 'HVAC-REP-001',
+      unitPrice: 150.00,
+      unitCost: 50.00,
+      estimatedDuration: 90,
+      orderIndex: 1,
+    },
+  });
+
+  await prisma.pricebookService.upsert({
+    where: { id: 'psvc-hvac-tune-up' },
+    update: {},
+    create: {
+      id: 'psvc-hvac-tune-up',
+      pricebookCategoryId: hvacMaintenanceCategory.id,
+      name: 'HVAC Tune-Up Package',
+      description: 'Complete system inspection, cleaning, and tune-up',
+      sku: 'HVAC-MAINT-001',
+      unitPrice: 125.00,
+      unitCost: 40.00,
+      estimatedDuration: 60,
+      orderIndex: 1,
+    },
+  });
+
+  // Plumbing Services
+  await prisma.pricebookService.upsert({
+    where: { id: 'psvc-plumbing-water-heater' },
+    update: {},
+    create: {
+      id: 'psvc-plumbing-water-heater',
+      pricebookCategoryId: plumbingInstallCategory.id,
+      name: 'Water Heater Installation - 50 Gallon',
+      description: 'Install new 50-gallon gas water heater',
+      sku: 'PLUMB-INST-001',
+      unitPrice: 850.00,
+      unitCost: 550.00,
+      estimatedDuration: 180,
+      orderIndex: 1,
+    },
+  });
+
+  await prisma.pricebookService.upsert({
+    where: { id: 'psvc-plumbing-faucet-repair' },
+    update: {},
+    create: {
+      id: 'psvc-plumbing-faucet-repair',
+      pricebookCategoryId: plumbingRepairCategory.id,
+      name: 'Faucet Repair',
+      description: 'Repair leaking kitchen or bathroom faucet',
+      sku: 'PLUMB-REP-001',
+      unitPrice: 100.00,
+      unitCost: 30.00,
+      estimatedDuration: 60,
+      orderIndex: 1,
+    },
+  });
+
+  await prisma.pricebookService.upsert({
+    where: { id: 'psvc-plumbing-drain-cleaning' },
+    update: {},
+    create: {
+      id: 'psvc-plumbing-drain-cleaning',
+      pricebookCategoryId: plumbingRepairCategory.id,
+      name: 'Drain Cleaning - Standard',
+      description: 'Clear clogged drain (sink, tub, or shower)',
+      sku: 'PLUMB-REP-002',
+      unitPrice: 125.00,
+      unitCost: 35.00,
+      estimatedDuration: 45,
+      orderIndex: 2,
+    },
+  });
+
+  // Electrical Services
+  await prisma.pricebookService.upsert({
+    where: { id: 'psvc-electrical-outlet-install' },
+    update: {},
+    create: {
+      id: 'psvc-electrical-outlet-install',
+      pricebookCategoryId: electricalInstallCategory.id,
+      name: 'Outlet Installation - Standard',
+      description: 'Install new electrical outlet',
+      sku: 'ELEC-INST-001',
+      unitPrice: 85.00,
+      unitCost: 25.00,
+      estimatedDuration: 30,
+      orderIndex: 1,
+    },
+  });
+
+  await prisma.pricebookService.upsert({
+    where: { id: 'psvc-electrical-panel-upgrade' },
+    update: {},
+    create: {
+      id: 'psvc-electrical-panel-upgrade',
+      pricebookCategoryId: electricalInstallCategory.id,
+      name: 'Electrical Panel Upgrade - 200 Amp',
+      description: 'Upgrade to 200 amp service panel',
+      sku: 'ELEC-INST-002',
+      unitPrice: 1800.00,
+      unitCost: 1200.00,
+      estimatedDuration: 480,
+      orderIndex: 2,
+    },
+  });
+
+  await prisma.pricebookService.upsert({
+    where: { id: 'psvc-electrical-troubleshoot' },
+    update: {},
+    create: {
+      id: 'psvc-electrical-troubleshoot',
+      pricebookCategoryId: electricalRepairCategory.id,
+      name: 'Electrical Troubleshooting',
+      description: 'Diagnose electrical issues',
+      sku: 'ELEC-REP-001',
+      unitPrice: 95.00,
+      unitCost: 30.00,
+      estimatedDuration: 60,
+      orderIndex: 1,
+    },
+  });
+
+  console.log('✅ Created pricebook services');
+
+  // Service Materials
+  await prisma.pricebookServiceMaterial.upsert({
+    where: { id: 'pmat-ac-install-unit' },
+    update: {},
+    create: {
+      id: 'pmat-ac-install-unit',
+      pricebookServiceId: 'psvc-hvac-ac-install',
+      name: '3-Ton AC Unit',
+      description: 'Central air conditioning unit',
+      quantity: 1,
+      unitCost: 1500.00,
+      isOptional: false,
+    },
+  });
+
+  await prisma.pricebookServiceMaterial.upsert({
+    where: { id: 'pmat-ac-install-refrigerant' },
+    update: {},
+    create: {
+      id: 'pmat-ac-install-refrigerant',
+      pricebookServiceId: 'psvc-hvac-ac-install',
+      name: 'Refrigerant R-410A',
+      description: 'AC refrigerant',
+      quantity: 10,
+      unitCost: 25.00,
+      isOptional: false,
+    },
+  });
+
+  await prisma.pricebookServiceMaterial.upsert({
+    where: { id: 'pmat-water-heater-unit' },
+    update: {},
+    create: {
+      id: 'pmat-water-heater-unit',
+      pricebookServiceId: 'psvc-plumbing-water-heater',
+      name: '50-Gallon Water Heater',
+      description: 'Gas water heater',
+      quantity: 1,
+      unitCost: 450.00,
+      isOptional: false,
+    },
+  });
+
+  await prisma.pricebookServiceMaterial.upsert({
+    where: { id: 'pmat-water-heater-fittings' },
+    update: {},
+    create: {
+      id: 'pmat-water-heater-fittings',
+      pricebookServiceId: 'psvc-plumbing-water-heater',
+      name: 'Copper Piping and Fittings',
+      description: 'Installation materials',
+      quantity: 1,
+      unitCost: 50.00,
+      isOptional: false,
+    },
+  });
+
+  console.log('✅ Created pricebook service materials');
+
   console.log('\n🎉 Database seeded successfully!');
   console.log('\n📊 Summary:');
+  console.log('\n   Tenant Data:');
   console.log(`   - 1 Tenant: ${tenant.name}`);
   console.log(`   - 3 Users (1 admin, 2 technicians)`);
   console.log(`   - 2 Employees`);
@@ -676,6 +1058,11 @@ async function main() {
   console.log(`   - 1 Invoice`);
   console.log(`   - 1 Checklist Template`);
   console.log(`   - 3 Message Templates`);
+  console.log('\n   Pricebook Data (Industry Templates):');
+  console.log(`   - 5 Industries (HVAC, Plumbing, Electrical, Landscaping, Cleaning)`);
+  console.log(`   - 7 Categories`);
+  console.log(`   - 10 Services`);
+  console.log(`   - 4 Service Materials`);
   console.log('\n🔑 Demo Credentials:');
   console.log(`   - Admin: admin@fieldsmartpro.local`);
   console.log(`   - Tech 1: mike@fieldsmartpro.local`);

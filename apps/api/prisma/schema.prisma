@@ -61,6 +61,72 @@ enum EmployeeRole {
   SALES_REP
 }
 
+enum EmployeeStatus {
+  ACTIVE
+  INACTIVE
+  ON_LEAVE
+  TERMINATED
+}
+
+enum Permission {
+  // Customer permissions
+  CUSTOMERS_VIEW
+  CUSTOMERS_CREATE
+  CUSTOMERS_EDIT
+  CUSTOMERS_DELETE
+  CUSTOMERS_EXPORT
+
+  // Job permissions
+  JOBS_VIEW
+  JOBS_CREATE
+  JOBS_EDIT
+  JOBS_DELETE
+  JOBS_ASSIGN
+  JOBS_COMPLETE
+
+  // Estimate permissions
+  ESTIMATES_VIEW
+  ESTIMATES_CREATE
+  ESTIMATES_EDIT
+  ESTIMATES_DELETE
+  ESTIMATES_APPROVE
+
+  // Invoice permissions
+  INVOICES_VIEW
+  INVOICES_CREATE
+  INVOICES_EDIT
+  INVOICES_DELETE
+  INVOICES_SEND
+
+  // Payment permissions
+  PAYMENTS_VIEW
+  PAYMENTS_COLLECT
+  PAYMENTS_REFUND
+
+  // Schedule permissions
+  SCHEDULE_VIEW
+  SCHEDULE_MANAGE
+  DISPATCH_JOBS
+
+  // Employee permissions
+  EMPLOYEES_VIEW
+  EMPLOYEES_MANAGE
+  PERMISSIONS_MANAGE
+
+  // Pricebook permissions
+  PRICEBOOK_VIEW
+  PRICEBOOK_EDIT
+
+  // Reports permissions
+  REPORTS_VIEW
+  REPORTS_EXPORT
+
+  // Settings permissions
+  SETTINGS_VIEW
+  SETTINGS_MANAGE
+  INTEGRATIONS_MANAGE
+}
+
 enum ProficiencyLevel {
   BEGINNER
   INTERMEDIATE
@@ -308,15 +374,15 @@ enum IntegrationStatus {
 // ============================================================================
 
 model Industry {
-  id              String    @id @default(uuid())
+  id              String   @id @default(uuid())
   name            String
-  slug            String    @unique
+  slug            String   @unique
   icon            String?
-  defaultServices Json      @default("[]")
-  sortOrder       Int       @default(0)
-  isActive        Boolean   @default(true)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  defaultServices Json     @default("[]")
+  sortOrder       Int      @default(0)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   tenants Tenant[]
 
@@ -324,20 +390,20 @@ model Industry {
 }
 
 model Plan {
-  id              String    @id @default(uuid())
+  id              String   @id @default(uuid())
   name            String
-  slug            String    @unique
+  slug            String   @unique
   tier            PlanTier
   description     String?
-  monthlyPrice    Decimal   @db.Decimal(10, 2)
-  annualPrice     Decimal?  @db.Decimal(10, 2)
+  monthlyPrice    Decimal  @db.Decimal(10, 2)
+  annualPrice     Decimal? @db.Decimal(10, 2)
   maxUsers        Int?
   maxCustomers    Int?
   maxJobsPerMonth Int?
-  features        Json      @default("{}")
-  isActive        Boolean   @default(true)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  features        Json     @default("{}")
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   subscriptions Subscription[]
 
@@ -492,22 +558,22 @@ model User {
   updatedAt           DateTime     @updatedAt
 
   // Relations
-  invitedUsers    User[]        @relation("UserInvites")
-  sessions        UserSession[]
-  employee        Employee?
-  customersCreated Customer[]   @relation("CustomerCreatedBy")
-  jobsCreated     Job[]         @relation("JobCreatedBy")
-  estimatesCreated Estimate[]   @relation("EstimateCreatedBy")
-  invoicesCreated Invoice[]     @relation("InvoiceCreatedBy")
-  paymentsCollected Payment[]   @relation("PaymentCollectedBy")
-  agreementsCreated ServiceAgreement[] @relation("AgreementCreatedBy")
-  messagesCreated Message[]     @relation("MessageCreatedBy")
-  workflowsCreated Workflow[]   @relation("WorkflowCreatedBy")
-  timeEntriesApproved TimeEntry[] @relation("TimeEntryApprovedBy")
-  jobStatusChanges JobStatusHistory[]
-  jobChecklistsCompleted JobChecklist[] @relation("ChecklistCompletedBy")
+  invitedUsers               User[]             @relation("UserInvites")
+  sessions                   UserSession[]
+  employee                   Employee?
+  customersCreated           Customer[]         @relation("CustomerCreatedBy")
+  jobsCreated                Job[]              @relation("JobCreatedBy")
+  estimatesCreated           Estimate[]         @relation("EstimateCreatedBy")
+  invoicesCreated            Invoice[]          @relation("InvoiceCreatedBy")
+  paymentsCollected          Payment[]          @relation("PaymentCollectedBy")
+  agreementsCreated          ServiceAgreement[] @relation("AgreementCreatedBy")
+  messagesCreated            Message[]          @relation("MessageCreatedBy")
+  workflowsCreated           Workflow[]         @relation("WorkflowCreatedBy")
+  timeEntriesApproved        TimeEntry[]        @relation("TimeEntryApprovedBy")
+  jobStatusChanges           JobStatusHistory[]
+  jobChecklistsCompleted     JobChecklist[]     @relation("ChecklistCompletedBy")
   jobChecklistItemsCompleted JobChecklistItem[] @relation("ChecklistItemCompletedBy")
-  jobAttachments  JobAttachment[]
+  jobAttachments             JobAttachment[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -517,16 +583,19 @@ model User {
 }
 
 model Role {
-  id          String   @id @default(uuid())
+  id          String       @id @default(uuid())
   tenantId    String
-  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name        String
   slug        String
   description String?
-  permissions Json     @default("[]")
-  isSystem    Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  permissions Permission[] // Typed permissions instead of JSON
+  isSystem    Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Relations
+  employeeAssignments EmployeeRoleAssignment[] // Employees assigned to this role
 
   @@unique([tenantId, slug])
   @@index([tenantId])
@@ -576,7 +645,7 @@ model Tag {
   tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name       String
   colorHex   String   @default("#3B82F6")
-  entityType String   // 'customer', 'job', 'employee'
+  entityType String // 'customer', 'job', 'employee'
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -589,11 +658,11 @@ model Tag {
 }
 
 model Customer {
-  id                     String          @id @default(uuid())
+  id                     String         @id @default(uuid())
   tenantId               String
-  tenant                 Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant                 Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   customerNumber         String?
-  type                   CustomerType    @default(RESIDENTIAL)
+  type                   CustomerType   @default(RESIDENTIAL)
   firstName              String?
   lastName               String?
   companyName            String?
@@ -601,29 +670,29 @@ model Customer {
   mobilePhone            String?
   homePhone              String?
   workPhone              String?
-  preferredContactMethod MessageChannel  @default(SMS)
-  notificationsEnabled   Boolean         @default(true)
-  doNotService           Boolean         @default(false)
+  preferredContactMethod MessageChannel @default(SMS)
+  notificationsEnabled   Boolean        @default(true)
+  doNotService           Boolean        @default(false)
   doNotServiceReason     String?
   leadSourceId           String?
-  leadSource             LeadSource?     @relation(fields: [leadSourceId], references: [id])
+  leadSource             LeadSource?    @relation(fields: [leadSourceId], references: [id])
   referredByCustomerId   String?
-  referredBy             Customer?       @relation("CustomerReferrals", fields: [referredByCustomerId], references: [id])
-  lifetimeValue          Decimal         @default(0) @db.Decimal(12, 2)
-  totalJobs              Int             @default(0)
+  referredBy             Customer?      @relation("CustomerReferrals", fields: [referredByCustomerId], references: [id])
+  lifetimeValue          Decimal        @default(0) @db.Decimal(12, 2)
+  totalJobs              Int            @default(0)
   notes                  String?
-  customFields           Json            @default("{}")
-  isArchived             Boolean                    @default(false)
+  customFields           Json           @default("{}")
+  isArchived             Boolean        @default(false)
   archivedAt             DateTime?
   createdById            String?
-  createdBy              User?                      @relation("CustomerCreatedBy", fields: [createdById], references: [id])
-  createdAt              DateTime                   @default(now())
-  updatedAt              DateTime                   @updatedAt
+  createdBy              User?          @relation("CustomerCreatedBy", fields: [createdById], references: [id])
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
 
   // VAPI Voice Agent fields
-  verificationStatus     CustomerVerificationStatus @default(VERIFIED)
-  createdSource          CustomerCreatedSource      @default(WEB)
-  voiceCallId            String?                    // Reference to VoiceCallLog if created via VAPI
+  verificationStatus CustomerVerificationStatus @default(VERIFIED)
+  createdSource      CustomerCreatedSource      @default(WEB)
+  voiceCallId        String? // Reference to VoiceCallLog if created via VAPI
 
   // Relations
   referrals         Customer[]         @relation("CustomerReferrals")
@@ -723,17 +792,17 @@ model Property {
 // ============================================================================
 
 model Skill {
-  id                   String   @id @default(uuid())
-  tenantId             String
-  tenant               Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  name                 String
-  category             String?
-  description          String?
-  requiresCertification Boolean @default(false)
-  certificationName    String?
-  isActive             Boolean  @default(true)
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  id                    String   @id @default(uuid())
+  tenantId              String
+  tenant                Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name                  String
+  category              String?
+  description           String?
+  requiresCertification Boolean  @default(false)
+  certificationName     String?
+  isActive              Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
   employeeSkills EmployeeSkill[]
 
@@ -743,60 +812,63 @@ model Skill {
 }
 
 model Employee {
-  id                            String    @id @default(uuid())
-  userId                        String?   @unique
-  user                          User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  id                            String         @id @default(uuid())
+  userId                        String?        @unique
+  user                          User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
   tenantId                      String
-  tenant                        Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant                        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   employeeNumber                String?
   hireDate                      DateTime?
   terminationDate               DateTime?
   jobTitle                      String?
   department                    String?
-  colorHex                      String    @default("#3B82F6")
-  hourlyRate                    Decimal?  @db.Decimal(10, 2)
-  overtimeRate                  Decimal?  @db.Decimal(10, 2)
-  commissionRate                Decimal   @default(0) @db.Decimal(5, 2)
-  canBeBookedOnline             Boolean   @default(true)
-  isDispatchEnabled             Boolean   @default(true)
-  receivesDispatchNotifications Boolean   @default(true)
+  colorHex                      String         @default("#3B82F6")
+  hourlyRate                    Decimal?       @db.Decimal(10, 2)
+  overtimeRate                  Decimal?       @db.Decimal(10, 2)
+  commissionRate                Decimal        @default(0) @db.Decimal(5, 2)
+  canBeBookedOnline             Boolean        @default(true)
+  isDispatchEnabled             Boolean        @default(true)
+  receivesDispatchNotifications Boolean        @default(true)
   serviceArea                   Json?
   maxDailyJobs                  Int?
-  certifications                Json      @default("[]")
+  certifications                Json           @default("[]")
   emergencyContactName          String?
   emergencyContactPhone         String?
   notes                         String?
-  isArchived                    Boolean   @default(false)
+  status                        EmployeeStatus @default(ACTIVE) // NEW: Active/inactive status
+  isArchived                    Boolean        @default(false)
   archivedAt                    DateTime?
-  createdAt                     DateTime  @default(now())
-  updatedAt                     DateTime  @updatedAt
+  createdAt                     DateTime       @default(now())
+  updatedAt                     DateTime       @updatedAt
 
   // Relations
-  skills            EmployeeSkill[]
-  schedules         EmployeeSchedule[]
-  timeEntries       TimeEntry[]
-  assignments       JobAssignment[]
-  serviceRequests   ServiceRequest[]   // Assigned service requests
+  skills          EmployeeSkill[]
+  schedules       EmployeeSchedule[]
+  timeEntries     TimeEntry[]
+  assignments     JobAssignment[]
+  serviceRequests ServiceRequest[] // Assigned service requests
+  roleAssignments EmployeeRoleAssignment[] // NEW: Multiple roles per employee
 
   @@index([tenantId])
   @@index([userId])
   @@index([tenantId, employeeNumber])
+  @@index([tenantId, status]) // NEW: Filter by status
   @@map("employees")
 }
 
 model EmployeeSkill {
-  id                    String           @id @default(uuid())
-  employeeId            String
-  employee              Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  skillId               String
-  skill                 Skill            @relation(fields: [skillId], references: [id], onDelete: Cascade)
-  proficiencyLevel      ProficiencyLevel @default(INTERMEDIATE)
-  certifiedAt           DateTime?
-  certificationExpires  DateTime?
-  certificationNumber   String?
-  notes                 String?
-  createdAt             DateTime         @default(now())
-  updatedAt             DateTime         @updatedAt
+  id                   String           @id @default(uuid())
+  employeeId           String
+  employee             Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  skillId              String
+  skill                Skill            @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  proficiencyLevel     ProficiencyLevel @default(INTERMEDIATE)
+  certifiedAt          DateTime?
+  certificationExpires DateTime?
+  certificationNumber  String?
+  notes                String?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
 
   @@unique([employeeId, skillId])
   @@index([employeeId])
@@ -805,43 +877,59 @@ model EmployeeSkill {
 }
 
 model EmployeeSchedule {
-  id            String    @id @default(uuid())
-  employeeId    String
-  employee      Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  dayOfWeek     Int       // 0-6 (Sunday-Saturday)
-  startTime     DateTime  @db.Time
-  endTime       DateTime  @db.Time
-  breakStart    DateTime? @db.Time
-  breakDuration Int       @default(0)
-  isAvailable   Boolean   @default(true)
-  effectiveFrom DateTime?
+  id             String    @id @default(uuid())
+  employeeId     String
+  employee       Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  dayOfWeek      Int // 0-6 (Sunday-Saturday)
+  startTime      DateTime  @db.Time
+  endTime        DateTime  @db.Time
+  breakStart     DateTime? @db.Time
+  breakDuration  Int       @default(0)
+  isAvailable    Boolean   @default(true)
+  effectiveFrom  DateTime?
   effectiveUntil DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   @@unique([employeeId, dayOfWeek, effectiveFrom])
   @@index([employeeId])
   @@map("employee_schedules")
 }
 
+// Employee-to-Role mapping (many-to-many)
+model EmployeeRoleAssignment {
+  id         String   @id @default(uuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  roleId     String
+  role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  assignedAt DateTime @default(now())
+  assignedBy String? // userId who assigned the role
+
+  @@unique([employeeId, roleId])
+  @@index([employeeId])
+  @@index([roleId])
+  @@map("employee_roles")
+}
+
 model TimeEntry {
-  id          String        @id @default(uuid())
-  tenantId    String
-  tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  employeeId  String
-  employee    Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  jobId       String?
-  job         Job?          @relation(fields: [jobId], references: [id])
-  entryType   TimeEntryType
-  timestamp   DateTime      @default(now())
-  latitude    Decimal?      @db.Decimal(10, 7)
-  longitude   Decimal?      @db.Decimal(10, 7)
-  notes       String?
-  isManual    Boolean       @default(false)
+  id           String        @id @default(uuid())
+  tenantId     String
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employeeId   String
+  employee     Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  jobId        String?
+  job          Job?          @relation(fields: [jobId], references: [id])
+  entryType    TimeEntryType
+  timestamp    DateTime      @default(now())
+  latitude     Decimal?      @db.Decimal(10, 7)
+  longitude    Decimal?      @db.Decimal(10, 7)
+  notes        String?
+  isManual     Boolean       @default(false)
   approvedById String?
-  approvedBy  User?         @relation("TimeEntryApprovedBy", fields: [approvedById], references: [id])
-  approvedAt  DateTime?
-  createdAt   DateTime      @default(now())
+  approvedBy   User?         @relation("TimeEntryApprovedBy", fields: [approvedById], references: [id])
+  approvedAt   DateTime?
+  createdAt    DateTime      @default(now())
 
   @@index([tenantId])
   @@index([employeeId])
@@ -853,19 +941,99 @@ model TimeEntry {
 // PRICE BOOK
 // ============================================================================
 
-model Category {
+// Industry-specific pricebook templates
+model PricebookIndustry {
   id          String   @id @default(uuid())
+  name        String // "HVAC", "Plumbing", "Electrical", "Landscaping"
+  slug        String   @unique
+  description String?
+  icon        String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  categories PricebookCategory[]
+
+  @@map("pricebook_industries")
+}
+
+model PricebookCategory {
+  id                  String             @id @default(uuid())
+  pricebookIndustryId String
+  pricebookIndustry   PricebookIndustry  @relation(fields: [pricebookIndustryId], references: [id], onDelete: Cascade)
+  parentId            String?
+  parent              PricebookCategory? @relation("PricebookCategoryHierarchy", fields: [parentId], references: [id])
+  name                String
+  description         String?
+  orderIndex          Int                @default(0)
+  isActive            Boolean            @default(true)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  children PricebookCategory[] @relation("PricebookCategoryHierarchy")
+  services PricebookService[]
+
+  @@index([pricebookIndustryId, orderIndex])
+  @@map("pricebook_categories")
+}
+
+model PricebookService {
+  id                    String            @id @default(uuid())
+  pricebookCategoryId   String
+  pricebookCategory     PricebookCategory @relation(fields: [pricebookCategoryId], references: [id], onDelete: Cascade)
+  name                  String
+  description           String?
+  sku                   String?
+  unitPrice             Decimal           @db.Decimal(10, 2)
+  unitCost              Decimal           @default(0) @db.Decimal(10, 2)
+  estimatedDuration     Int               @default(60)
+  orderIndex            Int               @default(0)
+  qboItemId             String?
+  qboSyncedAt           DateTime?
+  isActive              Boolean           @default(true)
+  hasDiscardedMaterials Boolean           @default(false)
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  materials PricebookServiceMaterial[]
+
+  @@index([pricebookCategoryId, orderIndex])
+  @@index([qboItemId])
+  @@map("pricebook_services")
+}
+
+model PricebookServiceMaterial {
+  id                 String           @id @default(uuid())
+  pricebookServiceId String
+  pricebookService   PricebookService @relation(fields: [pricebookServiceId], references: [id], onDelete: Cascade)
+  name               String
+  description        String?
+  quantity           Decimal          @db.Decimal(10, 3)
+  unitCost           Decimal          @db.Decimal(10, 2)
+  isOptional         Boolean          @default(false)
+  isDiscarded        Boolean          @default(false)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@index([pricebookServiceId])
+  @@map("pricebook_service_materials")
+}
+
+// Tenant-specific categories
+model Category {
+  id          String    @id @default(uuid())
   tenantId    String
-  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   parentId    String?
   parent      Category? @relation("CategoryHierarchy", fields: [parentId], references: [id])
   name        String
   description String?
-  type        String   // 'SERVICE' or 'MATERIAL'
-  sortOrder   Int      @default(0)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  type        String // 'SERVICE' or 'MATERIAL'
+  sortOrder   Int       @default(0)
+  orderIndex  Int       @default(0) // For drag-drop reordering
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   children  Category[] @relation("CategoryHierarchy")
   services  Service[]
@@ -873,6 +1041,7 @@ model Category {
 
   @@index([tenantId])
   @@index([parentId])
+  @@index([tenantId, orderIndex])
   @@map("categories")
 }
 
@@ -896,19 +1065,24 @@ model Service {
   requiredSkills    Json      @default("[]")
   imageUrl          String?
   sortOrder         Int       @default(0)
+  orderIndex        Int       @default(0) // For drag-drop reordering
+  qboItemId         String? // QuickBooks Online Item ID
+  qboSyncedAt       DateTime? // Last sync timestamp
   isActive          Boolean   @default(true)
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  jobLineItems            JobLineItem[]
-  estimateLineItems       EstimateLineItem[]
+  jobLineItems              JobLineItem[]
+  estimateLineItems         EstimateLineItem[]
   estimateTemplateLineItems EstimateTemplateLineItem[]
-  invoiceLineItems        InvoiceLineItem[]
+  invoiceLineItems          InvoiceLineItem[]
 
   @@index([tenantId])
   @@index([categoryId])
   @@index([tenantId, sku])
   @@index([tenantId, isOnlineBookable])
+  @@index([tenantId, categoryId, orderIndex])
+  @@index([qboItemId])
   @@map("services")
 }
 
@@ -932,34 +1106,36 @@ model Material {
   reorderPoint           Int?
   reorderQuantity        Int?
   imageUrl               String?
+  orderIndex             Int       @default(0) // For drag-drop reordering
   isActive               Boolean   @default(true)
   createdAt              DateTime  @default(now())
   updatedAt              DateTime  @updatedAt
 
-  jobLineItems            JobLineItem[]
-  estimateLineItems       EstimateLineItem[]
+  jobLineItems              JobLineItem[]
+  estimateLineItems         EstimateLineItem[]
   estimateTemplateLineItems EstimateTemplateLineItem[]
-  invoiceLineItems        InvoiceLineItem[]
+  invoiceLineItems          InvoiceLineItem[]
 
   @@index([tenantId])
   @@index([categoryId])
   @@index([tenantId, sku])
+  @@index([tenantId, categoryId, orderIndex])
   @@map("materials")
 }
 
 model LaborRate {
-  id                 String   @id @default(uuid())
-  tenantId           String
-  tenant             Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  name               String
-  description        String?
-  hourlyRate         Decimal  @db.Decimal(10, 2)
-  overtimeMultiplier Decimal  @default(1.5) @db.Decimal(3, 2)
-  emergencyMultiplier Decimal @default(2.0) @db.Decimal(3, 2)
-  isDefault          Boolean  @default(false)
-  isActive           Boolean  @default(true)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  id                  String   @id @default(uuid())
+  tenantId            String
+  tenant              Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name                String
+  description         String?
+  hourlyRate          Decimal  @db.Decimal(10, 2)
+  overtimeMultiplier  Decimal  @default(1.5) @db.Decimal(3, 2)
+  emergencyMultiplier Decimal  @default(2.0) @db.Decimal(3, 2)
+  isDefault           Boolean  @default(false)
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   @@index([tenantId])
   @@map("labor_rates")
@@ -991,23 +1167,23 @@ model JobType {
 }
 
 model Job {
-  id                 String      @id @default(uuid())
-  tenantId           String
-  tenant             Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  jobNumber          String
-  customerId         String
-  customer           Customer    @relation(fields: [customerId], references: [id])
-  addressId          String
-  address            Address     @relation(fields: [addressId], references: [id])
-  jobTypeId          String?
-  jobType            JobType?    @relation(fields: [jobTypeId], references: [id])
-  status             JobStatus   @default(UNSCHEDULED)
-  priority           JobPriority @default(NORMAL)
-  source             JobSource   @default(MANUAL)
-  title              String
-  description        String?
-  internalNotes      String?
-  
+  id            String      @id @default(uuid())
+  tenantId      String
+  tenant        Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  jobNumber     String
+  customerId    String
+  customer      Customer    @relation(fields: [customerId], references: [id])
+  addressId     String
+  address       Address     @relation(fields: [addressId], references: [id])
+  jobTypeId     String?
+  jobType       JobType?    @relation(fields: [jobTypeId], references: [id])
+  status        JobStatus   @default(UNSCHEDULED)
+  priority      JobPriority @default(NORMAL)
+  source        JobSource   @default(MANUAL)
+  title         String
+  description   String?
+  internalNotes String?
+
   // Scheduling
   scheduledStart     DateTime?
   scheduledEnd       DateTime?
@@ -1015,38 +1191,38 @@ model Job {
   arrivalWindowEnd   DateTime?
   actualStart        DateTime?
   actualEnd          DateTime?
-  estimatedDuration  Int         @default(60)
-  
+  estimatedDuration  Int       @default(60)
+
   // Relationships
   parentJobId        String?
-  parentJob          Job?        @relation("JobRecurrence", fields: [parentJobId], references: [id])
-  isCallback         Boolean     @default(false)
+  parentJob          Job?              @relation("JobRecurrence", fields: [parentJobId], references: [id])
+  isCallback         Boolean           @default(false)
   callbackReason     String?
   estimateId         String?
-  estimate           Estimate?   @relation(fields: [estimateId], references: [id])
+  estimate           Estimate?         @relation(fields: [estimateId], references: [id])
   serviceAgreementId String?
   serviceAgreement   ServiceAgreement? @relation(fields: [serviceAgreementId], references: [id])
-  
+
   // Financials
-  subtotal           Decimal     @default(0) @db.Decimal(10, 2)
-  discountAmount     Decimal     @default(0) @db.Decimal(10, 2)
-  taxAmount          Decimal     @default(0) @db.Decimal(10, 2)
-  total              Decimal     @default(0) @db.Decimal(10, 2)
-  
+  subtotal       Decimal @default(0) @db.Decimal(10, 2)
+  discountAmount Decimal @default(0) @db.Decimal(10, 2)
+  taxAmount      Decimal @default(0) @db.Decimal(10, 2)
+  total          Decimal @default(0) @db.Decimal(10, 2)
+
   // Tracking
   dispatchedAt       DateTime?
   completedAt        DateTime?
   cancelledAt        DateTime?
   cancellationReason String?
-  
-  customFields       Json        @default("{}")
-  createdById        String?
-  createdBy          User?       @relation("JobCreatedBy", fields: [createdById], references: [id])
-  createdAt          DateTime    @default(now())
-  updatedAt          DateTime    @updatedAt
+
+  customFields Json     @default("{}")
+  createdById  String?
+  createdBy    User?    @relation("JobCreatedBy", fields: [createdById], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   // Relations
-  childJobs       Job[]             @relation("JobRecurrence")
+  childJobs       Job[]              @relation("JobRecurrence")
   assignments     JobAssignment[]
   lineItems       JobLineItem[]
   attachments     JobAttachment[]
@@ -1056,7 +1232,7 @@ model Job {
   invoices        Invoice[]
   messages        Message[]
   aiConversations AiConversation[]
-  serviceRequests ServiceRequest[]  // Service requests converted to this job
+  serviceRequests ServiceRequest[] // Service requests converted to this job
 
   @@unique([tenantId, jobNumber])
   @@index([tenantId])
@@ -1171,8 +1347,8 @@ model ChecklistTemplate {
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 
-  items        ChecklistTemplateItem[]
-  jobTemplates JobTemplate[]
+  items         ChecklistTemplateItem[]
+  jobTemplates  JobTemplate[]
   jobChecklists JobChecklist[]
 
   @@index([tenantId])
@@ -1200,26 +1376,26 @@ model ChecklistTemplateItem {
 }
 
 model JobTemplate {
-  id                  String            @id @default(uuid())
+  id                  String             @id @default(uuid())
   tenantId            String
-  tenant              Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant              Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name                String
   description         String?
   jobTypeId           String?
-  jobType             JobType?          @relation(fields: [jobTypeId], references: [id])
-  estimatedDuration   Int               @default(60)
-  defaultPriority     JobPriority       @default(NORMAL)
-  defaultServices     Json              @default("[]")
-  defaultMaterials    Json              @default("[]")
+  jobType             JobType?           @relation(fields: [jobTypeId], references: [id])
+  estimatedDuration   Int                @default(60)
+  defaultPriority     JobPriority        @default(NORMAL)
+  defaultServices     Json               @default("[]")
+  defaultMaterials    Json               @default("[]")
   checklistTemplateId String?
   checklistTemplate   ChecklistTemplate? @relation(fields: [checklistTemplateId], references: [id])
   instructions        String?
-  isOnlineBookable    Boolean           @default(false)
+  isOnlineBookable    Boolean            @default(false)
   colorHex            String?
-  sortOrder           Int               @default(0)
-  isActive            Boolean           @default(true)
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
+  sortOrder           Int                @default(0)
+  isActive            Boolean            @default(true)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
 
   @@index([tenantId])
   @@map("job_templates")
@@ -1246,40 +1422,40 @@ model JobChecklist {
 }
 
 model JobChecklistItem {
-  id              String                 @id @default(uuid())
-  jobChecklistId  String
-  jobChecklist    JobChecklist           @relation(fields: [jobChecklistId], references: [id], onDelete: Cascade)
-  templateItemId  String?
-  templateItem    ChecklistTemplateItem? @relation(fields: [templateItemId], references: [id])
-  label           String
-  valueType       ChecklistValueType     @default(BOOLEAN)
-  isRequired      Boolean                @default(false)
-  value           String?
-  photoUrl        String?
-  completedAt     DateTime?
-  completedById   String?
-  completedBy     User?                  @relation("ChecklistItemCompletedBy", fields: [completedById], references: [id])
-  sortOrder       Int                    @default(0)
-  createdAt       DateTime               @default(now())
-  updatedAt       DateTime               @updatedAt
+  id             String                 @id @default(uuid())
+  jobChecklistId String
+  jobChecklist   JobChecklist           @relation(fields: [jobChecklistId], references: [id], onDelete: Cascade)
+  templateItemId String?
+  templateItem   ChecklistTemplateItem? @relation(fields: [templateItemId], references: [id])
+  label          String
+  valueType      ChecklistValueType     @default(BOOLEAN)
+  isRequired     Boolean                @default(false)
+  value          String?
+  photoUrl       String?
+  completedAt    DateTime?
+  completedById  String?
+  completedBy    User?                  @relation("ChecklistItemCompletedBy", fields: [completedById], references: [id])
+  sortOrder      Int                    @default(0)
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
 
   @@index([jobChecklistId])
   @@map("job_checklist_items")
 }
 
 model EstimateTemplate {
-  id                  String   @id @default(uuid())
-  tenantId            String
-  tenant              Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  name                String
-  description         String?
-  category            String?
-  validDays           Int      @default(30)
-  defaultMessage      String?
-  termsAndConditions  String?
-  isActive            Boolean  @default(true)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  id                 String   @id @default(uuid())
+  tenantId           String
+  tenant             Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name               String
+  description        String?
+  category           String?
+  validDays          Int      @default(30)
+  defaultMessage     String?
+  termsAndConditions String?
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   options EstimateTemplateOption[]
 
@@ -1355,41 +1531,41 @@ model MessageTemplate {
 // ============================================================================
 
 model Estimate {
-  id                 String         @id @default(uuid())
-  tenantId           String
-  tenant             Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  estimateNumber     String
-  customerId         String
-  customer           Customer       @relation(fields: [customerId], references: [id])
-  addressId          String
-  address            Address        @relation(fields: [addressId], references: [id])
-  status             EstimateStatus @default(DRAFT)
-  
+  id             String         @id @default(uuid())
+  tenantId       String
+  tenant         Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  estimateNumber String
+  customerId     String
+  customer       Customer       @relation(fields: [customerId], references: [id])
+  addressId      String
+  address        Address        @relation(fields: [addressId], references: [id])
+  status         EstimateStatus @default(DRAFT)
+
   title              String?
   message            String?
   termsAndConditions String?
-  
-  validUntil         DateTime?
-  sentAt             DateTime?
-  viewedAt           DateTime?
-  approvedAt         DateTime?
-  declinedAt         DateTime?
-  expiredAt          DateTime?
-  
-  approvedOptionId   String?
-  signatureUrl       String?
-  signedName         String?
-  signedAt           DateTime?
-  
-  subtotal           Decimal        @default(0) @db.Decimal(10, 2)
-  discountAmount     Decimal        @default(0) @db.Decimal(10, 2)
-  taxAmount          Decimal        @default(0) @db.Decimal(10, 2)
-  total              Decimal        @default(0) @db.Decimal(10, 2)
-  
-  createdById        String?
-  createdBy          User?          @relation("EstimateCreatedBy", fields: [createdById], references: [id])
-  createdAt          DateTime       @default(now())
-  updatedAt          DateTime       @updatedAt
+
+  validUntil DateTime?
+  sentAt     DateTime?
+  viewedAt   DateTime?
+  approvedAt DateTime?
+  declinedAt DateTime?
+  expiredAt  DateTime?
+
+  approvedOptionId String?
+  signatureUrl     String?
+  signedName       String?
+  signedAt         DateTime?
+
+  subtotal       Decimal @default(0) @db.Decimal(10, 2)
+  discountAmount Decimal @default(0) @db.Decimal(10, 2)
+  taxAmount      Decimal @default(0) @db.Decimal(10, 2)
+  total          Decimal @default(0) @db.Decimal(10, 2)
+
+  createdById String?
+  createdBy   User?    @relation("EstimateCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   options EstimateOption[]
   jobs    Job[]
@@ -1402,14 +1578,14 @@ model Estimate {
 }
 
 model EstimateOption {
-  id             String       @id @default(uuid())
-  estimateId     String
-  estimate       Estimate     @relation(fields: [estimateId], references: [id], onDelete: Cascade)
-  name           String
-  description    String?
-  coverImageUrl  String?
-  isRecommended  Boolean      @default(false)
-  
+  id            String   @id @default(uuid())
+  estimateId    String
+  estimate      Estimate @relation(fields: [estimateId], references: [id], onDelete: Cascade)
+  name          String
+  description   String?
+  coverImageUrl String?
+  isRecommended Boolean  @default(false)
+
   subtotal       Decimal      @default(0) @db.Decimal(10, 2)
   discountType   DiscountType @default(NONE)
   discountValue  Decimal      @default(0) @db.Decimal(10, 2)
@@ -1417,10 +1593,10 @@ model EstimateOption {
   taxRate        Decimal      @default(0) @db.Decimal(5, 2)
   taxAmount      Decimal      @default(0) @db.Decimal(10, 2)
   total          Decimal      @default(0) @db.Decimal(10, 2)
-  
-  sortOrder      Int          @default(0)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   lineItems EstimateLineItem[]
 
@@ -1458,44 +1634,44 @@ model EstimateLineItem {
 // ============================================================================
 
 model Invoice {
-  id              String        @id @default(uuid())
-  tenantId        String
-  tenant          Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  invoiceNumber   String
-  customerId      String
-  customer        Customer      @relation(fields: [customerId], references: [id])
-  jobId           String?
-  job             Job?          @relation(fields: [jobId], references: [id])
-  status          InvoiceStatus @default(DRAFT)
-  
-  issueDate       DateTime      @default(now())
-  dueDate         DateTime
-  terms           PaymentTerms  @default(DUE_ON_RECEIPT)
-  
-  poNumber        String?
-  message         String?
-  footerNotes     String?
-  
-  subtotal        Decimal       @default(0) @db.Decimal(10, 2)
-  discountAmount  Decimal       @default(0) @db.Decimal(10, 2)
-  taxRate         Decimal       @default(0) @db.Decimal(5, 2)
-  taxAmount       Decimal       @default(0) @db.Decimal(10, 2)
-  total           Decimal       @default(0) @db.Decimal(10, 2)
-  amountPaid      Decimal       @default(0) @db.Decimal(10, 2)
-  
-  sentAt          DateTime?
-  viewedAt        DateTime?
-  paidAt          DateTime?
-  voidedAt        DateTime?
-  voidReason      String?
-  
+  id            String        @id @default(uuid())
+  tenantId      String
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invoiceNumber String
+  customerId    String
+  customer      Customer      @relation(fields: [customerId], references: [id])
+  jobId         String?
+  job           Job?          @relation(fields: [jobId], references: [id])
+  status        InvoiceStatus @default(DRAFT)
+
+  issueDate DateTime     @default(now())
+  dueDate   DateTime
+  terms     PaymentTerms @default(DUE_ON_RECEIPT)
+
+  poNumber    String?
+  message     String?
+  footerNotes String?
+
+  subtotal       Decimal @default(0) @db.Decimal(10, 2)
+  discountAmount Decimal @default(0) @db.Decimal(10, 2)
+  taxRate        Decimal @default(0) @db.Decimal(5, 2)
+  taxAmount      Decimal @default(0) @db.Decimal(10, 2)
+  total          Decimal @default(0) @db.Decimal(10, 2)
+  amountPaid     Decimal @default(0) @db.Decimal(10, 2)
+
+  sentAt     DateTime?
+  viewedAt   DateTime?
+  paidAt     DateTime?
+  voidedAt   DateTime?
+  voidReason String?
+
   qboInvoiceId    String?
   stripeInvoiceId String?
-  
-  createdById     String?
-  createdBy       User?         @relation("InvoiceCreatedBy", fields: [createdById], references: [id])
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+
+  createdById String?
+  createdBy   User?    @relation("InvoiceCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   lineItems InvoiceLineItem[]
   payments  Payment[]
@@ -1510,63 +1686,63 @@ model Invoice {
 }
 
 model InvoiceLineItem {
-  id            String       @id @default(uuid())
-  invoiceId     String
-  invoice       Invoice      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  jobLineItemId String?
-  jobLineItem   JobLineItem? @relation(fields: [jobLineItemId], references: [id])
-  type          LineItemType
-  serviceId     String?
-  service       Service?     @relation(fields: [serviceId], references: [id])
-  materialId    String?
-  material      Material?    @relation(fields: [materialId], references: [id])
-  name          String
-  description   String?
-  quantity      Decimal      @default(1) @db.Decimal(10, 3)
-  unitPrice     Decimal      @db.Decimal(10, 2)
-  discountAmount Decimal     @default(0) @db.Decimal(10, 2)
-  taxRate       Decimal      @default(0) @db.Decimal(5, 2)
-  isTaxable     Boolean      @default(true)
-  sortOrder     Int          @default(0)
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  id             String       @id @default(uuid())
+  invoiceId      String
+  invoice        Invoice      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  jobLineItemId  String?
+  jobLineItem    JobLineItem? @relation(fields: [jobLineItemId], references: [id])
+  type           LineItemType
+  serviceId      String?
+  service        Service?     @relation(fields: [serviceId], references: [id])
+  materialId     String?
+  material       Material?    @relation(fields: [materialId], references: [id])
+  name           String
+  description    String?
+  quantity       Decimal      @default(1) @db.Decimal(10, 3)
+  unitPrice      Decimal      @db.Decimal(10, 2)
+  discountAmount Decimal      @default(0) @db.Decimal(10, 2)
+  taxRate        Decimal      @default(0) @db.Decimal(5, 2)
+  isTaxable      Boolean      @default(true)
+  sortOrder      Int          @default(0)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   @@index([invoiceId])
   @@map("invoice_line_items")
 }
 
 model Payment {
-  id                   String        @id @default(uuid())
-  tenantId             String
-  tenant               Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  invoiceId            String
-  invoice              Invoice       @relation(fields: [invoiceId], references: [id])
-  amount               Decimal       @db.Decimal(10, 2)
-  method               PaymentMethod
-  status               PaymentStatus @default(PENDING)
-  
-  transactionId        String?
-  authorizationCode    String?
-  cardBrand            String?
-  cardLastFour         String?
-  checkNumber          String?
-  
-  processedAt          DateTime?
-  failedAt             DateTime?
-  failureReason        String?
-  refundedAt           DateTime?
-  refundAmount         Decimal?      @db.Decimal(10, 2)
-  refundReason         String?
-  
-  collectedById        String?
-  collectedBy          User?         @relation("PaymentCollectedBy", fields: [collectedById], references: [id])
-  notes                String?
-  
+  id        String        @id @default(uuid())
+  tenantId  String
+  tenant    Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invoiceId String
+  invoice   Invoice       @relation(fields: [invoiceId], references: [id])
+  amount    Decimal       @db.Decimal(10, 2)
+  method    PaymentMethod
+  status    PaymentStatus @default(PENDING)
+
+  transactionId     String?
+  authorizationCode String?
+  cardBrand         String?
+  cardLastFour      String?
+  checkNumber       String?
+
+  processedAt   DateTime?
+  failedAt      DateTime?
+  failureReason String?
+  refundedAt    DateTime?
+  refundAmount  Decimal?  @db.Decimal(10, 2)
+  refundReason  String?
+
+  collectedById String?
+  collectedBy   User?   @relation("PaymentCollectedBy", fields: [collectedById], references: [id])
+  notes         String?
+
   stripePaymentIntentId String?
-  stripeChargeId       String?
-  
-  createdAt            DateTime      @default(now())
-  updatedAt            DateTime      @updatedAt
+  stripeChargeId        String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([tenantId])
   @@index([invoiceId])
@@ -1605,44 +1781,44 @@ model ServicePlan {
 }
 
 model ServiceAgreement {
-  id                   String          @id @default(uuid())
-  tenantId             String
-  tenant               Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  agreementNumber      String
-  customerId           String
-  customer             Customer        @relation(fields: [customerId], references: [id])
-  addressId            String
-  address              Address         @relation(fields: [addressId], references: [id])
-  planId               String
-  plan                 ServicePlan     @relation(fields: [planId], references: [id])
-  status               AgreementStatus @default(PENDING)
-  
-  startDate            DateTime
-  endDate              DateTime?
-  renewalDate          DateTime?
-  autoRenew            Boolean         @default(true)
-  
-  monthlyAmount        Decimal         @db.Decimal(10, 2)
-  visitsIncluded       Int             @default(0)
-  visitsUsed           Int             @default(0)
-  
-  coveredEquipment     Json            @default("[]")
-  addOns               Json            @default("[]")
-  
-  signedAt             DateTime?
-  signatureUrl         String?
-  signedName           String?
-  
-  cancelledAt          DateTime?
-  cancellationReason   String?
-  
+  id              String          @id @default(uuid())
+  tenantId        String
+  tenant          Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  agreementNumber String
+  customerId      String
+  customer        Customer        @relation(fields: [customerId], references: [id])
+  addressId       String
+  address         Address         @relation(fields: [addressId], references: [id])
+  planId          String
+  plan            ServicePlan     @relation(fields: [planId], references: [id])
+  status          AgreementStatus @default(PENDING)
+
+  startDate   DateTime
+  endDate     DateTime?
+  renewalDate DateTime?
+  autoRenew   Boolean   @default(true)
+
+  monthlyAmount  Decimal @db.Decimal(10, 2)
+  visitsIncluded Int     @default(0)
+  visitsUsed     Int     @default(0)
+
+  coveredEquipment Json @default("[]")
+  addOns           Json @default("[]")
+
+  signedAt     DateTime?
+  signatureUrl String?
+  signedName   String?
+
+  cancelledAt        DateTime?
+  cancellationReason String?
+
   stripeSubscriptionId String?
-  
-  notes                String?
-  createdById          String?
-  createdBy            User?           @relation("AgreementCreatedBy", fields: [createdById], references: [id])
-  createdAt            DateTime        @default(now())
-  updatedAt            DateTime        @updatedAt
+
+  notes       String?
+  createdById String?
+  createdBy   User?    @relation("AgreementCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   jobs Job[]
 
@@ -1659,37 +1835,37 @@ model ServiceAgreement {
 // ============================================================================
 
 model Message {
-  id          String         @id @default(uuid())
-  tenantId    String
-  tenant      Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  customerId  String?
-  customer    Customer?      @relation(fields: [customerId], references: [id])
-  jobId       String?
-  job         Job?           @relation(fields: [jobId], references: [id])
-  templateId  String?
-  template    MessageTemplate? @relation(fields: [templateId], references: [id])
-  
-  channel     MessageChannel
-  direction   String         // 'INBOUND' or 'OUTBOUND'
-  status      MessageStatus  @default(PENDING)
-  
+  id         String           @id @default(uuid())
+  tenantId   String
+  tenant     Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customerId String?
+  customer   Customer?        @relation(fields: [customerId], references: [id])
+  jobId      String?
+  job        Job?             @relation(fields: [jobId], references: [id])
+  templateId String?
+  template   MessageTemplate? @relation(fields: [templateId], references: [id])
+
+  channel   MessageChannel
+  direction String // 'INBOUND' or 'OUTBOUND'
+  status    MessageStatus  @default(PENDING)
+
   fromAddress String?
   toAddress   String
   subject     String?
   body        String
-  
-  sentAt      DateTime?
-  deliveredAt DateTime?
-  readAt      DateTime?
-  failedAt    DateTime?
+
+  sentAt        DateTime?
+  deliveredAt   DateTime?
+  readAt        DateTime?
+  failedAt      DateTime?
   failureReason String?
-  
-  externalId  String?
-  metadata    Json           @default("{}")
-  
+
+  externalId String?
+  metadata   Json    @default("{}")
+
   createdById String?
-  createdBy   User?          @relation("MessageCreatedBy", fields: [createdById], references: [id])
-  createdAt   DateTime       @default(now())
+  createdBy   User?    @relation("MessageCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
 
   @@index([tenantId])
   @@index([customerId])
@@ -1703,27 +1879,27 @@ model Message {
 // ============================================================================
 
 model AiAgent {
-  id                  String      @id @default(uuid())
-  tenantId            String
-  tenant              Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  type                AiAgentType
-  name                String
-  description         String?
-  provider            AiProvider
-  
-  externalAgentId     String?
-  voiceId             String?
-  systemPrompt        String?
-  knowledgeBaseIds    Json        @default("[]")
-  tools               Json        @default("[]")
-  configuration       Json        @default("{}")
-  
+  id          String      @id @default(uuid())
+  tenantId    String
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  type        AiAgentType
+  name        String
+  description String?
+  provider    AiProvider
+
+  externalAgentId  String?
+  voiceId          String?
+  systemPrompt     String?
+  knowledgeBaseIds Json    @default("[]")
+  tools            Json    @default("[]")
+  configuration    Json    @default("{}")
+
   phoneNumber         String?
   transferPhoneNumber String?
-  
-  isActive            Boolean     @default(true)
-  createdAt           DateTime    @default(now())
-  updatedAt           DateTime    @updatedAt
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   conversations AiConversation[]
 
@@ -1733,43 +1909,43 @@ model AiAgent {
 }
 
 model AiConversation {
-  id               String             @id @default(uuid())
-  tenantId         String
-  tenant           Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  agentId          String
-  agent            AiAgent            @relation(fields: [agentId], references: [id])
-  customerId       String?
-  customer         Customer?          @relation(fields: [customerId], references: [id])
-  jobId            String?
-  job              Job?               @relation(fields: [jobId], references: [id])
-  
-  channel          MessageChannel
-  status           ConversationStatus @default(IN_PROGRESS)
-  
-  externalCallId   String?
-  phoneNumber      String?
-  
-  startedAt        DateTime           @default(now())
-  endedAt          DateTime?
-  durationSeconds  Int?
-  
-  transcript       String?
-  recordingUrl     String?
-  summary          String?
-  
+  id         String    @id @default(uuid())
+  tenantId   String
+  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  agentId    String
+  agent      AiAgent   @relation(fields: [agentId], references: [id])
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id])
+  jobId      String?
+  job        Job?      @relation(fields: [jobId], references: [id])
+
+  channel MessageChannel
+  status  ConversationStatus @default(IN_PROGRESS)
+
+  externalCallId String?
+  phoneNumber    String?
+
+  startedAt       DateTime  @default(now())
+  endedAt         DateTime?
+  durationSeconds Int?
+
+  transcript   String?
+  recordingUrl String?
+  summary      String?
+
   detectedIntent   String?
-  intentConfidence Decimal?           @db.Decimal(5, 4)
-  sentimentScore   Decimal?           @db.Decimal(4, 3)
-  
-  outcome          Json               @default("{}")
-  actionsTaken     Json               @default("[]")
-  
-  costAmount       Decimal?           @db.Decimal(10, 4)
-  costCurrency     String             @default("USD")
-  
-  metadata         Json               @default("{}")
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
+  intentConfidence Decimal? @db.Decimal(5, 4)
+  sentimentScore   Decimal? @db.Decimal(4, 3)
+
+  outcome      Json @default("{}")
+  actionsTaken Json @default("[]")
+
+  costAmount   Decimal? @db.Decimal(10, 4)
+  costCurrency String   @default("USD")
+
+  metadata  Json     @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([tenantId])
   @@index([agentId])
@@ -1779,24 +1955,24 @@ model AiConversation {
 }
 
 model Workflow {
-  id             String          @id @default(uuid())
-  tenantId       String
-  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  name           String
-  description    String?
-  triggerType    WorkflowTrigger
-  triggerConfig  Json            @default("{}")
-  conditions     Json            @default("[]")
-  actions        Json            @default("[]")
-  
-  isActive       Boolean         @default(true)
-  executionCount Int             @default(0)
+  id            String          @id @default(uuid())
+  tenantId      String
+  tenant        Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name          String
+  description   String?
+  triggerType   WorkflowTrigger
+  triggerConfig Json            @default("{}")
+  conditions    Json            @default("[]")
+  actions       Json            @default("[]")
+
+  isActive       Boolean   @default(true)
+  executionCount Int       @default(0)
   lastExecutedAt DateTime?
-  
-  createdById    String?
-  createdBy      User?           @relation("WorkflowCreatedBy", fields: [createdById], references: [id])
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+
+  createdById String?
+  createdBy   User?    @relation("WorkflowCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   executions WorkflowExecution[]
 
@@ -1827,23 +2003,23 @@ model WorkflowExecution {
 // ============================================================================
 
 model Integration {
-  id                String              @id @default(uuid())
-  tenantId          String
-  tenant            Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  provider          IntegrationProvider
-  status            IntegrationStatus   @default(DISCONNECTED)
-  
+  id       String              @id @default(uuid())
+  tenantId String
+  tenant   Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  provider IntegrationProvider
+  status   IntegrationStatus   @default(DISCONNECTED)
+
   externalAccountId String?
   credentials       Json?
-  settings          Json                @default("{}")
-  
-  connectedAt       DateTime?
-  lastSyncAt        DateTime?
-  lastError         String?
-  lastErrorAt       DateTime?
-  
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
+  settings          Json    @default("{}")
+
+  connectedAt DateTime?
+  lastSyncAt  DateTime?
+  lastError   String?
+  lastErrorAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([tenantId, provider])
   @@index([tenantId])
@@ -1851,19 +2027,19 @@ model Integration {
 }
 
 model Webhook {
-  id              String   @id @default(uuid())
+  id              String    @id @default(uuid())
   tenantId        String
-  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name            String
   url             String
   secret          String?
-  events          Json     @default("[]")
-  headers         Json     @default("{}")
-  isActive        Boolean  @default(true)
+  events          Json      @default("[]")
+  headers         Json      @default("{}")
+  isActive        Boolean   @default(true)
   lastTriggeredAt DateTime?
-  failureCount    Int      @default(0)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  failureCount    Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   @@index([tenantId])
   @@map("webhooks")
@@ -1898,9 +2074,9 @@ model AuditLog {
 // ============================================================================
 
 enum CustomerVerificationStatus {
-  UNVERIFIED  // Created via voice agent, needs verification
-  VERIFIED    // Verified by staff
-  REJECTED    // Spam or invalid
+  UNVERIFIED // Created via voice agent, needs verification
+  VERIFIED // Verified by staff
+  REJECTED // Spam or invalid
 }
 
 enum CustomerCreatedSource {
@@ -1936,77 +2112,77 @@ enum ServiceRequestUrgency {
 
 // Tenant VAPI Configuration
 model VapiConfiguration {
-  id                       String   @id @default(uuid())
-  tenantId                 String   @unique
-  tenant                   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id       String @id @default(uuid())
+  tenantId String @unique
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   // VAPI Resources
-  vapiAssistantId          String?  // VAPI Assistant ID
-  vapiPhoneNumberId        String?  // VAPI Phone Number ID
-  phoneNumber              String?  // E.164 format phone number
+  vapiAssistantId   String? // VAPI Assistant ID
+  vapiPhoneNumberId String? // VAPI Phone Number ID
+  phoneNumber       String? // E.164 format phone number
 
   // Feature Flags
-  isEnabled                Boolean  @default(false)
-  appointmentBookingEnabled Boolean @default(false)  // Premium feature
+  isEnabled                 Boolean @default(false)
+  appointmentBookingEnabled Boolean @default(false) // Premium feature
 
   // Customization
-  companyGreeting          String?  // Custom greeting override
-  voiceId                  String?  @default("rachel") // VAPI voice selection
-  businessHours            Json?    // { mon: { isOpen: true, start: "09:00", end: "17:00" }, ... }
-  afterHoursMessage        String?  // Message for after-hours calls
-  transferPhoneNumber      String?  // Phone number for human transfer
+  companyGreeting     String? // Custom greeting override
+  voiceId             String? @default("rachel") // VAPI voice selection
+  businessHours       Json? // { mon: { isOpen: true, start: "09:00", end: "17:00" }, ... }
+  afterHoursMessage   String? // Message for after-hours calls
+  transferPhoneNumber String? // Phone number for human transfer
 
   // Notifications
-  notifyEmail              Boolean  @default(true)
-  notifySms                Boolean  @default(false)
-  notifyPush               Boolean  @default(true)
-  notificationRecipients   Json?    // Array of { email, phone, userId }
+  notifyEmail            Boolean @default(true)
+  notifySms              Boolean @default(false)
+  notifyPush             Boolean @default(true)
+  notificationRecipients Json? // Array of { email, phone, userId }
 
   // Analytics
-  totalCalls               Int      @default(0)
-  customersCreated         Int      @default(0)
-  serviceRequestsCreated   Int      @default(0)
-  appointmentsBooked       Int      @default(0)
+  totalCalls             Int @default(0)
+  customersCreated       Int @default(0)
+  serviceRequestsCreated Int @default(0)
+  appointmentsBooked     Int @default(0)
 
-  createdAt                DateTime @default(now())
-  updatedAt                DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  callLogs                 VoiceCallLog[]
+  callLogs VoiceCallLog[]
 
   @@map("vapi_configurations")
 }
 
 // Voice Call History
 model VoiceCallLog {
-  id                    String          @id @default(uuid())
-  vapiConfigId          String
-  vapiConfig            VapiConfiguration @relation(fields: [vapiConfigId], references: [id], onDelete: Cascade)
+  id           String            @id @default(uuid())
+  vapiConfigId String
+  vapiConfig   VapiConfiguration @relation(fields: [vapiConfigId], references: [id], onDelete: Cascade)
 
   // VAPI Call Data
-  vapiCallId            String          @unique
-  callerNumber          String
-  duration              Int             @default(0) // seconds
-  recordingUrl          String?
-  stereoRecordingUrl    String?
-  transcriptUrl         String?
-  transcript            String?         // Full transcript text
+  vapiCallId         String  @unique
+  callerNumber       String
+  duration           Int     @default(0) // seconds
+  recordingUrl       String?
+  stereoRecordingUrl String?
+  transcriptUrl      String?
+  transcript         String? // Full transcript text
 
   // Outcomes - reference IDs to created records
-  customerId            String?
-  serviceRequestId      String?
-  appointmentId         String?
+  customerId       String?
+  serviceRequestId String?
+  appointmentId    String?
 
   // Status
-  status                VoiceCallStatus @default(COMPLETED)
-  callSummary           String?         // AI-generated summary
-  sentiment             String?         // POSITIVE, NEUTRAL, NEGATIVE
-  problemType           String?         // HVAC, PLUMBING, etc.
-  endedReason           String?         // Why call ended
+  status      VoiceCallStatus @default(COMPLETED)
+  callSummary String? // AI-generated summary
+  sentiment   String? // POSITIVE, NEUTRAL, NEGATIVE
+  problemType String? // HVAC, PLUMBING, etc.
+  endedReason String? // Why call ended
 
   // Metadata
-  metadata              Json?           // Additional VAPI data
+  metadata Json? // Additional VAPI data
 
-  createdAt             DateTime        @default(now())
+  createdAt DateTime @default(now())
 
   @@index([vapiConfigId, createdAt])
   @@index([callerNumber])
@@ -2016,46 +2192,46 @@ model VoiceCallLog {
 
 // Service Requests (from voice calls or other sources)
 model ServiceRequest {
-  id                    String                @id @default(uuid())
-  tenantId              String
-  tenant                Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  customerId            String
-  customer              Customer              @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  id         String   @id @default(uuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
   // Request Details
-  requestNumber         String?               // Human-readable reference (SR-0001)
-  title                 String
-  description           String                @db.Text
-  problemType           String                // HVAC, PLUMBING, ELECTRICAL, APPLIANCE, OTHER
-  urgency               ServiceRequestUrgency @default(MEDIUM)
+  requestNumber String? // Human-readable reference (SR-0001)
+  title         String
+  description   String                @db.Text
+  problemType   String // HVAC, PLUMBING, ELECTRICAL, APPLIANCE, OTHER
+  urgency       ServiceRequestUrgency @default(MEDIUM)
 
   // Status
-  status                ServiceRequestStatus  @default(NEW)
-  statusChangedAt       DateTime?
-  statusChangedBy       String?
+  status          ServiceRequestStatus @default(NEW)
+  statusChangedAt DateTime?
+  statusChangedBy String?
 
   // Assignment
-  assignedToId          String?
-  assignedTo            Employee?             @relation(fields: [assignedToId], references: [id])
-  assignedAt            DateTime?
+  assignedToId String?
+  assignedTo   Employee? @relation(fields: [assignedToId], references: [id])
+  assignedAt   DateTime?
 
   // Converted to Job
-  jobId                 String?
-  job                   Job?                  @relation(fields: [jobId], references: [id])
-  convertedAt           DateTime?
+  jobId       String?
+  job         Job?      @relation(fields: [jobId], references: [id])
+  convertedAt DateTime?
 
   // Source tracking
-  createdSource         CustomerCreatedSource @default(WEB)
-  voiceCallId           String?               // Reference to VoiceCallLog if created via VAPI
+  createdSource CustomerCreatedSource @default(WEB)
+  voiceCallId   String? // Reference to VoiceCallLog if created via VAPI
 
   // Address for service
-  serviceAddressId      String?
-  serviceAddress        Address?              @relation(fields: [serviceAddressId], references: [id])
+  serviceAddressId String?
+  serviceAddress   Address? @relation(fields: [serviceAddressId], references: [id])
 
-  notes                 String?               @db.Text
-  
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
+  notes String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([tenantId, status])
   @@index([customerId])

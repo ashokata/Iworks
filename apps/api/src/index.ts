@@ -25,6 +25,12 @@ try {
 // Import VAPI routes
 import vapiRoutes from './routes/vapi.routes';
 
+// Import Pricebook routes
+import pricebookRoutes from './routes/pricebook.routes';
+
+// Import Service Requests routes
+import serviceRequestsRoutes from './routes/service-requests.routes';
+
 const app = express();
 const PORT = process.env.PORT || 4000;
 
@@ -41,6 +47,12 @@ app.use((req, res, next) => {
 
 // Register VAPI routes
 app.use(vapiRoutes);
+
+// Register Pricebook routes
+app.use(pricebookRoutes);
+
+// Register Service Requests routes
+app.use(serviceRequestsRoutes);
 
 // Health check
 app.get('/health', async (req, res) => {

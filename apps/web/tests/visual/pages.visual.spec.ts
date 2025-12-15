@@ -9,14 +9,18 @@ import { test, expect } from '@playwright/test';
 
 // Helper to login (mock auth for visual tests)
 async function mockLogin(page) {
-  // Mock authentication context
+  // Mock authentication context using the correct localStorage keys
   await page.addInitScript(() => {
-    window.localStorage.setItem('isAuthenticated', 'true');
-    window.localStorage.setItem('user', JSON.stringify({
+    const token = `mock-jwt-token-${Date.now()}`;
+    const user = {
       id: 'test-user',
       email: 'test@example.com',
-      name: 'Test User'
-    }));
+      name: 'Test User',
+      role: 'Admin',
+      tenantId: 'test-tenant'
+    };
+    window.localStorage.setItem('authToken', token);
+    window.localStorage.setItem('authUser', JSON.stringify(user));
   });
 }
 

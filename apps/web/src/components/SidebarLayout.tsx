@@ -21,7 +21,11 @@ import {
   HomeIcon,
   ChatBubbleLeftRightIcon,
   ChevronDoubleLeftIcon,
-  ChevronDoubleRightIcon
+  ChevronDoubleRightIcon,
+  BookOpenIcon,
+  ShieldCheckIcon,
+  WrenchScrewdriverIcon,
+  PhoneIcon
 } from '@heroicons/react/24/outline';
 import { ChatButton } from '@/components/AIChat';
 // Import custom icon if needed
@@ -86,8 +90,12 @@ export default function SidebarLayout({
     { name: 'Customers', href: '/customers', icon: UserGroupIcon, current: pathname === '/customers' || pathname.startsWith('/customers/') },
     { name: 'Technicians', href: '/technicians', icon: UserIcon, current: pathname === '/technicians' || pathname.startsWith('/technicians/') },
     { name: 'Employees', href: '/employees', icon: UserGroupIcon, current: pathname === '/employees' || pathname.startsWith('/employees/') },
+    { name: 'Pricebook', href: '/pricebook', icon: BookOpenIcon, current: pathname === '/pricebook' || (pathname.startsWith('/pricebook/') && !pathname.startsWith('/pricebook/manage')) },
+    { name: 'Manage Catalog', href: '/pricebook/manage', icon: WrenchScrewdriverIcon, current: pathname === '/pricebook/manage' || pathname.startsWith('/pricebook/manage/') },
+    { name: 'Service Requests', href: '/service-requests', icon: PhoneIcon, current: pathname === '/service-requests' },
     { name: 'Invoices', href: '/invoices', icon: DocumentTextIcon, current: pathname === '/invoices' || pathname.startsWith('/invoices/') },
     { name: 'Reports', href: '/reports', icon: ChartBarIcon, current: pathname === '/reports' || pathname.startsWith('/reports/') },
+    { name: 'Permissions', href: '/settings/permissions', icon: ShieldCheckIcon, current: pathname === '/settings/permissions' || pathname.startsWith('/settings/permissions/') },
     { name: 'Settings', href: '/settings', icon: Cog6ToothIcon, current: pathname === '/settings' || pathname.startsWith('/settings/') },
   ];
 

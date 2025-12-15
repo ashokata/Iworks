@@ -13,11 +13,14 @@ export async function mockLogin(page: Page, user = {
   id: 'test-user',
   email: 'test@example.com',
   name: 'Test User',
+  role: 'Admin' as const,
   tenantId: 'test-tenant',
 }) {
   await page.addInitScript((userData) => {
-    window.localStorage.setItem('isAuthenticated', 'true');
-    window.localStorage.setItem('user', JSON.stringify(userData));
+    // Use the correct localStorage keys that the app expects
+    const token = `mock-jwt-token-${Date.now()}`;
+    window.localStorage.setItem('authToken', token);
+    window.localStorage.setItem('authUser', JSON.stringify(userData));
   }, user);
 }
 
@@ -25,6 +28,24 @@ export async function mockLogin(page: Page, user = {
  * Mock API responses for consistent visual tests
  */
 export async function mockApiResponses(page: Page) {
+  // Mock tenant API
+  await page.route('**/api/tenants/**', route => {
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: 'test-tenant',
+        name: 'Test Tenant',
+        slug: 'test-tenant',
+        domain: 'test.com',
+        industry: 'Field Service',
+        size: 'Small',
+        active: true,
+        createdAt: new Date().toISOString(),
+      }),
+    });
+  });
+
   // Mock customer list
   await page.route('**/api/customers*', route => {
     route.fulfill({
