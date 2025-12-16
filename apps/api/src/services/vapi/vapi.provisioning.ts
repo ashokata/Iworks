@@ -151,7 +151,7 @@ export class VapiProvisioningService {
           phoneNumber,
           isEnabled: true,
           appointmentBookingEnabled: request.features?.appointmentBooking || false,
-          notificationRecipients: notificationRecipients.length > 0 ? notificationRecipients : undefined,
+          notificationRecipients: notificationRecipients.length > 0 ? notificationRecipients as any : undefined,
           updatedAt: new Date(),
         },
         create: {
@@ -175,7 +175,7 @@ export class VapiProvisioningService {
           afterHoursMessage: `Thank you for calling ${request.companyName}. We are currently closed. Please leave a message and we will return your call during business hours.`,
           notifyEmail: true,
           notifyPush: true,
-          notificationRecipients: notificationRecipients.length > 0 ? notificationRecipients : undefined,
+          notificationRecipients: notificationRecipients.length > 0 ? notificationRecipients as any : undefined,
         },
       });
 
@@ -288,7 +288,7 @@ export class VapiProvisioningService {
           notifyEmail: updates.notifyEmail ?? config.notifyEmail,
           notifySms: updates.notifySms ?? config.notifySms,
           notifyPush: updates.notifyPush ?? config.notifyPush,
-          notificationRecipients: updates.notificationRecipients ?? config.notificationRecipients ?? undefined,
+          notificationRecipients: (updates.notificationRecipients ?? config.notificationRecipients) ? (updates.notificationRecipients ?? config.notificationRecipients) as any : undefined,
           phoneNumber: updates.phoneNumber ?? config.phoneNumber,
           vapiPhoneNumberId: updates.vapiPhoneNumberId ?? config.vapiPhoneNumberId,
           updatedAt: new Date(),

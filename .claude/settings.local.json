@@ -4,7 +4,15 @@
       "Bash(aws cloudformation describe-stacks:*)",
       "Bash(test:*)",
       "Bash(npm run build:*)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "WebFetch(domain:www.housecallpro.com)",
+      "WebFetch(domain:www.getjobber.com)",
+      "Bash(cat:*)",
+      "Bash(curl:*)",
+      "Bash(find:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(xargs:*)"
     ]
   }
 }

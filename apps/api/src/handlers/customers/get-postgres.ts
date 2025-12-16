@@ -11,8 +11,21 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
   };
 
   try {
-    // Get tenant ID from header
-    const tenantId = event.headers['x-tenant-id'] || event.headers['X-Tenant-Id'] || 'default-tenant';
+    // Get tenant ID from header - REQUIRED for tenant isolation
+    const tenantId = event.headers['x-tenant-id'] || event.headers['X-Tenant-Id'] || event.headers['X-Tenant-ID'];
+    
+    if (!tenantId) {
+      console.error('[PG-Get] ❌ Missing tenant ID in request headers');
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({
+          error: 'Tenant ID is required',
+          message: 'Please ensure you are logged in and your session is valid'
+        }),
+      };
+    }
+    
     console.log('[PG-Get] Tenant ID:', tenantId);
 
     // Get customer ID from path

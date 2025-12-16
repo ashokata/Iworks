@@ -44,16 +44,38 @@ export const TenantProvider: React.FC<TenantProviderProps> = ({ children }) => {
         setIsLoading(true);
         setError(null);
 
+        // Get tenant ID from user or environment variable
+        const tenantId = user.tenantId || process.env.NEXT_PUBLIC_TENANT_ID;
+        
+        if (!tenantId) {
+          console.warn('[TenantContext] No tenant ID available');
+          setIsLoading(false);
+          return;
+        }
+
+        console.log('[TenantContext] Fetching tenant data for:', tenantId);
+
         // Get tenant based on the user's tenantId
-        const tenantData = await apiClient.get<Tenant>(`/api/tenants/${user.tenantId}`);
+        const response = await apiClient.get<{ tenant: Tenant } | Tenant>(`/api/tenants/${tenantId}`);
+        
+        // API returns { tenant: {...} } or just the tenant object
+        let tenantData: Tenant;
+        if ('tenant' in response && response.tenant) {
+          tenantData = response.tenant;
+        } else {
+          tenantData = response as Tenant;
+        }
+        
+        console.log('[TenantContext] Tenant data loaded:', tenantData?.name);
         setCurrentTenant(tenantData);
       } catch (err: any) {
-        console.warn('Tenant API not available, using mock tenant data');
+        console.warn('[TenantContext] Tenant API not available, using mock tenant data', err);
 
         // If API is not available (404), create a mock tenant
-        if (err?.response?.status === 404 || err?.code === 'ERR_NETWORK') {
+        if (err?.response?.status === 404 || err?.code === 'ERR_NETWORK' || err?.message?.includes('Network')) {
+          const tenantId = user.tenantId || process.env.NEXT_PUBLIC_TENANT_ID || 'default-tenant';
           const mockTenant: Tenant = {
-            id: user.tenantId,
+            id: tenantId,
             name: 'InField Works Services',
             slug: 'infield-works',
             domain: 'infieldworks.com',
@@ -62,10 +84,11 @@ export const TenantProvider: React.FC<TenantProviderProps> = ({ children }) => {
             createdAt: new Date().toISOString(),
             active: true
           };
+          console.log('[TenantContext] Using mock tenant:', mockTenant.name);
           setCurrentTenant(mockTenant);
           setError(null); // Clear error since we're using mock data
         } else {
-          console.error('Error fetching tenant data:', err);
+          console.error('[TenantContext] Error fetching tenant data:', err);
           setError('Failed to load tenant data');
         }
       } finally {

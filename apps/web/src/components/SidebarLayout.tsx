@@ -106,7 +106,7 @@ export default function SidebarLayout({
   };
 
   // Don't render sidebar on login page or similar pages
-  if (pathname === '/login' || pathname === '/signup' || pathname === '/forgot-password') {
+  if (pathname === '/login' || pathname === '/signup' || pathname === '/forgot-password' || pathname === '/register' || pathname === '/') {
     return <>{children}</>;
   }
 
@@ -245,8 +245,9 @@ export default function SidebarLayout({
       
       <div className={`flex flex-col h-screen w-0 flex-1 ${isCollapsed ? 'md:ml-16' : 'md:ml-56'} transition-all duration-300 overflow-y-auto`}>
         {/* Top header - visible on all screen sizes */}
-        <div className="sticky top-0 z-10 flex items-center justify-between h-16 bg-white border-b border-gray-200 px-4">
-          <div className="flex items-center">
+        <div className="sticky top-0 z-10 flex items-center h-16 bg-white border-b border-gray-200 px-4">
+          {/* Left section - Logo and mobile menu */}
+          <div className="flex items-center flex-shrink-0">
             {/* Mobile menu button */}
             <div className="md:hidden">
               <button
@@ -259,7 +260,7 @@ export default function SidebarLayout({
               </button>
             </div>
             
-            {/* Logo and title - shown on all devices */}
+            {/* Logo - shown on all devices */}
             <div className="flex items-center gap-3 ml-2 md:ml-0">
               <Image
                 src="/infield-works-logo.png"
@@ -272,8 +273,21 @@ export default function SidebarLayout({
             </div>
           </div>
           
-          {/* User welcome section */}
-          <div className="flex items-center">
+          {/* Center section - Tenant/Company name */}
+          <div className="flex-1 flex items-center justify-center">
+            {currentTenant ? (
+              <h1 className="text-lg font-semibold text-gray-900 truncate max-w-md">
+                {currentTenant.name}
+              </h1>
+            ) : (
+              <div className="text-sm text-gray-400 italic">
+                Loading...
+              </div>
+            )}
+          </div>
+          
+          {/* Right section - User welcome */}
+          <div className="flex items-center flex-shrink-0">
             {!isOnline && (
               <span className="px-2 py-1 mr-3 text-xs bg-yellow-100 text-yellow-800 rounded-full">
                 Offline Mode

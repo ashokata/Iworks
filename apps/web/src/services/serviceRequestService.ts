@@ -47,7 +47,7 @@ export interface ServiceRequest {
     } | null;
   } | null;
   voiceCallLog: {
-    id: string;
+    vapiCallId: string;
     callerNumber: string;
     duration: number;
     createdAt: string;
@@ -79,14 +79,21 @@ export const serviceRequestService = {
 
     const url = `${API_CONFIG.BASE_URL}/api/service-requests?${queryParams}`;
     console.log('[ServiceRequestService] Fetching:', url);
+    console.log('[ServiceRequestService] Tenant ID:', getTenantId());
     
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
       const response = await fetch(url, {
         headers: { 
           'x-tenant-id': getTenantId(),
           'Content-Type': 'application/json',
         },
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
       
       if (!response.ok) {
         const errorText = await response.text();
@@ -95,8 +102,13 @@ export const serviceRequestService = {
       }
       
       const data = await response.json();
+      console.log('[ServiceRequestService] Success:', data);
       return data;
     } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.error('[ServiceRequestService] Request timeout');
+        throw new Error('Request timed out. Please check if the backend server is running.');
+      }
       console.error('[ServiceRequestService] Fetch error:', error);
       throw new Error(`Failed to fetch service requests: ${error.message}`);
     }
