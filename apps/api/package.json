@@ -13,7 +13,8 @@
     "generate": "prisma generate",
     "studio": "prisma studio",
     "seed": "tsx prisma/seed.ts",
-    "test": "jest"
+    "test": "jest",
+    "create-tenant-with-vapi": "tsx scripts/create-tenant-with-vapi.ts"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.685.0",

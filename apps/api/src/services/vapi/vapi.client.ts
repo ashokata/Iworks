@@ -144,12 +144,10 @@ export class VapiClient {
 
   /**
    * Buy a new phone number
+   * Note: VAPI uses their built-in provider by default (not Twilio)
    */
   async buyPhoneNumber(params: BuyPhoneNumberParams): Promise<VapiPhoneNumber> {
-    const response = await this.client.post<VapiPhoneNumber>('/phone-number/buy', {
-      provider: 'vapi', // Use VAPI's built-in provider
-      ...params,
-    });
+    const response = await this.client.post<VapiPhoneNumber>('/phone-number/buy', params);
     console.log('[VapiClient] Purchased phone number:', response.data.number);
     return response.data;
   }
