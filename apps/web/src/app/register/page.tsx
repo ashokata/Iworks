@@ -76,21 +76,21 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validate admin data
     const error = validateAdminData();
     if (error) {
       setError(error);
       return;
     }
-    
+
     setError('');
     setIsSubmitting(true);
-    
+
     try {
       // Import the apiClient
       const { apiClient } = await import('@/services/apiClient');
-      
+
       // Call the register endpoint
       const response = await apiClient.post('/api/tenants/register', {
         company: {
@@ -103,9 +103,8 @@ export default function RegisterPage() {
           state: companyData.state,
           zipCode: companyData.zipCode,
           country: companyData.country,
-          // Added new fields
-          industry: companyData.domain.split('.')[0], // Use domain as default industry 
-          size: '1-10' // Default size
+          industry: companyData.domain.split('.')[0],
+          size: '1-10'
         },
         admin: {
           firstName: adminData.firstName,
@@ -114,11 +113,14 @@ export default function RegisterPage() {
           password: adminData.password
         }
       });
-      
+
+      console.log('[Registration] Success:', response);
+
       // Redirect to success page with the tenant name
       router.push(`/register/success?tenantName=${encodeURIComponent(companyData.name)}`);
-    } catch (err) {
-      setError('Registration failed. Please try again.');
+    } catch (err: any) {
+      const errorMessage = err?.response?.data?.error || err?.message || 'Registration failed. Please try again.';
+      setError(errorMessage);
       console.error('Registration error:', err);
     } finally {
       setIsSubmitting(false);
@@ -130,17 +132,24 @@ export default function RegisterPage() {
       {/* Left Column - Blue Side */}
       <div className="bg-blue-600 text-white w-full md:w-1/2 p-8 flex flex-col">
         <div className="flex items-center mb-12">
-          <WrenchIcon className="h-8 w-8 mr-2" />
+          <img
+            src="/infield-works-logo.png"
+            alt="InField Works"
+            className="h-12 w-auto mr-3"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+            }}
+          />
           <div>
-            <h1 className="text-2xl font-bold">FieldPro</h1>
-            <p className="text-sm">Field Service Management Solution</p>
+            <h1 className="text-2xl font-bold">InField Works</h1>
+            <p className="text-sm">Smart Field Solutions</p>
           </div>
         </div>
         
         <div className="flex-1 flex flex-col justify-center">
           <h2 className="text-3xl font-bold mb-6">Transform Your Field Service Business</h2>
           <p className="text-xl text-blue-100 mb-8">
-            Join thousands of companies who trust FieldPro to streamline operations, boost productivity, and delight customers.
+            Start your free 15-day trial and discover how InField Works can streamline operations, boost productivity, and delight customers.
           </p>
           
           <div className="space-y-6">

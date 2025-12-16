@@ -5,7 +5,7 @@ import { User, AuthState } from '@/types';
 import { MOCK_USERS } from '@/lib/mockData';
 
 interface AuthContextType extends AuthState {
-  login: (username: string, password: string) => Promise<boolean>;
+  login: (username: string, password: string, tenantSlug?: string) => Promise<boolean>;
   logout: () => void;
 }
 
@@ -39,13 +39,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAuthState(prev => ({ ...prev, isLoading: false }));
       return;
     }
-    
+
     const savedToken = localStorage.getItem('authToken');
     const savedUser = localStorage.getItem('authUser');
-    
+
     if (savedToken && savedUser) {
       try {
         const user = JSON.parse(savedUser);
+
+        // Restore tenant ID in API client
+        if (user.tenantId) {
+          import('@/services/apiClient').then(({ apiClient }) => {
+            apiClient.setTenantId(user.tenantId);
+          });
+        }
+
         setAuthState({
           user,
           isAuthenticated: true,
@@ -63,34 +71,77 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const login = async (username: string, password: string): Promise<boolean> => {
+  const login = async (username: string, password: string, tenantSlug?: string): Promise<boolean> => {
     setAuthState(prev => ({ ...prev, isLoading: true }));
 
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    try {
+      // If tenantSlug is provided, use real API authentication
+      if (tenantSlug) {
+        const { apiClient } = await import('@/services/apiClient');
 
-    // Find matching credentials
-    const matchedCredential = MOCK_CREDENTIALS.find(
-      cred => cred.username === username && cred.password === password
-    );
+        const response = await apiClient.post('/api/auth/login', {
+          email: username,
+          password,
+          tenantSlug,
+        });
 
-    if (matchedCredential) {
-      const token = `mock-jwt-token-${Date.now()}`;
-      const user = matchedCredential.user;
+        if (response.success) {
+          const token = response.token;
+          const user = response.user;
 
-      // Save to localStorage
-      localStorage.setItem('authToken', token);
-      localStorage.setItem('authUser', JSON.stringify(user));
+          // Set tenant ID in API client
+          apiClient.setTenantId(user.tenantId);
 
-      setAuthState({
-        user,
-        isAuthenticated: true,
-        isLoading: false,
-        token,
-      });
+          // Save to localStorage
+          localStorage.setItem('authToken', token);
+          localStorage.setItem('authUser', JSON.stringify(user));
 
-      return true;
-    } else {
+          setAuthState({
+            user,
+            isAuthenticated: true,
+            isLoading: false,
+            token,
+          });
+
+          return true;
+        }
+      } else {
+        // Fallback to mock authentication for development
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        const matchedCredential = MOCK_CREDENTIALS.find(
+          cred => cred.username === username && cred.password === password
+        );
+
+        if (matchedCredential) {
+          const token = `mock-jwt-token-${Date.now()}`;
+          const user = matchedCredential.user;
+
+          // Set tenant ID in API client - CRITICAL for tenant isolation
+          const { apiClient } = await import('@/services/apiClient');
+          if (user.tenantId) {
+            apiClient.setTenantId(user.tenantId);
+            console.log('[Auth] Set tenant ID from mock user:', user.tenantId);
+          }
+
+          localStorage.setItem('authToken', token);
+          localStorage.setItem('authUser', JSON.stringify(user));
+
+          setAuthState({
+            user,
+            isAuthenticated: true,
+            isLoading: false,
+            token,
+          });
+
+          return true;
+        }
+      }
+
+      setAuthState(prev => ({ ...prev, isLoading: false }));
+      return false;
+    } catch (error) {
+      console.error('Login error:', error);
       setAuthState(prev => ({ ...prev, isLoading: false }));
       return false;
     }

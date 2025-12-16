@@ -31,6 +31,9 @@ import pricebookRoutes from './routes/pricebook.routes';
 // Import Service Requests routes
 import serviceRequestsRoutes from './routes/service-requests.routes';
 
+// Import Tenant routes
+import tenantRoutes from './routes/tenant.routes';
+
 const app = express();
 const PORT = process.env.PORT || 4000;
 
@@ -38,10 +41,35 @@ const PORT = process.env.PORT || 4000;
 app.use(cors());
 app.use(express.json());
 
-// Add tenant/user headers for local dev
+// Tenant isolation middleware - CRITICAL for multi-tenancy
 app.use((req, res, next) => {
-  req.headers['x-tenant-id'] = req.headers['x-tenant-id'] || 'local-tenant';
-  req.headers['x-user-id'] = req.headers['x-user-id'] || 'local-user';
+  const isHealthCheck = req.path === '/health' || req.path === '/health/db';
+  const isAuthRoute = req.path.startsWith('/api/auth/') || req.path.startsWith('/api/tenants');
+
+  // Normalize tenant ID from various header formats
+  const tenantId = req.headers['x-tenant-id'] ||
+                   req.headers['X-Tenant-Id'] ||
+                   req.headers['X-Tenant-ID'] ||
+                   req.headers['x-tenant-ID'];
+
+  if (tenantId) {
+    // Use the provided tenant ID
+    req.headers['x-tenant-id'] = tenantId as string;
+    console.log(`[API] 🔐 Request to ${req.method} ${req.path} with Tenant ID: ${tenantId}`);
+  } else if (!isAuthRoute && !isHealthCheck) {
+    // CRITICAL: Reject requests without tenant ID for data endpoints
+    console.error(`[API] ❌ BLOCKED: Request to ${req.method} ${req.path} without tenant ID!`);
+    return res.status(400).json({
+      error: 'Tenant ID is required',
+      message: 'Please login again to refresh your session'
+    });
+  }
+
+  // Set default user ID if not provided
+  if (!req.headers['x-user-id'] && !req.headers['X-User-Id']) {
+    req.headers['x-user-id'] = 'system-user';
+  }
+
   next();
 });
 
@@ -53,6 +81,9 @@ app.use(pricebookRoutes);
 
 // Register Service Requests routes
 app.use(serviceRequestsRoutes);
+
+// Register Tenant routes
+app.use(tenantRoutes);
 
 // Health check
 app.get('/health', async (req, res) => {

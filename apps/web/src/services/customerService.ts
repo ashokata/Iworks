@@ -5,7 +5,6 @@
  * Uses the new database types that match the PostgreSQL schema.
  */
 
-import { API_CONFIG } from '@/config/api.config';
 import type {
   Customer,
   Address,
@@ -16,10 +15,8 @@ import type {
   PaginatedResponse,
 } from '@/types/database.types';
 
-// Get tenant ID from environment
-const getTenantId = () => {
-  return process.env.NEXT_PUBLIC_TENANT_ID || 'local-tenant';
-};
+// Import API client to use tenant ID from user session
+import { apiClient } from './apiClient';
 
 // Transform API response to frontend Customer type
 const transformCustomer = (apiCustomer: any): Customer => {
@@ -244,7 +241,6 @@ export const customerService = {
    */
   getAllCustomers: async (filters?: CustomerFilters): Promise<Customer[]> => {
     try {
-      const tenantId = getTenantId();
       console.log('[Customer Service] Fetching customers from PostgreSQL API');
       
       // Build query string
@@ -254,21 +250,10 @@ export const customerService = {
       if (filters?.includeArchived) params.append('includeArchived', 'true');
       
       const queryString = params.toString();
-      const url = `${API_CONFIG.BASE_URL}/customers${queryString ? `?${queryString}` : ''}`;
+      const url = `/customers${queryString ? `?${queryString}` : ''}`;
       
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-tenant-id': tenantId,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
+      // Use API client which automatically includes tenant ID from user session
+      const data = await apiClient.get<{ customers: any[]; total: number }>(url);
       console.log('[Customer Service] Received customers:', data.customers?.length || 0);
       
       // Transform each customer
@@ -289,8 +274,6 @@ export const customerService = {
     filters?: CustomerFilters
   ): Promise<PaginatedResponse<Customer>> => {
     try {
-      const tenantId = getTenantId();
-      
       const params = new URLSearchParams();
       params.append('limit', limit.toString());
       params.append('offset', offset.toString());
@@ -298,21 +281,10 @@ export const customerService = {
       if (filters?.type) params.append('type', filters.type);
       if (filters?.includeArchived) params.append('includeArchived', 'true');
       
-      const url = `${API_CONFIG.BASE_URL}/customers?${params.toString()}`;
+      const url = `/customers?${params.toString()}`;
       
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-tenant-id': tenantId,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
+      // Use API client which automatically includes tenant ID from user session
+      const data = await apiClient.get<{ customers: any[]; total: number }>(url);
       const customers = (data.customers || []).map(transformCustomer);
       
       return {
@@ -335,28 +307,19 @@ export const customerService = {
     try {
       console.log(`[Customer Service] Fetching customer: ${id}`);
       
-      const response = await fetch(`${API_CONFIG.BASE_URL}/customers/${id}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-tenant-id': getTenantId(),
-        },
-      });
-
-      if (response.status === 404) {
-        console.log('[Customer Service] Customer not found');
-        return null;
+      // Use API client which automatically includes tenant ID from user session
+      try {
+        const data = await apiClient.get<{ customer: any } | any>(`/customers/${id}`);
+        // Handle { customer: ... } wrapper
+        const customerData = (data as any).customer || data;
+        return transformCustomer(customerData);
+      } catch (error: any) {
+        if (error?.response?.status === 404) {
+          console.log('[Customer Service] Customer not found');
+          return null;
+        }
+        throw error;
       }
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      
-      // Handle { customer: ... } wrapper
-      const customerData = data.customer || data;
-      return transformCustomer(customerData);
     } catch (error: any) {
       console.error(`[Customer Service] Error fetching customer ${id}:`, error);
       throw error;
@@ -374,19 +337,8 @@ export const customerService = {
       params.append('search', query);
       params.append('limit', limit.toString());
       
-      const response = await fetch(`${API_CONFIG.BASE_URL}/customers?${params.toString()}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-tenant-id': getTenantId(),
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
+      // Use API client which automatically includes tenant ID from user session
+      const data = await apiClient.get<{ customers: any[] }>(`/customers?${params.toString()}`);
       return (data.customers || []).map(transformCustomer);
     } catch (error: any) {
       console.error('[Customer Service] Error searching customers:', error);
@@ -403,25 +355,12 @@ export const customerService = {
       
       const body = buildRequestBody(customerData);
       
-      const response = await fetch(`${API_CONFIG.BASE_URL}/customers`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-tenant-id': getTenantId(),
-        },
-        body: JSON.stringify(body),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
+      // Use API client which automatically includes tenant ID from user session
+      const data = await apiClient.post<{ customer: any } | any>('/customers', body);
       console.log('[Customer Service] Customer created successfully');
       
       // Handle { customer: ... } wrapper
-      const customerResponse = data.customer || data;
+      const customerResponse = (data as any).customer || data;
       return transformCustomer(customerResponse);
     } catch (error: any) {
       console.error('[Customer Service] Error creating customer:', error);
@@ -439,25 +378,12 @@ export const customerService = {
       const body = buildRequestBody(customerData);
       console.log(`[Customer Service] Request body:`, body);
       
-      const response = await fetch(`${API_CONFIG.BASE_URL}/customers/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-tenant-id': getTenantId(),
-        },
-        body: JSON.stringify(body),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
+      // Use API client which automatically includes tenant ID from user session
+      const data = await apiClient.put<{ customer: any } | any>(`/customers/${id}`, body);
       console.log('[Customer Service] Customer updated successfully');
       
       // Handle { customer: ... } wrapper
-      const customerResponse = data.customer || data;
+      const customerResponse = (data as any).customer || data;
       return transformCustomer(customerResponse);
     } catch (error: any) {
       console.error(`[Customer Service] Error updating customer ${id}:`, error);
@@ -472,19 +398,8 @@ export const customerService = {
     try {
       console.log(`[Customer Service] Archiving customer: ${id}`);
       
-      const response = await fetch(`${API_CONFIG.BASE_URL}/customers/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-tenant-id': getTenantId(),
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-      }
-
+      // Use API client which automatically includes tenant ID from user session
+      await apiClient.delete(`/customers/${id}`);
       console.log('[Customer Service] Customer archived successfully');
     } catch (error: any) {
       console.error(`[Customer Service] Error archiving customer ${id}:`, error);
@@ -499,23 +414,10 @@ export const customerService = {
     try {
       console.log(`[Customer Service] Adding address to customer: ${customerId}`);
       
-      const response = await fetch(`${API_CONFIG.BASE_URL}/customers/${customerId}/addresses`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-tenant-id': getTenantId(),
-        },
-        body: JSON.stringify(address),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
+      // Use API client which automatically includes tenant ID from user session
+      const data = await apiClient.post<{ address: any } | any>(`/customers/${customerId}/addresses`, address);
       console.log('[Customer Service] Address added successfully');
-      return data.address || data;
+      return (data as any).address || data;
     } catch (error: any) {
       console.error(`[Customer Service] Error adding address:`, error);
       throw error;
@@ -544,23 +446,10 @@ export const customerService = {
         isPrimary: address.isPrimary ?? false,
       };
       
-      const response = await fetch(`${API_CONFIG.BASE_URL}/customers/${customerId}/addresses`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-tenant-id': getTenantId(),
-        },
-        body: JSON.stringify(addressData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
+      // Use API client which automatically includes tenant ID from user session
+      const data = await apiClient.post<{ address: any } | any>(`/customers/${customerId}/addresses`, addressData);
       console.log('[Customer Service] Address added successfully:', data);
-      return data.address || data;
+      return (data as any).address || data;
     } catch (error: any) {
       console.error(`[Customer Service] Error adding address:`, error);
       throw error;
@@ -589,23 +478,10 @@ export const customerService = {
         isPrimary: address.isPrimary,
       };
       
-      const response = await fetch(`${API_CONFIG.BASE_URL}/customers/${customerId}/addresses/${addressId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-tenant-id': getTenantId(),
-        },
-        body: JSON.stringify(addressData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
+      // Use API client which automatically includes tenant ID from user session
+      const data = await apiClient.put<{ address: any } | any>(`/customers/${customerId}/addresses/${addressId}`, addressData);
       console.log('[Customer Service] Address updated successfully:', data);
-      return data.address || data;
+      return (data as any).address || data;
     } catch (error: any) {
       console.error(`[Customer Service] Error updating address ${addressId}:`, error);
       throw error;
@@ -619,19 +495,8 @@ export const customerService = {
     try {
       console.log(`[Customer Service] Deleting address ${addressId} for customer: ${customerId}`);
       
-      const response = await fetch(`${API_CONFIG.BASE_URL}/customers/${customerId}/addresses/${addressId}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-tenant-id': getTenantId(),
-        },
-      });
-
-      if (!response.ok && response.status !== 204) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-      }
-
+      // Use API client which automatically includes tenant ID from user session
+      await apiClient.delete(`/customers/${customerId}/addresses/${addressId}`);
       console.log('[Customer Service] Address deleted successfully');
     } catch (error: any) {
       console.error(`[Customer Service] Error deleting address ${addressId}:`, error);

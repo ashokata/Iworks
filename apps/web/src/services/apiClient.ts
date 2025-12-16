@@ -68,14 +68,17 @@ class ApiClient {
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
-        
-        // Add tenant ID
+
+        // Add tenant ID - CRITICAL for multi-tenancy
         const tenantId = this.getCurrentTenantId();
         if (tenantId) {
           config.headers['X-Tenant-ID'] = tenantId;
           config.headers['x-tenant-id'] = tenantId;
+          console.log(`[API Client] 🔐 Sending request to ${config.url} with Tenant ID: ${tenantId}`);
+        } else {
+          console.warn(`[API Client] ⚠️ No tenant ID available for request to ${config.url}`);
         }
-        
+
         return config;
       },
       (error) => Promise.reject(error)
@@ -107,31 +110,59 @@ class ApiClient {
   }
   
   private getCurrentTenantId(): string | null {
-    // If we've already set the tenant ID, use that
-    if (this.currentTenantId) return this.currentTenantId;
-    
-    // Try environment variable
+    // PRIORITY 1: Check user data in localStorage first (most authoritative)
+    // This ensures we always use the tenant ID from the logged-in user
+    if (typeof window !== 'undefined') {
+      const userJson = localStorage.getItem('authUser');
+      if (userJson) {
+        try {
+          const user = JSON.parse(userJson);
+          if (user.tenantId) {
+            // Update in-memory cache if different
+            if (this.currentTenantId !== user.tenantId) {
+              this.currentTenantId = user.tenantId;
+              console.log('[API Client] 🔄 Updated tenant ID from user session:', user.tenantId);
+            }
+            return user.tenantId;
+          }
+        } catch (error) {
+          console.error('[API Client] Error parsing user data:', error);
+        }
+      }
+    }
+
+    // PRIORITY 2: If we've already set the tenant ID in memory, use that
+    if (this.currentTenantId) {
+      return this.currentTenantId;
+    }
+
+    // PRIORITY 3: Try localStorage (set by setTenantId) - but only if no user session
+    if (typeof window !== 'undefined') {
+      const savedTenantId = localStorage.getItem('currentTenantId');
+      if (savedTenantId) {
+        this.currentTenantId = savedTenantId;
+        return savedTenantId;
+      }
+    }
+
+    // PRIORITY 4: Try environment variable
     if (process.env.NEXT_PUBLIC_TENANT_ID) {
       return process.env.NEXT_PUBLIC_TENANT_ID;
     }
-    
-    // Otherwise, try to get it from the user data in localStorage
-    if (typeof window === 'undefined') return null;
-    
-    const userJson = localStorage.getItem('authUser');
-    if (!userJson) return 'local-tenant'; // Default fallback
-    
-    try {
-      const user = JSON.parse(userJson);
-      return user.tenantId || 'local-tenant';
-    } catch (error) {
-      console.error('[API Client] Error parsing user data:', error);
-      return 'local-tenant';
-    }
+
+    // NO DEFAULT FALLBACK - return null to force proper authentication
+    console.warn('[API Client] ⚠️ No tenant ID found - user needs to login');
+    return null;
   }
   
   setTenantId(tenantId: string | null): void {
+    console.log(`[API Client] 🔐 Setting Tenant ID: ${tenantId}`);
     this.currentTenantId = tenantId;
+
+    // Also save to localStorage for persistence
+    if (typeof window !== 'undefined' && tenantId) {
+      localStorage.setItem('currentTenantId', tenantId);
+    }
   }
 
   private resolveUrl(url: string): string {

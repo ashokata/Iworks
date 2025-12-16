@@ -22,16 +22,12 @@ export default function DashboardPage() {
   const [isOnline, setIsOnline] = useState(true);
   const { startListening, stopListening, isListening, lastIntent } = useVoiceAssistant();
 
-  // Immediate redirect for better performance
-  if (!isLoading && !isAuthenticated) {
-    router.push('/login');
-    // Return an empty loading state to prevent rendering rest of component
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  // Handle redirect in useEffect to avoid setState during render
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.push('/login');
+    }
+  }, [isLoading, isAuthenticated, router]);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -93,16 +89,13 @@ export default function DashboardPage() {
     }
   }, [lastIntent, router]);
 
-  if (isLoading || jobsLoading || tenantLoading) {
+  // Show loading spinner while loading or redirecting unauthenticated users
+  if (isLoading || jobsLoading || tenantLoading || !isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     );
-  }
-
-  if (!isAuthenticated) {
-    return null;
   }
 
   return (

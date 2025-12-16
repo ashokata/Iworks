@@ -15,9 +15,26 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  
-  // Get tenants for dropdown
-  const tenants = MOCK_TENANTS;
+  const [tenants, setTenants] = useState<any[]>([]);
+  const [loadingTenants, setLoadingTenants] = useState(true);
+
+  // Fetch tenants from API
+  useEffect(() => {
+    const fetchTenants = async () => {
+      try {
+        const response = await apiClient.get('/api/tenants');
+        setTenants(response.tenants || []);
+      } catch (err) {
+        console.error('Failed to fetch tenants:', err);
+        // Fallback to mock data if API fails
+        setTenants(MOCK_TENANTS);
+      } finally {
+        setLoadingTenants(false);
+      }
+    };
+
+    fetchTenants();
+  }, []);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -44,32 +61,17 @@ export default function LoginPage() {
         setIsSubmitting(false);
         return;
       }
-      
-      // Import mock users
-      const { MOCK_USERS } = await import('@/lib/mockData');
-      
-      // Find user by username and tenant
-      const user = MOCK_USERS.find(
-        u => (u.username === formData.username || u.email === formData.username) && 
-             u.tenantId === selectedTenant.id
-      );
-      
-      // If user exists and password matches
-      if (user && user.password === formData.password) {
-        // Successfully authenticated
-        const success = await login(user.username, user.password);
-        
-        if (success) {
-          // Set the tenant ID in the API client for subsequent requests
-          apiClient.setTenantId(selectedTenant.id);
-        } else {
-          setError('Authentication failed');
-        }
-      } else {
-        setError('Invalid username or password');
+
+      // Authenticate with real API
+      const success = await login(formData.username, formData.password, formData.tenantSlug);
+
+      if (!success) {
+        setError('Invalid email or password');
       }
-    } catch (err) {
-      setError('Login failed. Please try again.');
+      // Note: tenant ID is set in the AuthContext after successful login
+    } catch (err: any) {
+      const errorMessage = err?.response?.data?.error || 'Login failed. Please try again.';
+      setError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -176,8 +178,11 @@ export default function LoginPage() {
                 onChange={(e) => setFormData(prev => ({ ...prev, tenantSlug: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
+                disabled={loadingTenants}
               >
-                <option value="">Select a company</option>
+                <option value="">
+                  {loadingTenants ? 'Loading companies...' : 'Select a company'}
+                </option>
                 {tenants.map(tenant => (
                   <option key={tenant.id} value={tenant.slug}>
                     {tenant.name}

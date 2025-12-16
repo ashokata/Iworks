@@ -157,8 +157,22 @@ export const handler: APIGatewayProxyHandler = async (event): Promise<APIGateway
       };
     }
 
-    // Get tenant ID from header or body
-    const tenantId = event.headers['x-tenant-id'] || event.headers['X-Tenant-Id'] || body.tenantId || 'default-tenant';
+    // Get tenant ID from header or body - REQUIRED for tenant isolation
+    const tenantId = event.headers['x-tenant-id'] || event.headers['X-Tenant-Id'] || event.headers['X-Tenant-ID'] || body.tenantId;
+    
+    if (!tenantId) {
+      console.error('[LLM Chat] ❌ Missing tenant ID in request');
+      return {
+        statusCode: 400,
+        headers: corsHeaders,
+        body: JSON.stringify({
+          error: 'Tenant ID is required',
+          message: 'Please ensure you are logged in and your session is valid',
+          requestId,
+        }),
+      };
+    }
+    
     const userId = event.headers['x-user-id'] || event.headers['X-User-Id'] || body.userId || 'anonymous';
 
     // Sanitize input
