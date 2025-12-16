@@ -455,14 +455,6 @@ export default function TechniciansPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => router.push('/technicians/create')}
-                className="bg-white text-[#0f118a] hover:bg-gray-100"
-              >
-                Add Technician
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
                 onClick={() => router.push('/dashboard')}
                 className="bg-white text-[#0f118a] hover:bg-gray-100"
               >

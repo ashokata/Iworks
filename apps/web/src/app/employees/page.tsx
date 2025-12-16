@@ -74,14 +74,6 @@ export default function EmployeesPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => router.push('/employees/create')}
-                className="bg-white text-[#0f118a] hover:bg-gray-100"
-              >
-                Add Employee
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
                 onClick={() => router.push('/dashboard')}
                 className="bg-white text-[#0f118a] hover:bg-gray-100"
               >

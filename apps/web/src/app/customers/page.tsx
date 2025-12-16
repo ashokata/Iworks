@@ -311,30 +311,77 @@ export default function CustomersPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        {/* Actions Bar */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 space-y-4 sm:space-y-0">
-          <div>
-            <h2 className="text-2xl font-bold" style={{ color: '#1E3A8A' }}>Customers</h2>
-            <p className="text-gray-600 mt-1">Manage your customer base</p>
+      {/* Header */}
+      <div className="bg-gradient-to-r from-[#0f118a] to-[#1e40af] text-white p-6 shadow-lg">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold">Customers</h1>
+              <p className="text-blue-100 mt-1">Manage your customer base</p>
+            </div>
+            <div className="flex items-center space-x-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push('/dashboard')}
+                className="bg-white text-[#0f118a] hover:bg-gray-100"
+              >
+                Dashboard
+              </Button>
+            </div>
           </div>
-          <div className="flex items-center space-x-4">
+        </div>
+      </div>
+
+      <main className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-2 sm:py-3">
+        {/* Actions Bar */}
+        <div className="flex flex-col sm:flex-row justify-end items-start sm:items-center mb-2 sm:mb-3 gap-3 sm:gap-0">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             {!isOnline && (
               <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full">
                 Offline Mode
               </span>
             )}
-            <Button
-              variant={showFilters ? "warning" : "default"}
+            <button
               onClick={() => setShowFilters(!showFilters)}
+              className="inline-flex items-center justify-center px-4 py-2 rounded-md border text-xs sm:text-sm font-medium transition-all hover:bg-opacity-100"
+              style={{
+                borderColor: '#06118d',
+                color: showFilters ? 'white' : '#06118d',
+                backgroundColor: showFilters ? '#06118d' : 'white'
+              }}
+              onMouseEnter={(e) => {
+                if (!showFilters) {
+                  e.currentTarget.style.backgroundColor = '#06118d';
+                  e.currentTarget.style.color = 'white';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!showFilters) {
+                  e.currentTarget.style.backgroundColor = 'white';
+                  e.currentTarget.style.color = '#06118d';
+                }
+              }}
             >
               <FunnelIcon className="h-4 w-4 mr-2" />
-              {showFilters ? 'Hide Filters' : 'Show Filters'}
-            </Button>
-            <Button
-              variant={viewMode === 'card' ? "warning" : "default"}
+              {showFilters ? 'Hide Filters' : 'Filters'}
+            </button>
+            <button
               onClick={() => setViewMode(viewMode === 'table' ? 'card' : 'table')}
+              className="inline-flex items-center justify-center px-4 py-2 rounded-md border text-xs sm:text-sm font-medium transition-all"
+              style={{
+                borderColor: '#06118d',
+                color: '#06118d',
+                backgroundColor: 'white'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#06118d';
+                e.currentTarget.style.color = 'white';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'white';
+                e.currentTarget.style.color = '#06118d';
+              }}
             >
               {viewMode === 'table' ? (
                 <>
@@ -347,15 +394,7 @@ export default function CustomersPage() {
                   Grid View
                 </>
               )}
-            </Button>
-            <Button
-              variant="success"
-              onClick={() => router.push('/customers/new')}
-              disabled={!isOnline}
-            >
-              <PlusIcon className="h-4 w-4 mr-2" />
-              New Customer
-            </Button>
+            </button>
           </div>
         </div>
 

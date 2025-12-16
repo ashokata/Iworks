@@ -365,14 +365,31 @@ export default function JobsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-[#0f118a] to-[#1e40af] text-white p-6 shadow-lg">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold">Jobs</h1>
+              <p className="text-blue-100 mt-1">Manage your jobs and assignments</p>
+            </div>
+            <div className="flex items-center space-x-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push('/dashboard')}
+                className="bg-white text-[#0f118a] hover:bg-gray-100"
+              >
+                Dashboard
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <main className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-2 sm:py-3">
         {/* Actions Bar */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-2 sm:mb-3 gap-3 sm:gap-0">
-          <div>
-            <h2 className="text-lg sm:text-xl font-bold" style={{ color: '#1E3A8A' }}>Jobs</h2>
-            <p className="text-xs sm:text-sm text-gray-600 mt-0.5">Manage your jobs and assignments</p>
-          </div>
+        <div className="flex flex-col sm:flex-row justify-end items-start sm:items-center mb-2 sm:mb-3 gap-3 sm:gap-0">
           <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             {!isOnline && (
               <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full whitespace-nowrap">
@@ -654,44 +671,10 @@ export default function JobsPage() {
               </Button>
             </div>
           </div>
-        ) : !jobs || jobs.length === 0 || filteredJobs?.length === 0 ? (
-          <div className={`bg-white rounded-lg shadow p-6 transition-all ${!showFilters ? 'flex items-center justify-center min-h-[calc(100vh-280px)]' : ''}`}>
-            <div className="flex flex-col items-center justify-center py-12">
-              <BriefcaseIcon className="h-16 w-16 text-gray-300 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Jobs Available</h3>
-              <p className="text-gray-500 mb-4 text-center">
-                {searchQuery || filterJobId || filterTitle || filterLocation || filterAssignedTo || statusFilter || priorityFilter
-                  ? 'No jobs match your search criteria'
-                  : 'No jobs found. Create your first job to get started.'}
-              </p>
-              {(searchQuery || filterJobId || filterTitle || filterLocation || filterAssignedTo || statusFilter || priorityFilter) ? (
-                <Button
-                  onClick={() => {
-                    setSearchQuery('');
-                    setFilterJobId('');
-                    setFilterTitle('');
-                    setFilterLocation('');
-                    setFilterAssignedTo('');
-                    setStatusFilter([]);
-                    setPriorityFilter([]);
-                  }}
-                  variant="outline"
-                >
-                  Clear Filters
-                </Button>
-              ) : (
-                <Button onClick={() => router.push('/jobs/create')}>
-                  <PlusIcon className="h-4 w-4 mr-2" />
-                  Create New Job
-                </Button>
-              )}
-            </div>
-          </div>
-        ) : paginatedJobs && paginatedJobs.length > 0 ? (
-          viewMode === 'table' ? (
+        ) : viewMode === 'table' ? (
           <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
             {/* Top Pagination */}
-            {showTopPagination && (
+            {showTopPagination && paginatedJobs && paginatedJobs.length > 0 && (
               <div className="bg-gray-50 px-4 py-2.5 border-b border-gray-200 flex items-center justify-between">
                 <div className="flex-1 flex justify-between sm:hidden">
                   <Button
@@ -951,7 +934,14 @@ export default function JobsPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {paginatedJobs.map((job, index) => (
+                  {!paginatedJobs || paginatedJobs.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
+                        No jobs found
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedJobs.map((job, index) => (
                     <tr 
                       key={job.id} 
                       className={`hover:bg-blue-50 transition-all duration-150 cursor-pointer border-b border-gray-100 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}
@@ -1089,13 +1079,14 @@ export default function JobsPage() {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                  ))
+                  )}
                 </tbody>
               </table>
             </div>
 
             {/* Bottom Pagination */}
-            {showBottomPagination && (
+            {showBottomPagination && paginatedJobs && paginatedJobs.length > 0 && (
             <div className="bg-gray-50 px-4 py-2.5 border-t border-gray-200 flex items-center justify-between">
               <div className="flex-1 flex justify-between sm:hidden">
                 <Button
@@ -1190,9 +1181,9 @@ export default function JobsPage() {
                 </div>
               </div>
             </div>
-            )}
+          )}
           </div>
-          ) : (
+        ) : (
           <>
             {showTopPagination && (
               <div className="bg-white rounded-lg shadow px-4 py-2.5 mb-3 flex items-center justify-between">
@@ -1519,10 +1510,9 @@ export default function JobsPage() {
                 </div>
               </div>
             </div>
-            )}
+          )}
           </>
-          )
-        ) : null}
+        )}
       </main>
     </div>
   );
