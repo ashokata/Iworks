@@ -14,7 +14,8 @@
     "studio": "prisma studio",
     "seed": "tsx prisma/seed.ts",
     "test": "jest",
-    "create-tenant-with-vapi": "tsx scripts/create-tenant-with-vapi.ts"
+    "create-tenant-with-vapi": "tsx scripts/create-tenant-with-vapi.ts",
+    "list-tenants": "tsx scripts/list-tenants.ts"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.685.0",

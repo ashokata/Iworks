@@ -34,7 +34,7 @@ export interface UpdateCustomerInput {
   doNotService?: boolean;
   doNotServiceReason?: string;
   notificationsEnabled?: boolean;
-  verificationStatus?: 'VERIFIED' | 'UNVERIFIED' | 'PENDING';
+  verificationStatus?: 'VERIFIED' | 'UNVERIFIED' | 'REJECTED';
 }
 
 export interface CustomerWithAddresses extends Customer {
@@ -56,15 +56,40 @@ class CustomerPostgresService {
   async createCustomer(input: CreateCustomerInput): Promise<CustomerWithAddresses> {
     const prisma = getPrismaClient();
     
+    // Normalize tenant ID: remove whitespace, take first value if comma-separated
+    const normalizedTenantId = String(input.tenantId).trim().split(',')[0].trim();
+    
+    // Validate tenant ID format (should be a UUID)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(normalizedTenantId)) {
+      throw new Error(`Invalid tenant ID format: '${input.tenantId}'. Expected a valid UUID.`);
+    }
+    
+    // Validate tenant exists
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: normalizedTenantId },
+      select: { id: true, name: true, status: true },
+    });
+
+    if (!tenant) {
+      throw new Error(`Tenant with ID '${normalizedTenantId}' does not exist. Please verify your tenant configuration.`);
+    }
+
+    if (tenant.status === 'SUSPENDED' || tenant.status === 'CANCELLED') {
+      throw new Error(`Tenant '${tenant.name}' (${input.tenantId}) is ${tenant.status.toLowerCase()}. Please contact your administrator.`);
+    }
+
+    console.log('[PG-Customer] Validated tenant:', { tenantId: tenant.id, tenantName: tenant.name, status: tenant.status });
+    
     // Generate customer number
     const customerCount = await prisma.customer.count({
-      where: { tenantId: input.tenantId },
+      where: { tenantId: normalizedTenantId },
     });
     const customerNumber = `CUST-${String(customerCount + 1).padStart(6, '0')}`;
 
     const customer = await prisma.customer.create({
       data: {
-        tenantId: input.tenantId,
+        tenantId: normalizedTenantId,
         customerNumber,
         type: input.type || 'RESIDENTIAL',
         firstName: input.firstName,

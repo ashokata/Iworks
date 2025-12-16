@@ -141,37 +141,72 @@ export class LLMFunctionExecutor {
     },
     tenantId: string
   ): Promise<FunctionResult> {
-    this.logger.info('Creating customer', { firstName: args.firstName, lastName: args.lastName });
+    try {
+      this.logger.info('Creating customer', { 
+        tenantId,
+        firstName: args.firstName, 
+        lastName: args.lastName,
+        phone: args.phone 
+      });
 
-    const customer = await customerPostgresService.createCustomer({
-      tenantId,
-      firstName: args.firstName,
-      lastName: args.lastName,
-      email: args.email,
-      mobilePhone: args.phone,
-      companyName: args.companyName,
-      type: args.type || 'RESIDENTIAL',
-      street: args.street,
-      city: args.city,
-      state: args.state,
-      zip: args.zip,
-      notes: args.notes,
-    });
+      if (!tenantId) {
+        throw new Error('Tenant ID is required for customer creation');
+      }
 
-    this.logger.info('Customer created successfully', { customerId: customer.id });
+      const customer = await customerPostgresService.createCustomer({
+        tenantId,
+        firstName: args.firstName,
+        lastName: args.lastName,
+        email: args.email,
+        mobilePhone: args.phone,
+        companyName: args.companyName,
+        type: args.type || 'RESIDENTIAL',
+        street: args.street,
+        city: args.city,
+        state: args.state,
+        zip: args.zip,
+        notes: args.notes,
+      });
 
-    return {
-      status: 'success',
-      data: {
+      this.logger.info('Customer created successfully', { 
+        tenantId,
         customerId: customer.id,
-        customerNumber: customer.customerNumber,
-        firstName: customer.firstName,
-        lastName: customer.lastName,
-        email: customer.email,
-        phone: customer.mobilePhone,
-        message: `Customer ${customer.firstName} ${customer.lastName} (${customer.customerNumber}) created successfully`,
-      },
-    };
+        customerNumber: customer.customerNumber 
+      });
+
+      return {
+        status: 'success',
+        data: {
+          customerId: customer.id,
+          customerNumber: customer.customerNumber,
+          firstName: customer.firstName,
+          lastName: customer.lastName,
+          email: customer.email,
+          phone: customer.mobilePhone,
+          message: `Customer ${customer.firstName} ${customer.lastName} (${customer.customerNumber}) created successfully`,
+        },
+      };
+    } catch (error: any) {
+      this.logger.error('Failed to create customer', {
+        tenantId,
+        error: error.message,
+        stack: error.stack,
+        args: { firstName: args.firstName, lastName: args.lastName, phone: args.phone }
+      });
+      
+      return {
+        status: 'error',
+        error: {
+          code: 'CUSTOMER_CREATION_FAILED',
+          message: error.message || 'Failed to create customer',
+          details: {
+            tenantId,
+            error: error.message,
+            ...(error.response?.data && { apiError: error.response.data }),
+          },
+        },
+      };
+    }
   }
 
   /**

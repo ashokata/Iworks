@@ -158,7 +158,12 @@ export const handler: APIGatewayProxyHandler = async (event): Promise<APIGateway
     }
 
     // Get tenant ID from header or body - REQUIRED for tenant isolation
-    const tenantId = event.headers['x-tenant-id'] || event.headers['X-Tenant-Id'] || event.headers['X-Tenant-ID'] || body.tenantId;
+    let tenantId = event.headers['x-tenant-id'] || event.headers['X-Tenant-Id'] || event.headers['X-Tenant-ID'] || body.tenantId;
+    
+    // Normalize tenant ID: remove whitespace, take first value if comma-separated
+    if (tenantId) {
+      tenantId = String(tenantId).trim().split(',')[0].trim();
+    }
     
     if (!tenantId) {
       console.error('[LLM Chat] ❌ Missing tenant ID in request');
@@ -168,6 +173,21 @@ export const handler: APIGatewayProxyHandler = async (event): Promise<APIGateway
         body: JSON.stringify({
           error: 'Tenant ID is required',
           message: 'Please ensure you are logged in and your session is valid',
+          requestId,
+        }),
+      };
+    }
+    
+    // Validate tenant ID format (should be a UUID)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(tenantId)) {
+      console.error('[LLM Chat] ❌ Invalid tenant ID format', { tenantId });
+      return {
+        statusCode: 400,
+        headers: corsHeaders,
+        body: JSON.stringify({
+          error: 'Invalid Tenant ID format',
+          message: `The tenant ID '${tenantId}' is not in a valid format. Please log out and log back in.`,
           requestId,
         }),
       };
@@ -184,6 +204,12 @@ export const handler: APIGatewayProxyHandler = async (event): Promise<APIGateway
       userId,
       queryLength: sanitizedQuery.length,
       historyLength: body.history?.length || 0,
+      headers: {
+        'x-tenant-id': event.headers['x-tenant-id'],
+        'X-Tenant-Id': event.headers['X-Tenant-Id'],
+        'X-Tenant-ID': event.headers['X-Tenant-ID'],
+      },
+      bodyTenantId: body.tenantId,
     });
 
     // Build messages for Bedrock
@@ -217,7 +243,51 @@ export const handler: APIGatewayProxyHandler = async (event): Promise<APIGateway
         requestId,
         functionName: toolUse.name,
         status: functionResult.status,
+        tenantId,
+        hasError: functionResult.status === 'error',
       });
+
+      // If function execution failed, return error immediately without calling Bedrock
+      if (functionResult.status === 'error') {
+        const errorMessage = functionResult.error?.message || 'An error occurred while processing your request';
+        const errorDetails = functionResult.error?.details;
+        
+        console.error('[LLM Chat] Function execution failed', {
+          requestId,
+          functionName: toolUse.name,
+          error: errorMessage,
+          details: errorDetails,
+          tenantId,
+        });
+
+        const latency = Date.now() - startTime;
+        
+        // Clean up error message - remove duplicate tenant ID if present
+        let cleanErrorMessage = errorMessage;
+        if (errorDetails?.tenantId && errorMessage.includes(errorDetails.tenantId)) {
+          // If tenant ID is already in the error message, don't add it again
+          cleanErrorMessage = errorMessage;
+        } else if (errorDetails?.tenantId) {
+          cleanErrorMessage = `${errorMessage} (Tenant ID: ${errorDetails.tenantId})`;
+        }
+        
+        return {
+          statusCode: 200, // Still return 200, but with error in response
+          headers: corsHeaders,
+          body: JSON.stringify({
+            conversationId: requestId,
+            reply: `I encountered an error: ${cleanErrorMessage}. Please check your tenant configuration and try again.`,
+            metadata: {
+              tool: toolUse.name,
+              toolResult: functionResult,
+              model: 'claude-3.5-sonnet',
+              error: true,
+              latencyMs: latency,
+            },
+            timestamp: new Date().toISOString(),
+          }),
+        };
+      }
 
       // Get final answer from Bedrock (summarize the result)
       const finalResponse = await bedrockLLMService.invokeForFinalAnswer(

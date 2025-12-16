@@ -16,10 +16,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get tenant and user info from headers or environment
-    // Use the configured tenant ID (local-tenant for local, tenant1 for AWS)
-    const tenantId = request.headers.get('x-tenant-id') || process.env.NEXT_PUBLIC_TENANT_ID || 'local-tenant';
-    const userId = request.headers.get('x-user-id') || 'user-' + Date.now();
+    // Get tenant and user info from headers or context - REQUIRED for tenant isolation
+    const tenantId = request.headers.get('x-tenant-id') || 
+                     request.headers.get('X-Tenant-Id') || 
+                     request.headers.get('X-Tenant-ID') ||
+                     body.context?.tenantId ||
+                     process.env.NEXT_PUBLIC_TENANT_ID;
+    
+    if (!tenantId) {
+      console.error('[AI Chat Stream] ❌ Missing tenant ID in request');
+      return new Response(
+        JSON.stringify({
+          error: 'Tenant ID is required',
+          message: 'Please ensure you are logged in and your session is valid'
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    const userId = request.headers.get('x-user-id') || 
+                   request.headers.get('X-User-Id') ||
+                   body.context?.userId ||
+                   'user-' + Date.now();
 
     // Build conversation history
     const conversationHistory = context?.history || [];

@@ -16,9 +16,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get user and tenant info from headers or context
-    const userId = request.headers.get('x-user-id') || context?.userId || 'user-' + Date.now();
-    const tenantId = request.headers.get('x-tenant-id') || context?.tenantId || 'tenant1';
+    // Get user and tenant info from headers or context - REQUIRED for tenant isolation
+    const tenantId = request.headers.get('x-tenant-id') || 
+                     request.headers.get('X-Tenant-Id') || 
+                     request.headers.get('X-Tenant-ID') ||
+                     context?.tenantId;
+    
+    if (!tenantId) {
+      console.error('[AI Chat API] ❌ Missing tenant ID in request');
+      return NextResponse.json(
+        {
+          error: 'Tenant ID is required',
+          message: 'Please ensure you are logged in and your session is valid'
+        },
+        { status: 400 }
+      );
+    }
+    
+    const userId = request.headers.get('x-user-id') || 
+                   request.headers.get('X-User-Id') ||
+                   context?.userId || 
+                   'user-' + Date.now();
 
     console.log('[AI Chat API] Sending request to LLM Lambda:', {
       userId,
