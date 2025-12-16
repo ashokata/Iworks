@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, use } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -29,7 +29,7 @@ interface Service {
   materialCount?: number;
 }
 
-export default function CategoryDetailPage({ params }: { params: { id: string } }) {
+export default function CategoryDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -42,25 +42,28 @@ export default function CategoryDetailPage({ params }: { params: { id: string } 
     estimatedDuration: '',
   });
 
+  // Unwrap the params promise using React.use()
+  const { id } = use(params);
+
   // Fetch category
   const { data: category } = useQuery({
-    queryKey: ['pricebook-category', params.id],
-    queryFn: () => pricebookService.getCategory(params.id),
+    queryKey: ['pricebook-category', id],
+    queryFn: () => pricebookService.getCategory(id),
   });
 
   // Fetch services
   const { data: servicesData, isLoading } = useQuery({
-    queryKey: ['pricebook-services', params.id],
-    queryFn: () => pricebookService.listServices({ categoryId: params.id }),
+    queryKey: ['pricebook-services', id],
+    queryFn: () => pricebookService.listServices({ categoryId: id }),
   });
   const services = servicesData?.services || servicesData || [];
 
   // Create service mutation
   const createMutation = useMutation({
     mutationFn: (serviceData: any) =>
-      pricebookService.createService({ ...serviceData, categoryId: params.id }),
+      pricebookService.createService({ ...serviceData, categoryId: id }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pricebook-services', params.id] });
+      queryClient.invalidateQueries({ queryKey: ['pricebook-services', id] });
       setShowCreateModal(false);
       setNewService({ name: '', description: '', unitPrice: '', estimatedDuration: '' });
     },
@@ -70,7 +73,7 @@ export default function CategoryDetailPage({ params }: { params: { id: string } 
   const deleteMutation = useMutation({
     mutationFn: (serviceId: string) => pricebookService.deleteService(serviceId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pricebook-services', params.id] });
+      queryClient.invalidateQueries({ queryKey: ['pricebook-services', id] });
     },
   });
 

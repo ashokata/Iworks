@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, use } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import {
@@ -47,13 +47,16 @@ const mockCategories = {
   ],
 };
 
-export default function PricebookDetailPage({ params }: { params: { slug: string } }) {
+export default function PricebookDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['1']));
   const [importing, setImporting] = useState(false);
 
-  const categories = mockCategories[params.slug as keyof typeof mockCategories] || [];
+  // Unwrap the params promise using React.use()
+  const { slug } = use(params);
+
+  const categories = mockCategories[slug as keyof typeof mockCategories] || [];
 
   const toggleCategory = (categoryId: string) => {
     const newExpanded = new Set(expandedCategories);
@@ -67,7 +70,7 @@ export default function PricebookDetailPage({ params }: { params: { slug: string
 
   const handleImport = async () => {
     setImporting(true);
-    // TODO: Call pricebookService.importPricebook({ tenantId, industrySlug: params.slug })
+    // TODO: Call pricebookService.importPricebook({ tenantId, industrySlug: slug })
     setTimeout(() => {
       setImporting(false);
       alert('Pricebook imported successfully!');
@@ -103,7 +106,7 @@ export default function PricebookDetailPage({ params }: { params: { slug: string
           </Button>
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold capitalize">{params.slug} Services</h1>
+              <h1 className="text-3xl font-bold capitalize">{slug} Services</h1>
               <p className="text-blue-100 mt-1">{categories.length} categories available</p>
             </div>
             <Button

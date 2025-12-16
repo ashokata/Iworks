@@ -106,7 +106,7 @@ export default function SidebarLayout({
   };
 
   // Don't render sidebar on login page or similar pages
-  if (pathname === '/login' || pathname === '/signup' || pathname === '/forgot-password') {
+  if (pathname === '/login' || pathname === '/signup' || pathname === '/forgot-password' || pathname === '/register' || pathname === '/') {
     return <>{children}</>;
   }
 
