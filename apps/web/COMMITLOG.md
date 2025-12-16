@@ -4,6 +4,64 @@ All commits to this project are documented in this file.
 
 ---
 
+## 📦 Commit #25 - 2025-12-16 03:00 PM (IST)
+
+**Developer:** Ghanshyam Patil
+**Type:** Feature / Enhancement
+
+### 📝 Commit Message
+```
+feat: Enhance UI consistency and responsiveness across all pages
+
+- Update API configuration from port 8090 to 4000
+  - Modified next.config.js proxy rewrites for all endpoints
+  - Updated proxy route default URL in [...path]/route.ts
+
+- Implement responsive table design with zoom support
+  - Add responsive padding (px-3 sm:px-4 md:px-6) to all table cells
+  - Update text sizes to be responsive (text-xs sm:text-sm)
+  - Make icons responsive with size breakpoints
+  - Add min-w-max wrapper for proper horizontal scrolling
+  - Apply changes to customers, employees, and technicians tables
+
+- Standardize page headers across the application
+  - Add gradient blue header (from-[#0f118a] to-[#1e40af]) to customers and jobs pages
+  - Match header style with employees and technicians pages
+  - Move page titles and descriptions to header section
+  - Add Dashboard button to all page headers
+
+- Remove create/add action buttons from headers
+  - Remove "Add Technician" button from technicians page
+  - Remove "Add Employee" button from employees page
+  - Remove "New Customer" button from customers page
+  - Remove "Create Job" button from jobs page
+
+- Improve empty state handling for jobs page
+  - Display "No jobs found" message within table structure
+  - Show table headers even when no data is present
+  - Match empty state pattern with technicians page
+  - Fix conditional rendering to always show table wrapper
+
+- Fix JSX syntax errors in jobs page pagination and view mode conditionals
+```
+
+### ✨ Changes
+**Files Modified:**
+- ✅ `apps/web/next.config.js` - Updated API proxy ports from 8090 to 4000
+- ✅ `apps/web/src/app/api/proxy/[...path]/route.ts` - Updated default API URL
+- ✅ `apps/web/src/app/customers/page.tsx` - Responsive tables, standardized header
+- ✅ `apps/web/src/app/employees/page.tsx` - Responsive tables, removed add button
+- ✅ `apps/web/src/app/technicians/page.tsx` - Responsive tables, removed add button
+- ✅ `apps/web/src/app/jobs/page.tsx` - Responsive tables, standardized header, empty state fix
+
+**Impact:**
+- Enhanced user experience with responsive design
+- Consistent UI across all management pages
+- Better zoom support for accessibility
+- Cleaner header design with standardized actions
+
+---
+
 ## 📦 Commit #24 - 2025-12-07 04:53 PM (EST)
 
 **Developer:** Ashok kata
