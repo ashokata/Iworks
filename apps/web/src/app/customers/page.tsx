@@ -386,14 +386,29 @@ export default function CustomersPage() {
               {viewMode === 'table' ? (
                 <>
                   <Squares2X2Icon className="h-4 w-4 mr-2" />
-                  Matrix View
+                  <span className="hidden sm:inline">Matrix View</span>
+                  <span className="sm:hidden">Matrix</span>
                 </>
               ) : (
                 <>
                   <TableCellsIcon className="h-4 w-4 mr-2" />
-                  Grid View
+                  <span className="hidden sm:inline">Grid View</span>
+                  <span className="sm:hidden">Grid</span>
                 </>
               )}
+            </button>
+            <button
+              onClick={() => router.push('/customers/new')}
+              disabled={!isOnline}
+              className="inline-flex items-center justify-center px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex-1 sm:flex-none"
+              style={{
+                backgroundColor: '#06118d',
+                color: 'white'
+              }}
+            >
+              <PlusIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Add Customer</span>
+              <span className="sm:hidden">Add</span>
             </button>
           </div>
         </div>
