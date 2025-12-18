@@ -5,7 +5,7 @@ import { User, AuthState } from '@/types';
 import { MOCK_USERS } from '@/lib/mockData';
 
 interface AuthContextType extends AuthState {
-  login: (username: string, password: string, tenantSlug?: string) => Promise<boolean>;
+  login: (username: string, password: string) => Promise<boolean>;
   logout: () => void;
 }
 
@@ -71,42 +71,67 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const login = async (username: string, password: string, tenantSlug?: string): Promise<boolean> => {
+  const login = async (username: string, password: string): Promise<boolean> => {
     setAuthState(prev => ({ ...prev, isLoading: true }));
 
     try {
-      // If tenantSlug is provided, use real API authentication
-      if (tenantSlug) {
-        const { apiClient } = await import('@/services/apiClient');
+      console.log('[Auth] Starting login process for:', username);
+      
+      // Use real API authentication - tenant will be automatically identified from user credentials
+      const { apiClient } = await import('@/services/apiClient');
 
-        const response = await apiClient.post('/api/auth/login', {
-          email: username,
-          password,
-          tenantSlug,
+      console.log('[Auth] Calling API /api/auth/login');
+      const response = await apiClient.post<{ success: boolean; token: string; user: any }>('/api/auth/login', {
+        email: username,
+        password,
+      });
+
+      console.log('[Auth] API response received:', { success: response.success, hasUser: !!response.user });
+
+      if (response.success) {
+        const token = response.token;
+        const user = response.user;
+
+        console.log('[Auth] Login successful, user:', { id: user.id, email: user.email, tenantId: user.tenantId });
+
+        // Set tenant ID in API client (automatically identified from user credentials)
+        if (user.tenantId) {
+          apiClient.setTenantId(user.tenantId);
+          console.log('[Auth] Set tenant ID from user credentials:', user.tenantId);
+        } else {
+          console.warn('[Auth] Warning: User has no tenantId!', user);
+        }
+
+        // Save to localStorage
+        localStorage.setItem('authToken', token);
+        localStorage.setItem('authUser', JSON.stringify(user));
+
+        setAuthState({
+          user,
+          isAuthenticated: true,
+          isLoading: false,
+          token,
         });
 
-        if (response.success) {
-          const token = response.token;
-          const user = response.user;
+        console.log('[Auth] Auth state updated, isAuthenticated:', true);
+        return true;
+      }
 
-          // Set tenant ID in API client
-          apiClient.setTenantId(user.tenantId);
-
-          // Save to localStorage
-          localStorage.setItem('authToken', token);
-          localStorage.setItem('authUser', JSON.stringify(user));
-
-          setAuthState({
-            user,
-            isAuthenticated: true,
-            isLoading: false,
-            token,
-          });
-
-          return true;
-        }
-      } else {
-        // Fallback to mock authentication for development
+      console.log('[Auth] Login failed: response.success is false');
+      setAuthState(prev => ({ ...prev, isLoading: false }));
+      return false;
+    } catch (error: any) {
+      console.error('[Auth] Login error:', error);
+      console.error('[Auth] Error details:', {
+        message: error?.message,
+        response: error?.response?.data,
+        status: error?.response?.status,
+        statusText: error?.response?.statusText,
+      });
+      
+      // Fallback to mock authentication for development if API fails
+      if (error?.response?.status === 404 || error?.message?.includes('Network') || error?.code === 'ECONNREFUSED') {
+        console.log('[Auth] API unavailable, falling back to mock authentication');
         await new Promise(resolve => setTimeout(resolve, 1000));
 
         const matchedCredential = MOCK_CREDENTIALS.find(
@@ -114,6 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         );
 
         if (matchedCredential) {
+          console.log('[Auth] Mock authentication successful');
           const token = `mock-jwt-token-${Date.now()}`;
           const user = matchedCredential.user;
 
@@ -135,13 +161,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           });
 
           return true;
+        } else {
+          console.log('[Auth] Mock authentication failed: no matching credentials');
         }
       }
-
-      setAuthState(prev => ({ ...prev, isLoading: false }));
-      return false;
-    } catch (error) {
-      console.error('Login error:', error);
       setAuthState(prev => ({ ...prev, isLoading: false }));
       return false;
     }

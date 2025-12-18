@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { getPrismaClient } from '../services/prisma.service';
+import * as bcrypt from 'bcryptjs';
 
 const router = Router();
 const prisma = getPrismaClient();
@@ -163,31 +164,24 @@ router.post('/api/tenants/register', async (req, res) => {
 // Login endpoint
 router.post('/api/auth/login', async (req, res) => {
   try {
-    const { email, password, tenantSlug } = req.body;
+    const { email, password } = req.body;
+
+    console.log('[API] Login attempt:', { email: email?.substring(0, 5) + '***', hasPassword: !!password });
 
     // Validate required fields
-    if (!email || !password || !tenantSlug) {
+    if (!email || !password) {
+      console.log('[API] Login failed: missing email or password');
       return res.status(400).json({
-        error: 'Email, password, and company selection are required',
+        error: 'Email and password are required',
       });
     }
 
-    // Find the tenant by slug
-    const tenant = await prisma.tenant.findUnique({
-      where: { slug: tenantSlug },
-    });
-
-    if (!tenant) {
-      return res.status(404).json({
-        error: 'Company not found',
-      });
-    }
-
-    // Find user by email and tenant
+    // Find user by email (across all tenants)
+    // Note: In a multi-tenant system, email should be unique per tenant, but we search across all tenants
+    // to automatically identify which tenant the user belongs to
     const user = await prisma.user.findFirst({
       where: {
-        email,
-        tenantId: tenant.id,
+        email: email.toLowerCase().trim(),
         isActive: true,
       },
       include: {
@@ -196,26 +190,73 @@ router.post('/api/auth/login', async (req, res) => {
             id: true,
             name: true,
             slug: true,
+            status: true,
           },
         },
       },
     });
 
+    console.log('[API] User lookup result:', { found: !!user, userId: user?.id, tenantId: user?.tenantId });
+
     if (!user) {
+      console.log('[API] Login failed: user not found');
       return res.status(401).json({
         error: 'Invalid email or password',
       });
     }
 
-    // Check password (in production, use bcrypt.compare)
-    if (user.passwordHash !== password) {
+    // Check if tenant is active
+    if (!user.tenant || (user.tenant.status !== 'ACTIVE' && user.tenant.status !== 'TRIAL')) {
+      console.log('[API] Login failed: tenant not active', { tenantStatus: user.tenant?.status });
+      return res.status(403).json({
+        error: 'Your company account is not active. Please contact your administrator.',
+      });
+    }
+
+    // Check password - handle both bcrypt hashed and plain text passwords
+    let passwordValid = false;
+    if (user.passwordHash) {
+      // Check if passwordHash looks like a bcrypt hash (starts with $2a$, $2b$, or $2y$)
+      const isBcryptHash = /^\$2[ayb]\$.{56}$/.test(user.passwordHash);
+      
+      if (isBcryptHash) {
+        // Use bcrypt.compare for hashed passwords
+        try {
+          passwordValid = await bcrypt.compare(password, user.passwordHash);
+          console.log('[API] Password check (bcrypt):', passwordValid);
+        } catch (bcryptError: any) {
+          console.error('[API] Bcrypt compare error:', bcryptError);
+          passwordValid = false;
+        }
+      } else {
+        // Plain text password - compare directly (for local development)
+        passwordValid = password === user.passwordHash;
+        console.log('[API] Password check (plain text):', passwordValid);
+      }
+    } else {
+      // Fallback for development/testing (remove in production)
+      // Only allow if passwordHash is null/empty and password matches a test password
+      passwordValid = password === 'password123';
+      console.log('[API] Password check (fallback - no hash):', passwordValid);
+    }
+
+    if (!passwordValid) {
+      console.log('[API] Login failed: invalid password');
       return res.status(401).json({
         error: 'Invalid email or password',
       });
     }
+
+    // Update last login time
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() },
+    });
 
     // Generate a simple token (in production, use JWT)
     const token = `token-${user.id}-${Date.now()}`;
+
+    console.log('[API] Login successful:', { userId: user.id, tenantId: user.tenantId });
 
     res.json({
       success: true,
@@ -233,7 +274,8 @@ router.post('/api/auth/login', async (req, res) => {
     });
   } catch (error: any) {
     console.error('[API] Login error:', error);
-    res.status(500).json({ error: error.message });
+    console.error('[API] Login error stack:', error.stack);
+    res.status(500).json({ error: error.message || 'Internal server error' });
   }
 });
 

@@ -4,37 +4,15 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/Button';
-import { WrenchIcon, CheckIcon, BuildingOffice2Icon } from '@heroicons/react/24/outline';
-import { MOCK_TENANTS } from '@/lib/mockData';
-import { apiClient } from '@/services/apiClient';
+import { WrenchIcon, CheckIcon } from '@heroicons/react/24/outline';
 
 export default function LoginPage() {
   const { login, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
-  const [formData, setFormData] = useState({ username: '', password: '', tenantSlug: '' });
+  const [formData, setFormData] = useState({ username: '', password: '' });
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  const [tenants, setTenants] = useState<any[]>([]);
-  const [loadingTenants, setLoadingTenants] = useState(true);
-
-  // Fetch tenants from API
-  useEffect(() => {
-    const fetchTenants = async () => {
-      try {
-        const response = await apiClient.get('/api/tenants');
-        setTenants(response.tenants || []);
-      } catch (err) {
-        console.error('Failed to fetch tenants:', err);
-        // Fallback to mock data if API fails
-        setTenants(MOCK_TENANTS);
-      } finally {
-        setLoadingTenants(false);
-      }
-    };
-
-    fetchTenants();
-  }, []);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -48,29 +26,21 @@ export default function LoginPage() {
     setIsSubmitting(true);
 
     try {
-      if (!formData.tenantSlug) {
-        setError('Please select a company');
-        setIsSubmitting(false);
-        return;
-      }
+      console.log('[Login Page] Attempting login with:', { email: formData.username });
+      
+      // Authenticate with API - tenant will be automatically identified from user credentials
+      const success = await login(formData.username, formData.password);
 
-      // Look up the tenant ID based on the slug
-      const selectedTenant = tenants.find(t => t.slug === formData.tenantSlug);
-      if (!selectedTenant) {
-        setError('Invalid company selection');
-        setIsSubmitting(false);
-        return;
-      }
-
-      // Authenticate with real API
-      const success = await login(formData.username, formData.password, formData.tenantSlug);
+      console.log('[Login Page] Login result:', success);
 
       if (!success) {
-        setError('Invalid email or password');
+        setError('Invalid email or password. Please check your credentials and try again.');
       }
-      // Note: tenant ID is set in the AuthContext after successful login
+      // Note: tenant ID is automatically set in the AuthContext after successful login
+      // The router will redirect to /dashboard if login is successful (handled by useEffect)
     } catch (err: any) {
-      const errorMessage = err?.response?.data?.error || 'Login failed. Please try again.';
+      console.error('[Login Page] Login error:', err);
+      const errorMessage = err?.response?.data?.error || err?.message || 'Login failed. Please try again.';
       setError(errorMessage);
     } finally {
       setIsSubmitting(false);
@@ -164,32 +134,6 @@ export default function LoginPage() {
                 {error}
               </div>
             )}
-            
-            <div className="space-y-2">
-              <label htmlFor="tenantSlug" className="block text-sm font-medium text-gray-700">
-                <div className="flex items-center">
-                  <BuildingOffice2Icon className="h-5 w-5 mr-1 text-gray-500" />
-                  Select Company
-                </div>
-              </label>
-              <select
-                id="tenantSlug"
-                value={formData.tenantSlug}
-                onChange={(e) => setFormData(prev => ({ ...prev, tenantSlug: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                required
-                disabled={loadingTenants}
-              >
-                <option value="">
-                  {loadingTenants ? 'Loading companies...' : 'Select a company'}
-                </option>
-                {tenants.map(tenant => (
-                  <option key={tenant.id} value={tenant.slug}>
-                    {tenant.name}
-                  </option>
-                ))}
-              </select>
-            </div>
             
             <div className="space-y-2">
               <label htmlFor="username" className="block text-sm font-medium text-gray-700">
