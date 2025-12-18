@@ -302,7 +302,7 @@ export function ChatBot({ onClose }: ChatBotProps) {
   return (
     <div className="fixed bottom-20 right-6 w-[400px] h-[600px] flex flex-col bg-white rounded-2xl shadow-2xl border border-gray-200 z-50 overflow-hidden">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#1a2a6c] to-[#1e40af] text-white p-4 flex items-center justify-between rounded-t-2xl">
+      <div className="bg-gradient-to-r from-[#1a2a6c] to-[#1e40af] text-white p-2 flex items-center justify-between rounded-t-2xl">
         <div className="flex items-center space-x-3">
           <div className="relative">
             <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">

@@ -93,7 +93,7 @@ export default function PricebookDetailPage({ params }: { params: Promise<{ slug
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#1a2a6c] to-[#1e40af] text-white p-6 shadow-lg">
+      <div className="bg-gradient-to-r from-[#1a2a6c] to-[#1e40af] text-white p-3 shadow-lg">
         <div className="max-w-7xl mx-auto">
           <Button
             variant="outline"
@@ -105,9 +105,11 @@ export default function PricebookDetailPage({ params }: { params: Promise<{ slug
             Back to Industries
           </Button>
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold capitalize">{slug} Services</h1>
-              <p className="text-blue-100 mt-1">{categories.length} categories available</p>
+            <div className="flex items-center space-x-4">
+              <div>
+                <h1 className="text-2xl font-bold capitalize">{slug} Services</h1>
+                <p className="text-sm text-blue-100">{categories.length} categories available</p>
+              </div>
             </div>
             <Button
               variant="success"

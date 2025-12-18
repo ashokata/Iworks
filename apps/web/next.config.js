@@ -14,15 +14,15 @@ const nextConfig = {
     return [
       {
         source: '/api-proxy/odata/:path*',
-        destination: 'http://localhost:8090/odata/:path*',
+        destination: 'http://localhost:4000/odata/:path*',
       },
       {
         source: '/api-proxy/rest/:path*',
-        destination: 'http://localhost:8090/rest/:path*',
+        destination: 'http://localhost:4000/rest/:path*',
       },
       {
         source: '/api-proxy/:path*',
-        destination: 'http://localhost:8090/:path*',
+        destination: 'http://localhost:4000/:path*',
       },
     ]
   },

@@ -21,12 +21,19 @@ export default function ChatPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
   };
 
   useEffect(() => {
-    scrollToBottom();
+    // Only scroll after messages are rendered
+    if (messages.length > 0) {
+      setTimeout(() => scrollToBottom(), 50);
+    }
   }, [messages]);
 
   useEffect(() => {
@@ -154,9 +161,9 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] bg-gray-50">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#1a2a6c] to-[#1e40af] text-white p-6 shadow-lg">
+      <div className="sticky top-0 z-20 bg-gradient-to-r from-[#1a2a6c] to-[#1e40af] text-white p-3 shadow-lg">
         <div className="flex items-center justify-between max-w-7xl mx-auto">
           <div className="flex items-center space-x-4">
             <div className="relative">
@@ -185,13 +192,17 @@ export default function ChatPage() {
       </div>
 
       {/* Messages Container */}
-      <div className="flex-1 overflow-y-auto p-6">
-        <div className="max-w-4xl mx-auto space-y-4">
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} animate-fadeIn`}
-            >
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="max-w-4xl mx-auto">
+          <div 
+            ref={messagesContainerRef}
+            className="space-y-4 min-h-[calc(100vh-300px)] max-h-[calc(100vh-300px)] overflow-y-auto"
+          >
+            {messages.map((message) => (
+              <div
+                key={message.id}
+                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} animate-fadeIn`}
+              >
               <div
                 className={`max-w-[70%] rounded-2xl px-5 py-4 ${
                   message.role === 'user'
@@ -239,26 +250,28 @@ export default function ChatPage() {
                   })}
                 </p>
               </div>
-            </div>
-          ))}
-          {isLoading && messages[messages.length - 1]?.role === 'user' && (
-            <div className="flex justify-start">
-              <div className="bg-white rounded-2xl rounded-bl-md px-5 py-4 shadow-md border border-gray-100">
-                <div className="flex space-x-2">
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+              </div>
+            ))}
+            {isLoading && messages[messages.length - 1]?.role === 'user' && (
+              <div className="flex justify-start">
+                <div className="bg-white rounded-2xl rounded-bl-md px-5 py-4 shadow-md border border-gray-100">
+                  <div className="flex space-x-2">
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
-          <div ref={messagesEndRef} />
+            )}
+            <div ref={messagesEndRef} />
+          </div>
         </div>
       </div>
 
       {/* Input Area */}
-      <div className="bg-white border-t border-gray-200 p-6 shadow-lg">
-        <div className="max-w-4xl mx-auto">
+      <div className="bg-white border-t border-gray-200 shadow-lg">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="max-w-4xl mx-auto">
           {/* Selected Attachments Preview */}
           {attachments.length > 0 && (
             <div className="mb-4 flex flex-wrap gap-2">
@@ -330,9 +343,10 @@ export default function ChatPage() {
               </svg>
             </Button>
           </div>
-          <p className="text-xs text-gray-400 mt-3 text-center">
-            AIRA - Powered by AWS Bedrock AI • Supports PDF, DOC, DOCX, TXT, and Images
-          </p>
+            <p className="text-xs text-gray-400 mt-3 text-center">
+              AIRA - Powered by AWS Bedrock AI • Supports PDF, DOC, DOCX, TXT, and Images
+            </p>
+          </div>
         </div>
       </div>
     </div>

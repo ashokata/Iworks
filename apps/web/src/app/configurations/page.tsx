@@ -125,25 +125,24 @@ export default function ConfigurationsPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#1a2a6c] to-[#1e40af] text-white p-6 shadow-lg">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between">
+      <div className="bg-gradient-to-r from-[#1a2a6c] to-[#1e40af] text-white p-3 shadow-lg">
+        <div className="flex items-center justify-between max-w-7xl mx-auto">
+          <div className="flex items-center space-x-4">
             <div>
-              <h1 className="text-3xl font-bold">Configurations</h1>
-              <p className="text-blue-100 mt-1">Manage master data and lookup tables for your organization</p>
+              <h1 className="text-2xl font-bold">Configurations</h1>
+              <p className="text-sm text-blue-100">Manage master data and lookup tables for your organization</p>
             </div>
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={() => router.push('/dashboard')}
-                className="px-4 py-2 bg-white text-[#1a2a6c] rounded-md text-sm font-medium hover:bg-gray-100 transition-colors"
-              >
-                Dashboard
-              </button>
-            </div>
+          </div>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="px-4 py-2 bg-white text-[#1a2a6c] rounded-md text-sm font-medium hover:bg-gray-100 transition-colors"
+            >
+              Dashboard
+            </button>
           </div>
         </div>
       </div>
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Tiles Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

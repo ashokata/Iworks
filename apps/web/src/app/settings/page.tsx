@@ -94,20 +94,20 @@ export default function SettingsPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#1a2a6c] to-[#1e40af] text-white p-6 shadow-lg">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between">
+      <div className="bg-gradient-to-r from-[#1a2a6c] to-[#1e40af] text-white p-3 shadow-lg">
+        <div className="flex items-center justify-between max-w-7xl mx-auto">
+          <div className="flex items-center space-x-4">
             <div>
-              <h1 className="text-3xl font-bold">Settings</h1>
-              <p className="text-blue-100 mt-1">Configure your account and preferences</p>
+              <h1 className="text-2xl font-bold">Settings</h1>
+              <p className="text-sm text-blue-100">Configure your account and preferences</p>
             </div>
-            <div className="flex items-center space-x-3">
-              {!isOnline && (
-                <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full">
-                  Offline Mode
-                </span>
-              )}
-            </div>
+          </div>
+          <div className="flex items-center space-x-3">
+            {!isOnline && (
+              <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full">
+                Offline Mode
+              </span>
+            )}
           </div>
         </div>
       </div>

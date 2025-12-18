@@ -75,13 +75,17 @@ export default function ServiceRequestsPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#1a2a6c] to-[#1e40af] text-white p-6 shadow-lg">
-        <div className="max-w-7xl mx-auto">
-          <h1 className="text-3xl font-bold flex items-center">
-            <PhoneIcon className="h-8 w-8 mr-3" />
-            Service Requests
-          </h1>
-          <p className="text-blue-100 mt-1">View service requests created by voice calls and other sources</p>
+      <div className="bg-gradient-to-r from-[#1a2a6c] to-[#1e40af] text-white p-3 shadow-lg">
+        <div className="flex items-center justify-between max-w-7xl mx-auto">
+          <div className="flex items-center space-x-4">
+            <div>
+              <h1 className="text-2xl font-bold flex items-center">
+                <PhoneIcon className="h-6 w-6 mr-3" />
+                Service Requests
+              </h1>
+              <p className="text-sm text-blue-100">View service requests created by voice calls and other sources</p>
+            </div>
+          </div>
         </div>
       </div>
 

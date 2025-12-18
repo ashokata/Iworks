@@ -237,7 +237,7 @@ export default function SidebarLayout({
       
       <div className={`flex flex-col h-screen w-0 flex-1 ${isCollapsed ? 'md:ml-16' : 'md:ml-56'} transition-all duration-300 overflow-y-auto`}>
         {/* Top header - visible on all screen sizes */}
-        <div className="sticky top-0 z-10 flex items-center h-16 bg-white border-b border-gray-200 px-4">
+        <div className="sticky top-0 z-10 flex items-center py-4 bg-white border-b border-gray-200 px-4">
           {/* Left section - Logo and mobile menu */}
           <div className="flex items-center flex-shrink-0">
             {/* Mobile menu button */}

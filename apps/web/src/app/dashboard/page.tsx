@@ -101,12 +101,12 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#1a2a6c] to-[#1e40af] text-white p-6 shadow-lg">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between">
+      <div className="bg-gradient-to-r from-[#1a2a6c] to-[#1e40af] text-white p-3 shadow-lg">
+        <div className="flex items-center justify-between max-w-7xl mx-auto">
+          <div className="flex items-center space-x-4">
             <div>
-              <h1 className="text-3xl font-bold">Welcome, {user?.name || 'User'}!</h1>
-              <p className="text-blue-100 mt-1">Here's your business overview and recent activity</p>
+              <h1 className="text-2xl font-bold">Welcome, {user?.name || 'User'}!</h1>
+              <p className="text-sm text-blue-100">Here's your business overview and recent activity</p>
             </div>
           </div>
         </div>

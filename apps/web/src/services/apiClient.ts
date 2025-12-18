@@ -227,12 +227,19 @@ class ApiClient {
       // #region agent log
       fetch('http://127.0.0.1:7242/ingest/c288bfc6-fede-4b2e-ba41-31212e9a87d0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'apiClient.ts:219',message:'POST request failed',data:{url:finalUrl,status:error?.response?.status,statusText:error?.response?.statusText,errorData:error?.response?.data,errorMessage:error?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
       // #endregion
-      console.error(`[API Client] POST error: ${finalUrl}`, error?.message);
+      console.error(`[API Client] POST error: ${finalUrl}`, error?.message || error);
+      console.error(`[API Client] Full error object:`, error);
       console.error(`[API Client] Error response:`, {
         status: error?.response?.status,
         statusText: error?.response?.statusText,
         data: error?.response?.data,
         headers: error?.response?.headers
+      });
+      console.error(`[API Client] Error code:`, error?.code);
+      console.error(`[API Client] Error request:`, {
+        url: error?.config?.url,
+        method: error?.config?.method,
+        baseURL: error?.config?.baseURL
       });
       throw error;
     }

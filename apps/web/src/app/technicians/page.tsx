@@ -444,23 +444,23 @@ export default function TechniciansPage() {
       )}
 
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#1a2a6c] to-[#1e40af] text-white p-6 shadow-lg">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between">
+      <div className="bg-gradient-to-r from-[#1a2a6c] to-[#1e40af] text-white p-3 shadow-lg">
+        <div className="flex items-center justify-between max-w-7xl mx-auto">
+          <div className="flex items-center space-x-4">
             <div>
-              <h1 className="text-3xl font-bold">Technicians</h1>
-              <p className="text-blue-100 mt-1">Manage your field technicians</p>
+              <h1 className="text-2xl font-bold">Technicians</h1>
+              <p className="text-sm text-blue-100">Manage your field technicians</p>
             </div>
-            <div className="flex items-center space-x-3">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => router.push('/dashboard')}
-                className="bg-white text-[#1a2a6c] hover:bg-gray-100"
-              >
-                Dashboard
-              </Button>
-            </div>
+          </div>
+          <div className="flex items-center space-x-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => router.push('/dashboard')}
+              className="bg-white text-[#1a2a6c] hover:bg-gray-100"
+            >
+              Dashboard
+            </Button>
           </div>
         </div>
       </div>
