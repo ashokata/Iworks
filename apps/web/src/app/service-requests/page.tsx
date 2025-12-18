@@ -75,7 +75,7 @@ export default function ServiceRequestsPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#0f118a] to-[#1e40af] text-white p-6 shadow-lg">
+      <div className="bg-gradient-to-r from-[#1a2a6c] to-[#1e40af] text-white p-6 shadow-lg">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-3xl font-bold flex items-center">
             <PhoneIcon className="h-8 w-8 mr-3" />

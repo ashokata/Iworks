@@ -73,7 +73,7 @@ export default function EmployeesPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#0f118a] to-[#1e40af] text-white p-6 shadow-lg">
+      <div className="bg-gradient-to-r from-[#1a2a6c] to-[#1e40af] text-white p-6 shadow-lg">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between">
             <div>
@@ -85,7 +85,7 @@ export default function EmployeesPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => router.push('/employees/create')}
-                className="bg-white text-[#0f118a] hover:bg-gray-100"
+                className="bg-white text-[#1a2a6c] hover:bg-gray-100"
               >
                 <PlusIcon className="h-4 w-4 mr-2" />
                 Add Employee
@@ -94,7 +94,7 @@ export default function EmployeesPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => router.push('/dashboard')}
-                className="bg-white text-[#0f118a] hover:bg-gray-100"
+                className="bg-white text-[#1a2a6c] hover:bg-gray-100"
               >
                 Dashboard
               </Button>

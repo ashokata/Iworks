@@ -156,7 +156,7 @@ export default function ChatPage() {
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)] bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#0f118a] to-[#1e40af] text-white p-6 shadow-lg">
+      <div className="bg-gradient-to-r from-[#1a2a6c] to-[#1e40af] text-white p-6 shadow-lg">
         <div className="flex items-center justify-between max-w-7xl mx-auto">
           <div className="flex items-center space-x-4">
             <div className="relative">
@@ -195,7 +195,7 @@ export default function ChatPage() {
               <div
                 className={`max-w-[70%] rounded-2xl px-5 py-4 ${
                   message.role === 'user'
-                    ? 'bg-[#0f118a] text-white rounded-br-md'
+                    ? 'bg-[#1a2a6c] text-white rounded-br-md'
                     : 'bg-white text-gray-800 rounded-bl-md shadow-md border border-gray-100'
                 }`}
               >
@@ -299,7 +299,7 @@ export default function ChatPage() {
             />
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="p-3 text-gray-500 hover:text-[#0f118a] hover:bg-gray-100 rounded-xl transition-colors"
+              className="p-3 text-gray-500 hover:text-[#1a2a6c] hover:bg-gray-100 rounded-xl transition-colors"
               disabled={isLoading}
               title="Attach files"
             >
@@ -316,14 +316,14 @@ export default function ChatPage() {
                 onChange={(e) => setInputMessage(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder="Type your message..."
-                className="w-full px-5 py-4 pr-12 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0f118a] focus:border-transparent resize-none bg-gray-50 text-base"
+                className="w-full px-5 py-4 pr-12 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1a2a6c] focus:border-transparent resize-none bg-gray-50 text-base"
                 disabled={isLoading}
               />
             </div>
             <Button
               onClick={handleSendMessage}
               disabled={(!inputMessage.trim() && attachments.length === 0) || isLoading}
-              className="px-5 py-4 bg-[#0f118a] text-white rounded-xl hover:bg-[#1e40af] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              className="px-5 py-4 bg-[#1a2a6c] text-white rounded-xl hover:bg-[#1e40af] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />

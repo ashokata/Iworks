@@ -50,7 +50,7 @@ export default function LoginPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1a2a6c]"></div>
       </div>
     );
   }
@@ -58,7 +58,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-gray-50">
       {/* Left Column - Content Centered */}
-      <div className="bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 text-white w-full md:w-1/2 p-8 md:p-12 flex items-center justify-center relative overflow-hidden">
+      <div className="bg-gradient-to-br from-[#1a2a6c] via-[#1a2a6c] to-[#1e40af] text-white w-full md:w-1/2 p-8 md:p-12 flex items-center justify-center relative overflow-hidden">
         {/* Background Pattern */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute inset-0" style={{
@@ -189,7 +189,7 @@ export default function LoginPage() {
                 id="username"
                 value={formData.username}
                 onChange={(e) => setFormData(prev => ({ ...prev, username: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-gray-900 placeholder-gray-400"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1a2a6c] focus:border-blue-500 transition-all text-gray-900 placeholder-gray-400"
                 placeholder="your@email.com"
                 required
                 autoComplete="email"
@@ -201,7 +201,7 @@ export default function LoginPage() {
                 <label htmlFor="password" className="block text-sm font-semibold text-gray-700">
                   Password
                 </label>
-                <a href="#" className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors">
+                <a href="#" className="text-sm font-medium text-[#1a2a6c] hover:text-[#1e40af] transition-colors">
                   Forgot password?
                 </a>
               </div>
@@ -210,7 +210,7 @@ export default function LoginPage() {
                 id="password"
                 value={formData.password}
                 onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-gray-900 placeholder-gray-400"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1a2a6c] focus:border-blue-500 transition-all text-gray-900 placeholder-gray-400"
                 placeholder="Enter your password"
                 required
                 autoComplete="current-password"
@@ -224,7 +224,7 @@ export default function LoginPage() {
                 type="checkbox"
                 checked={rememberMe}
                 onChange={() => setRememberMe(!rememberMe)}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
+                className="h-4 w-4 text-[#1a2a6c] focus:ring-[#1a2a6c] border-gray-300 rounded cursor-pointer"
               />
               <label htmlFor="remember-me" className="ml-3 block text-sm text-gray-700 cursor-pointer">
                 Remember me for 30 days
@@ -233,7 +233,7 @@ export default function LoginPage() {
             
             <Button
               type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-[1.02]"
+              className="w-full bg-[#1a2a6c] hover:bg-[#1e40af] text-white font-semibold py-3 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-[1.02]"
               loading={isSubmitting}
               disabled={isSubmitting}
             >
@@ -243,7 +243,7 @@ export default function LoginPage() {
             <div className="mt-8 pt-6 border-t border-gray-200 text-center">
               <p className="text-sm text-gray-600">
                 Don't have an account?{' '}
-                <a href="/register" className="font-semibold text-blue-600 hover:text-blue-700 transition-colors">
+                <a href="/register" className="font-semibold text-[#1a2a6c] hover:text-[#1e40af] transition-colors">
                   Register your company
                 </a>
               </p>

@@ -11,7 +11,7 @@ export function ChatButton() {
       {/* Floating Chat Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-[#0f118a] to-[#1e40af] text-white rounded-full shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 z-50 flex items-center justify-center group"
+        className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-[#1a2a6c] to-[#1e40af] text-white rounded-full shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 z-50 flex items-center justify-center group"
         aria-label="Open AI Chat"
       >
         {isOpen ? (

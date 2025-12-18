@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
-import { WrenchIcon, BuildingOffice2Icon } from '@heroicons/react/24/outline';
+import { CheckIcon, BuildingOffice2Icon } from '@heroicons/react/24/outline';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -128,82 +128,104 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row">
-      {/* Left Column - Blue Side */}
-      <div className="bg-blue-600 text-white w-full md:w-1/2 p-8 flex flex-col">
-        <div className="flex items-center mb-12">
-          <img
-            src="/infield-works-logo.png"
-            alt="InField Works"
-            className="h-12 w-auto mr-3"
-            onError={(e) => {
-              e.currentTarget.style.display = 'none';
-            }}
-          />
+    <div className="min-h-screen flex flex-col md:flex-row bg-gray-50">
+      {/* Left Column - Content Centered */}
+      <div className="bg-gradient-to-br from-[#1a2a6c] via-[#1a2a6c] to-[#1e40af] text-white w-full md:w-1/2 p-8 md:p-12 flex items-center justify-center relative overflow-hidden">
+        {/* Background Pattern */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute inset-0" style={{
+            backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)',
+            backgroundSize: '40px 40px'
+          }}></div>
+        </div>
+        
+        {/* Content Section - Centered */}
+        <div className="relative z-10 max-w-lg w-full space-y-8">
           <div>
-            <h1 className="text-2xl font-bold">InField Works</h1>
-            <p className="text-sm">Smart Field Solutions</p>
+            <h1 className="text-4xl md:text-5xl font-bold mb-4 leading-tight">
+              Transform Your Field Service Business
+            </h1>
+            <p className="text-blue-100 text-lg md:text-xl leading-relaxed">
+              Start your free 15-day trial and discover how InField Works can streamline operations, boost productivity, and delight customers.
+            </p>
           </div>
-        </div>
-        
-        <div className="flex-1 flex flex-col justify-center">
-          <h2 className="text-3xl font-bold mb-6">Transform Your Field Service Business</h2>
-          <p className="text-xl text-blue-100 mb-8">
-            Start your free 15-day trial and discover how InField Works can streamline operations, boost productivity, and delight customers.
-          </p>
           
-          <div className="space-y-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center">
-                <span className="text-white font-bold">1</span>
+          <div className="space-y-6 pt-4">
+            <div className="flex items-start space-x-3">
+              <div className="flex-shrink-0 mt-1">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg transition-all ${
+                  step >= 1 ? 'bg-white bg-opacity-30' : 'bg-white bg-opacity-10'
+                }`}>
+                  {step > 1 ? <CheckIcon className="h-6 w-6 text-white" /> : '1'}
+                </div>
               </div>
-              <div className="ml-4">
-                <h3 className="text-lg font-medium">Register your company</h3>
-                <p className="text-blue-100">Create your organization's account</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center">
-              <div className="flex-shrink-0 h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center">
-                <span className="text-white font-bold">2</span>
-              </div>
-              <div className="ml-4">
-                <h3 className="text-lg font-medium">Set up admin account</h3>
-                <p className="text-blue-100">Create your admin credentials</p>
+              <div>
+                <h3 className="font-semibold text-lg mb-1">Register your company</h3>
+                <p className="text-blue-100 text-sm">Create your organization's account</p>
               </div>
             </div>
             
-            <div className="flex items-center">
-              <div className="flex-shrink-0 h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center">
-                <span className="text-white font-bold">3</span>
+            <div className="flex items-start space-x-3">
+              <div className="flex-shrink-0 mt-1">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg transition-all ${
+                  step >= 2 ? 'bg-white bg-opacity-30' : 'bg-white bg-opacity-10'
+                }`}>
+                  {step > 2 ? <CheckIcon className="h-6 w-6 text-white" /> : '2'}
+                </div>
               </div>
-              <div className="ml-4">
-                <h3 className="text-lg font-medium">Start managing your business</h3>
-                <p className="text-blue-100">Access all features instantly</p>
+              <div>
+                <h3 className="font-semibold text-lg mb-1">Set up admin account</h3>
+                <p className="text-blue-100 text-sm">Create your administrator credentials</p>
+              </div>
+            </div>
+            
+            <div className="flex items-start space-x-3">
+              <div className="flex-shrink-0 mt-1">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg transition-all ${
+                  step >= 3 ? 'bg-white bg-opacity-30' : 'bg-white bg-opacity-10'
+                }`}>
+                  3
+                </div>
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg mb-1">Start managing your business</h3>
+                <p className="text-blue-100 text-sm">Access all features instantly</p>
               </div>
             </div>
           </div>
-        </div>
-        
-        <div className="mt-12">
-          <p className="text-blue-100">Already have an account?</p>
-          <button 
-            onClick={() => router.push('/login')}
-            className="mt-2 text-white font-medium underline"
-          >
-            Sign in to your account
-          </button>
+          
+          <div className="pt-6 border-t border-white border-opacity-20">
+            <p className="text-blue-100 text-sm mb-3">Trusted by leading service companies</p>
+            <div className="flex flex-wrap gap-4 text-sm">
+              <span className="px-3 py-1 bg-white bg-opacity-10 rounded-full backdrop-blur-sm">TechServe</span>
+              <span className="px-3 py-1 bg-white bg-opacity-10 rounded-full backdrop-blur-sm">RepairPro</span>
+              <span className="px-3 py-1 bg-white bg-opacity-10 rounded-full backdrop-blur-sm">FixItNow</span>
+            </div>
+          </div>
         </div>
       </div>
       
       {/* Right Column - Registration Form */}
-      <div className="bg-white w-full md:w-1/2 p-8 flex items-center justify-center">
-        <div className="w-full max-w-md">
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-900">
+      <div className="bg-white w-full md:w-1/2 p-8 md:p-12 flex items-center justify-center relative">
+        {/* Logo - Top Right */}
+        <div className="absolute top-4 right-8 md:top-6 md:right-12 z-10">
+          <img 
+            src="/infield-works-logo.png" 
+            alt="InField Works" 
+            className="h-10 md:h-12"
+            onError={(e) => {
+              const target = e.currentTarget as HTMLImageElement;
+              target.style.display = 'none';
+            }}
+          />
+        </div>
+        
+        <div className="max-w-md w-full pt-6 md:pt-8">
+          <div className="mb-8 pr-16 md:pr-20">
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">
               {step === 1 ? 'Register Your Company' : 'Create Admin Account'}
             </h2>
-            <p className="text-gray-600 mt-2">
+            <p className="text-gray-600">
               {step === 1 
                 ? 'Enter your company details to get started' 
                 : 'Set up your administrator account'}
@@ -211,19 +233,22 @@ export default function RegisterPage() {
           </div>
           
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
-              {error}
+            <div className="bg-red-50 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded-md flex items-start mb-6">
+              <svg className="h-5 w-5 text-red-500 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+              <span className="text-sm">{error}</span>
             </div>
           )}
           
-          <form onSubmit={step === 1 ? handleNextStep : handleSubmit}>
+          <form onSubmit={step === 1 ? handleNextStep : handleSubmit} className="space-y-5">
             {step === 1 ? (
               // Step 1: Company Information
-              <div className="space-y-4">
-                <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+              <div className="space-y-5">
+                <div className="space-y-2">
+                  <label htmlFor="name" className="block text-sm font-semibold text-gray-700">
                     <div className="flex items-center">
-                      <BuildingOffice2Icon className="h-5 w-5 mr-1 text-gray-400" />
+                      <BuildingOffice2Icon className="h-5 w-5 mr-2 text-gray-400" />
                       Company Name
                     </div>
                   </label>
@@ -233,13 +258,14 @@ export default function RegisterPage() {
                     name="name"
                     value={companyData.name}
                     onChange={handleCompanyDataChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1a2a6c] focus:border-blue-500 transition-all text-gray-900 placeholder-gray-400"
+                    placeholder="Your Company Name"
                     required
                   />
                 </div>
                 
-                <div>
-                  <label htmlFor="domain" className="block text-sm font-medium text-gray-700 mb-1">
+                <div className="space-y-2">
+                  <label htmlFor="domain" className="block text-sm font-semibold text-gray-700">
                     Company Domain
                   </label>
                   <div className="flex">
@@ -249,17 +275,18 @@ export default function RegisterPage() {
                       name="domain"
                       value={companyData.domain}
                       onChange={handleCompanyDataChange}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md"
+                      className="flex-1 px-4 py-3 border border-gray-300 rounded-l-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1a2a6c] focus:border-blue-500 transition-all text-gray-900 placeholder-gray-400"
+                      placeholder="yourcompany"
                       required
                     />
-                    <span className="inline-flex items-center px-3 py-2 border border-l-0 border-gray-300 bg-gray-50 text-gray-500 rounded-r-md">
+                    <span className="inline-flex items-center px-4 py-3 border border-l-0 border-gray-300 bg-gray-50 text-gray-500 rounded-r-lg">
                       .com
                     </span>
                   </div>
                 </div>
                 
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                <div className="space-y-2">
+                  <label htmlFor="email" className="block text-sm font-semibold text-gray-700">
                     Company Email
                   </label>
                   <input
@@ -268,13 +295,14 @@ export default function RegisterPage() {
                     name="email"
                     value={companyData.email}
                     onChange={handleCompanyDataChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1a2a6c] focus:border-blue-500 transition-all text-gray-900 placeholder-gray-400"
+                    placeholder="contact@yourcompany.com"
                     required
                   />
                 </div>
                 
-                <div>
-                  <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+                <div className="space-y-2">
+                  <label htmlFor="phone" className="block text-sm font-semibold text-gray-700">
                     Phone Number
                   </label>
                   <input
@@ -283,12 +311,13 @@ export default function RegisterPage() {
                     name="phone"
                     value={companyData.phone}
                     onChange={handleCompanyDataChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1a2a6c] focus:border-blue-500 transition-all text-gray-900 placeholder-gray-400"
+                    placeholder="+1 (555) 123-4567"
                   />
                 </div>
                 
-                <div>
-                  <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">
+                <div className="space-y-2">
+                  <label htmlFor="address" className="block text-sm font-semibold text-gray-700">
                     Address
                   </label>
                   <input
@@ -297,13 +326,14 @@ export default function RegisterPage() {
                     name="address"
                     value={companyData.address}
                     onChange={handleCompanyDataChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1a2a6c] focus:border-blue-500 transition-all text-gray-900 placeholder-gray-400"
+                    placeholder="123 Main Street"
                   />
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-1">
+                  <div className="space-y-2">
+                    <label htmlFor="city" className="block text-sm font-semibold text-gray-700">
                       City
                     </label>
                     <input
@@ -312,12 +342,13 @@ export default function RegisterPage() {
                       name="city"
                       value={companyData.city}
                       onChange={handleCompanyDataChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1a2a6c] focus:border-blue-500 transition-all text-gray-900 placeholder-gray-400"
+                      placeholder="City"
                     />
                   </div>
                   
-                  <div>
-                    <label htmlFor="state" className="block text-sm font-medium text-gray-700 mb-1">
+                  <div className="space-y-2">
+                    <label htmlFor="state" className="block text-sm font-semibold text-gray-700">
                       State
                     </label>
                     <input
@@ -326,14 +357,15 @@ export default function RegisterPage() {
                       name="state"
                       value={companyData.state}
                       onChange={handleCompanyDataChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1a2a6c] focus:border-blue-500 transition-all text-gray-900 placeholder-gray-400"
+                      placeholder="State"
                     />
                   </div>
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="zipCode" className="block text-sm font-medium text-gray-700 mb-1">
+                  <div className="space-y-2">
+                    <label htmlFor="zipCode" className="block text-sm font-semibold text-gray-700">
                       ZIP Code
                     </label>
                     <input
@@ -342,12 +374,13 @@ export default function RegisterPage() {
                       name="zipCode"
                       value={companyData.zipCode}
                       onChange={handleCompanyDataChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1a2a6c] focus:border-blue-500 transition-all text-gray-900 placeholder-gray-400"
+                      placeholder="12345"
                     />
                   </div>
                   
-                  <div>
-                    <label htmlFor="country" className="block text-sm font-medium text-gray-700 mb-1">
+                  <div className="space-y-2">
+                    <label htmlFor="country" className="block text-sm font-semibold text-gray-700">
                       Country
                     </label>
                     <select
@@ -355,7 +388,7 @@ export default function RegisterPage() {
                       name="country"
                       value={companyData.country}
                       onChange={handleCompanyDataChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1a2a6c] focus:border-blue-500 transition-all text-gray-900"
                     >
                       <option value="United States">United States</option>
                       <option value="Canada">Canada</option>
@@ -367,10 +400,10 @@ export default function RegisterPage() {
               </div>
             ) : (
               // Step 2: Admin Information
-              <div className="space-y-4">
+              <div className="space-y-5">
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
+                  <div className="space-y-2">
+                    <label htmlFor="firstName" className="block text-sm font-semibold text-gray-700">
                       First Name
                     </label>
                     <input
@@ -379,13 +412,14 @@ export default function RegisterPage() {
                       name="firstName"
                       value={adminData.firstName}
                       onChange={handleAdminDataChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1a2a6c] focus:border-blue-500 transition-all text-gray-900 placeholder-gray-400"
+                      placeholder="John"
                       required
                     />
                   </div>
                   
-                  <div>
-                    <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
+                  <div className="space-y-2">
+                    <label htmlFor="lastName" className="block text-sm font-semibold text-gray-700">
                       Last Name
                     </label>
                     <input
@@ -394,14 +428,15 @@ export default function RegisterPage() {
                       name="lastName"
                       value={adminData.lastName}
                       onChange={handleAdminDataChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1a2a6c] focus:border-blue-500 transition-all text-gray-900 placeholder-gray-400"
+                      placeholder="Doe"
                       required
                     />
                   </div>
                 </div>
                 
-                <div>
-                  <label htmlFor="adminEmail" className="block text-sm font-medium text-gray-700 mb-1">
+                <div className="space-y-2">
+                  <label htmlFor="adminEmail" className="block text-sm font-semibold text-gray-700">
                     Email Address
                   </label>
                   <input
@@ -410,13 +445,14 @@ export default function RegisterPage() {
                     name="email"
                     value={adminData.email}
                     onChange={handleAdminDataChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1a2a6c] focus:border-blue-500 transition-all text-gray-900 placeholder-gray-400"
+                    placeholder="admin@yourcompany.com"
                     required
                   />
                 </div>
                 
-                <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                <div className="space-y-2">
+                  <label htmlFor="password" className="block text-sm font-semibold text-gray-700">
                     Password
                   </label>
                   <input
@@ -425,7 +461,8 @@ export default function RegisterPage() {
                     name="password"
                     value={adminData.password}
                     onChange={handleAdminDataChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1a2a6c] focus:border-blue-500 transition-all text-gray-900 placeholder-gray-400"
+                    placeholder="Enter your password"
                     required
                     minLength={8}
                   />
@@ -434,8 +471,8 @@ export default function RegisterPage() {
                   </p>
                 </div>
                 
-                <div>
-                  <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
+                <div className="space-y-2">
+                  <label htmlFor="confirmPassword" className="block text-sm font-semibold text-gray-700">
                     Confirm Password
                   </label>
                   <input
@@ -444,19 +481,21 @@ export default function RegisterPage() {
                     name="confirmPassword"
                     value={adminData.confirmPassword}
                     onChange={handleAdminDataChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1a2a6c] focus:border-blue-500 transition-all text-gray-900 placeholder-gray-400"
+                    placeholder="Confirm your password"
                     required
                   />
                 </div>
               </div>
             )}
             
-            <div className={`mt-8 ${step === 2 ? 'flex justify-between' : ''}`}>
+            <div className={`pt-6 ${step === 2 ? 'flex justify-between items-center' : ''}`}>
               {step === 2 && (
                 <Button 
                   type="button"
                   variant="outline"
                   onClick={handlePrevStep}
+                  className="px-6"
                 >
                   Back
                 </Button>
@@ -466,10 +505,20 @@ export default function RegisterPage() {
                 type={step === 1 ? 'button' : 'submit'}
                 onClick={step === 1 ? handleNextStep : undefined}
                 disabled={isSubmitting}
-                className={step === 1 ? 'w-full' : ''}
+                className={`${step === 1 ? 'w-full' : ''} bg-[#1a2a6c] hover:bg-[#1e40af] text-white font-semibold py-3 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-[1.02]`}
+                loading={isSubmitting}
               >
-                {step === 1 ? 'Next' : isSubmitting ? 'Registering...' : 'Complete Registration'}
+                {step === 1 ? 'Continue' : isSubmitting ? 'Registering...' : 'Complete Registration'}
               </Button>
+            </div>
+
+            <div className="mt-8 pt-6 border-t border-gray-200 text-center">
+              <p className="text-sm text-gray-600">
+                Already have an account?{' '}
+                <a href="/login" className="font-semibold text-[#1a2a6c] hover:text-[#1e40af] transition-colors">
+                  Sign in
+                </a>
+              </p>
             </div>
           </form>
         </div>

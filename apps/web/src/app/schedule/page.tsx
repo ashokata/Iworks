@@ -108,7 +108,7 @@ export default function SchedulePage() {
           <div className="flex items-center space-x-3">
             <Button
               onClick={() => setShowDispatchPanel(!showDispatchPanel)}
-              className="bg-[#0f118a] hover:bg-[#1e40af]"
+              className="bg-[#1a2a6c] hover:bg-[#1e40af]"
             >
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -177,7 +177,7 @@ export default function SchedulePage() {
         <div className="lg:col-span-3">
           <Card className="p-0 overflow-hidden">
             {/* Calendar Header */}
-            <div className="bg-gradient-to-r from-[#0f118a] to-[#1e40af] text-white p-4">
+            <div className="bg-gradient-to-r from-[#1a2a6c] to-[#1e40af] text-white p-4">
               <h2 className="text-xl font-semibold">Technician Schedule</h2>
               <p className="text-sm text-blue-100 mt-1">Drag and drop jobs to assign technicians</p>
             </div>

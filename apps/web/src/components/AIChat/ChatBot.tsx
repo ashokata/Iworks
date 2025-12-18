@@ -302,7 +302,7 @@ export function ChatBot({ onClose }: ChatBotProps) {
   return (
     <div className="fixed bottom-20 right-6 w-[400px] h-[600px] flex flex-col bg-white rounded-2xl shadow-2xl border border-gray-200 z-50 overflow-hidden">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#0f118a] to-[#1e40af] text-white p-4 flex items-center justify-between rounded-t-2xl">
+      <div className="bg-gradient-to-r from-[#1a2a6c] to-[#1e40af] text-white p-4 flex items-center justify-between rounded-t-2xl">
         <div className="flex items-center space-x-3">
           <div className="relative">
             <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
@@ -348,7 +348,7 @@ export function ChatBot({ onClose }: ChatBotProps) {
             <div
               className={`max-w-[80%] rounded-2xl px-4 py-3 ${
                 message.role === 'user'
-                  ? 'bg-[#0f118a] text-white rounded-br-md'
+                  ? 'bg-[#1a2a6c] text-white rounded-br-md'
                   : 'bg-white text-gray-800 rounded-bl-md shadow-sm border border-gray-100'
               }`}
             >
@@ -463,7 +463,7 @@ export function ChatBot({ onClose }: ChatBotProps) {
           />
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="p-3 text-gray-500 hover:text-[#0f118a] hover:bg-gray-100 rounded-xl transition-colors"
+            className="p-3 text-gray-500 hover:text-[#1a2a6c] hover:bg-gray-100 rounded-xl transition-colors"
             disabled={isLoading}
             title="Attach files"
           >
@@ -479,7 +479,7 @@ export function ChatBot({ onClose }: ChatBotProps) {
               className={`p-3 rounded-xl transition-all ${
                 isListening
                   ? 'bg-red-500 text-white hover:bg-red-600 animate-pulse'
-                  : 'text-gray-500 hover:text-[#0f118a] hover:bg-gray-100'
+                  : 'text-gray-500 hover:text-[#1a2a6c] hover:bg-gray-100'
               }`}
               disabled={isLoading}
               title={isListening ? 'Stop listening' : 'Voice input'}
@@ -506,7 +506,7 @@ export function ChatBot({ onClose }: ChatBotProps) {
               onChange={(e) => setInputMessage(e.target.value)}
               onKeyPress={handleKeyPress}
               placeholder={isListening ? "Speak now..." : "Type or speak your message..."}
-              className={`w-full px-4 py-3 pr-12 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0f118a] focus:border-transparent resize-none ${
+              className={`w-full px-4 py-3 pr-12 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1a2a6c] focus:border-transparent resize-none ${
                 isListening ? 'bg-red-50 border-red-300' : 'bg-gray-50 border-gray-300'
               }`}
               disabled={isLoading}
@@ -515,7 +515,7 @@ export function ChatBot({ onClose }: ChatBotProps) {
           <Button
             onClick={handleSendMessage}
             disabled={(!inputMessage.trim() && attachments.length === 0) || isLoading}
-            className="px-4 py-3 bg-[#0f118a] text-white rounded-xl hover:bg-[#1e40af] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            className="px-4 py-3 bg-[#1a2a6c] text-white rounded-xl hover:bg-[#1e40af] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />

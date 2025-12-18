@@ -123,7 +123,7 @@ export default function SidebarLayout({
           ></div>
           
           {/* Sidebar */}
-          <div className="relative flex-1 flex flex-col max-w-xs w-full bg-[#0f118a]">
+          <div className="relative flex-1 flex flex-col max-w-xs w-full bg-[#1a2a6c]">
             <div className="absolute top-0 right-0 -mr-12 pt-2">
               <button
                 type="button"
@@ -180,9 +180,9 @@ export default function SidebarLayout({
       <div className={`hidden md:flex md:flex-shrink-0 md:fixed md:inset-y-0 md:z-10 transition-all duration-300 ${isCollapsed ? 'w-16' : 'w-56'}`}>
         <div className={`flex flex-col ${isCollapsed ? 'w-16' : 'w-56'} transition-all duration-300`}>
           {/* Sidebar component */}
-          <div className="flex flex-col h-full bg-[#0f118a] overflow-y-auto">
+          <div className="flex flex-col h-full bg-[#1a2a6c] overflow-y-auto">
             <div className="flex-grow flex flex-col">
-              <nav className="flex-1 bg-[#0f118a] space-y-0 pt-4">
+              <nav className="flex-1 bg-[#1a2a6c] space-y-0 pt-4">
                 {navigation.map((item) => (
                   <Link
                     key={item.name}
