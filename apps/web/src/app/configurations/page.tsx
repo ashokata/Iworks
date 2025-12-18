@@ -13,6 +13,10 @@ import {
   ListBulletIcon,
   BuildingOfficeIcon,
   Cog6ToothIcon,
+  BookOpenIcon,
+  RectangleStackIcon,
+  ClipboardDocumentListIcon,
+  ChartBarIcon,
 } from '@heroicons/react/24/outline';
 
 interface ConfigurationTile {
@@ -81,6 +85,38 @@ const configurationTiles: ConfigurationTile[] = [
     href: '/configurations/permissions',
     color: 'bg-red-500',
   },
+  {
+    id: 'pricebook',
+    name: 'Pricebook',
+    description: 'Browse catalog of industry-specific service templates',
+    icon: BookOpenIcon,
+    href: '/pricebook',
+    color: 'bg-teal-500',
+  },
+  {
+    id: 'manage-catalog',
+    name: 'Manage Catalog',
+    description: 'Create and manage service catalog categories',
+    icon: RectangleStackIcon,
+    href: '/pricebook/manage',
+    color: 'bg-cyan-500',
+  },
+  {
+    id: 'service-requests',
+    name: 'Service Requests',
+    description: 'View and manage service requests from voice agents',
+    icon: ClipboardDocumentListIcon,
+    href: '/service-requests',
+    color: 'bg-pink-500',
+  },
+  {
+    id: 'reports',
+    name: 'Reports',
+    description: 'View financial summaries, job metrics, and analytics',
+    icon: ChartBarIcon,
+    href: '/reports',
+    color: 'bg-emerald-500',
+  },
 ];
 
 export default function ConfigurationsPage() {
@@ -88,15 +124,27 @@ export default function ConfigurationsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Configurations</h1>
-          <p className="mt-2 text-sm text-gray-600">
-            Manage master data and lookup tables for your organization
-          </p>
+      {/* Header */}
+      <div className="bg-gradient-to-r from-[#1a2a6c] to-[#1e40af] text-white p-6 shadow-lg">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold">Configurations</h1>
+              <p className="text-blue-100 mt-1">Manage master data and lookup tables for your organization</p>
+            </div>
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => router.push('/dashboard')}
+                className="px-4 py-2 bg-white text-[#1a2a6c] rounded-md text-sm font-medium hover:bg-gray-100 transition-colors"
+              >
+                Dashboard
+              </button>
+            </div>
+          </div>
         </div>
+      </div>
 
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Tiles Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {configurationTiles.map((tile) => {

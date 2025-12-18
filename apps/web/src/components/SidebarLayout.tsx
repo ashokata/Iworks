@@ -13,7 +13,6 @@ import {
   UserIcon,
   DocumentTextIcon,
   Cog6ToothIcon,
-  ChartBarIcon,
   CalendarIcon,
   ArrowRightStartOnRectangleIcon,
   Bars3Icon,
@@ -22,10 +21,7 @@ import {
   ChatBubbleLeftRightIcon,
   ChevronDoubleLeftIcon,
   ChevronDoubleRightIcon,
-  BookOpenIcon,
-  ShieldCheckIcon,
-  WrenchScrewdriverIcon,
-  PhoneIcon
+  TruckIcon,
 } from '@heroicons/react/24/outline';
 import { ChatButton } from '@/components/AIChat';
 // Import custom icon if needed
@@ -86,17 +82,12 @@ export default function SidebarLayout({
     { name: 'AI Chat', href: '/chat', icon: ChatBubbleLeftRightIcon, current: pathname === '/chat' },
     { name: 'Jobs', href: '/jobs', icon: BriefcaseIcon, current: pathname === '/jobs' || pathname.startsWith('/jobs/') },
     { name: 'Schedule', href: '/schedule', icon: CalendarIcon, current: pathname === '/schedule' || pathname.startsWith('/schedule/') },
-    { name: 'Dispatch', href: '/dispatch', icon: CalendarIcon, current: pathname === '/dispatch' },
+    { name: 'Dispatch', href: '/dispatch', icon: TruckIcon, current: pathname === '/dispatch' },
     { name: 'Customers', href: '/customers', icon: UserGroupIcon, current: pathname === '/customers' || pathname.startsWith('/customers/') },
     { name: 'Technicians', href: '/technicians', icon: UserIcon, current: pathname === '/technicians' || pathname.startsWith('/technicians/') },
     { name: 'Employees', href: '/employees', icon: UserGroupIcon, current: pathname === '/employees' || pathname.startsWith('/employees/') },
-    { name: 'Pricebook', href: '/pricebook', icon: BookOpenIcon, current: pathname === '/pricebook' || (pathname.startsWith('/pricebook/') && !pathname.startsWith('/pricebook/manage')) },
-    { name: 'Manage Catalog', href: '/pricebook/manage', icon: WrenchScrewdriverIcon, current: pathname === '/pricebook/manage' || pathname.startsWith('/pricebook/manage/') },
-    { name: 'Service Requests', href: '/service-requests', icon: PhoneIcon, current: pathname === '/service-requests' },
     { name: 'Invoices', href: '/invoices', icon: DocumentTextIcon, current: pathname === '/invoices' || pathname.startsWith('/invoices/') },
-    { name: 'Reports', href: '/reports', icon: ChartBarIcon, current: pathname === '/reports' || pathname.startsWith('/reports/') },
-    { name: 'Configurations', href: '/configurations', icon: Cog6ToothIcon, current: pathname === '/configurations' || pathname.startsWith('/configurations/') },
-    { name: 'Permissions', href: '/settings/permissions', icon: ShieldCheckIcon, current: pathname === '/settings/permissions' || pathname.startsWith('/settings/permissions/') },
+    { name: 'Configurations', href: '/configurations', icon: Cog6ToothIcon, current: pathname === '/configurations' || pathname.startsWith('/configurations/') || pathname.startsWith('/pricebook') || pathname.startsWith('/service-requests') || pathname.startsWith('/reports') },
     { name: 'Settings', href: '/settings', icon: Cog6ToothIcon, current: pathname === '/settings' || pathname.startsWith('/settings/') },
   ];
 
@@ -187,10 +178,10 @@ export default function SidebarLayout({
                   <Link
                     key={item.name}
                     href={item.href}
-                    className={`group flex items-center ${isCollapsed ? 'justify-center px-2' : 'px-4'} py-3 text-sm font-bold transition-all ${
+                    className={`group flex items-center ${isCollapsed ? 'justify-center px-2' : 'px-4'} py-3 text-sm font-bold transition-all duration-200 ${
                       item.current
-                        ? `bg-blue-700 text-white ${!isCollapsed && 'border-l-4 border-white'} ${styles.navLinkActive}`
-                        : `text-white hover:bg-blue-800 hover:text-white hover:shadow-inner ${styles.navLinkShine}`
+                        ? `bg-white/10 text-white ${!isCollapsed && 'border-l-4 border-blue-300'} shadow-lg ${styles.navLinkActive}`
+                        : `text-blue-100 hover:bg-white/10 hover:text-white ${!isCollapsed && 'hover:border-l-4 hover:border-blue-300'} hover:shadow-lg ${styles.navLinkShine}`
                     }`}
                     title={isCollapsed ? item.name : ''}
                   >

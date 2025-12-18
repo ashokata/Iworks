@@ -97,7 +97,30 @@ export default function SchedulePage() {
   const hours = Array.from({ length: 12 }, (_, i) => i + 8); // 8 AM to 8 PM
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-[#1a2a6c] to-[#1e40af] text-white p-6 shadow-lg">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold">Schedule</h1>
+              <p className="text-blue-100 mt-1">Manage technician schedules and job assignments</p>
+            </div>
+            <div className="flex items-center space-x-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.location.href = '/dashboard'}
+                className="bg-white text-[#1a2a6c] hover:bg-gray-100"
+              >
+                Dashboard
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-6">
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center justify-between">
@@ -382,6 +405,7 @@ export default function SchedulePage() {
           </Card>
         </div>
       )}
+      </div>
     </div>
   );
 }
