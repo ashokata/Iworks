@@ -103,8 +103,8 @@ export default function SchedulePage() {
         <div className="flex items-center justify-between max-w-7xl mx-auto">
           <div className="flex items-center space-x-4">
             <div>
-              <h1 className="text-2xl font-bold">Schedule</h1>
-              <p className="text-sm text-blue-100">Manage technician schedules and job assignments</p>
+              <h1 className="text-2xl font-bold">Schedule & Dispatch</h1>
+              <p className="text-sm text-blue-100">Manage technician schedules and dispatch jobs efficiently</p>
             </div>
           </div>
           <div className="flex items-center space-x-3">
@@ -121,30 +121,24 @@ export default function SchedulePage() {
       </div>
 
       <div className="p-6">
-      {/* Header */}
+      {/* Action Buttons */}
       <div className="mb-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Schedule & Dispatch</h1>
-            <p className="text-gray-600 mt-1">Manage technician schedules and dispatch jobs efficiently</p>
-          </div>
-          <div className="flex items-center space-x-3">
-            <Button
-              onClick={() => setShowDispatchPanel(!showDispatchPanel)}
-              className="bg-[#1a2a6c] hover:bg-[#1e40af]"
-            >
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-              Auto Dispatch
-            </Button>
-            <Button variant="outline">
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              New Job
-            </Button>
-          </div>
+        <div className="flex items-center justify-end space-x-3">
+          <Button
+            onClick={() => setShowDispatchPanel(!showDispatchPanel)}
+            className="bg-[#1a2a6c] hover:bg-[#1e40af]"
+          >
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            Auto Dispatch
+          </Button>
+          <Button variant="outline">
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            New Job
+          </Button>
         </div>
       </div>
 
