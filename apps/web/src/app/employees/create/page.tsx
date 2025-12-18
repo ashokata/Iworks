@@ -142,11 +142,12 @@ export default function CreateEmployeePage() {
     }
   }, [employeeDataFromApi]);
 
+  // Redirect to login if not authenticated
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       router.push('/login');
     }
-  }, [isAuthenticated, authLoading, router]);
+  }, [authLoading, isAuthenticated, router]);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);

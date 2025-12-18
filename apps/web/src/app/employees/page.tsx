@@ -7,13 +7,20 @@ import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Employee, employeeService } from '@/services/employeeService';
 import { TrashIcon, PencilIcon, PlusIcon } from '@heroicons/react/24/outline';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function EmployeesPage() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const queryClient = useQueryClient();
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.push('/login');
+    }
+  }, [authLoading, isAuthenticated, router]);
 
   // Fetch all employees
   const { data: employees = [], isLoading, error } = useQuery<Employee[]>({
@@ -35,10 +42,13 @@ export default function EmployeesPage() {
     },
   });
 
-  // If not authenticated, redirect to login
-  if (!authLoading && !isAuthenticated) {
-    router.push('/login');
-    return null;
+  // Show loading or nothing while redirecting
+  if (authLoading || !isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
   }
 
   const handleDelete = (id: string) => {
@@ -49,7 +59,7 @@ export default function EmployeesPage() {
     router.push(`/employees/create?id=${id}`);
   };
 
-  if (authLoading || isLoading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
