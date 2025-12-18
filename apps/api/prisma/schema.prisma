@@ -462,6 +462,10 @@ model Tenant {
   timeEntries        TimeEntry[]
   vapiConfig         VapiConfiguration?
   serviceRequests    ServiceRequest[]
+  appointments       Appointment[]
+  dispatches         Dispatch[]
+  inventoryItems     InventoryItem[]
+  serviceLocations   ServiceLocation[]
 
   @@index([slug])
   @@index([status])
@@ -572,6 +576,8 @@ model User {
   timeEntriesApproved        TimeEntry[]        @relation("TimeEntryApprovedBy")
   jobStatusChanges           JobStatusHistory[]
   jobChecklistsCompleted     JobChecklist[]     @relation("ChecklistCompletedBy")
+  appointmentsCreated        Appointment[]     @relation("AppointmentCreatedBy")
+  dispatchesAssigned         Dispatch[]         @relation("DispatchAssignedBy")
   jobChecklistItemsCompleted JobChecklistItem[] @relation("ChecklistItemCompletedBy")
   jobAttachments             JobAttachment[]
 
@@ -705,6 +711,7 @@ model Customer {
   messages          Message[]
   aiConversations   AiConversation[]
   serviceRequests   ServiceRequest[]
+  appointments      Appointment[]
 
   @@index([tenantId])
   @@index([tenantId, customerNumber])
@@ -752,6 +759,8 @@ model Address {
   estimates         Estimate[]
   serviceAgreements ServiceAgreement[]
   serviceRequests   ServiceRequest[]
+  appointments      Appointment[]
+  serviceLocations  ServiceLocation[]
 
   @@index([customerId])
   @@index([latitude, longitude])
@@ -817,6 +826,10 @@ model Employee {
   user                          User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
   tenantId                      String
   tenant                        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  email                         String?       // Email for matching with User accounts
+  firstName                     String?       // First name (for employees without user accounts)
+  lastName                      String?       // Last name (for employees without user accounts)
+  phone                         String?       // Phone (for employees without user accounts)
   employeeNumber                String?
   hireDate                      DateTime?
   terminationDate               DateTime?
@@ -848,11 +861,14 @@ model Employee {
   assignments     JobAssignment[]
   serviceRequests ServiceRequest[] // Assigned service requests
   roleAssignments EmployeeRoleAssignment[] // NEW: Multiple roles per employee
+  appointments    Appointment[]
+  dispatches      Dispatch[]
 
   @@index([tenantId])
   @@index([userId])
   @@index([tenantId, employeeNumber])
   @@index([tenantId, status]) // NEW: Filter by status
+  @@index([tenantId, email]) // NEW: For matching employees with users by email
   @@map("employees")
 }
 
@@ -1115,6 +1131,8 @@ model Material {
   estimateLineItems         EstimateLineItem[]
   estimateTemplateLineItems EstimateTemplateLineItem[]
   invoiceLineItems          InvoiceLineItem[]
+  inventoryItems            InventoryItem[]
+  jobMaterials              JobMaterial[]
 
   @@index([tenantId])
   @@index([categoryId])
@@ -1233,6 +1251,9 @@ model Job {
   messages        Message[]
   aiConversations AiConversation[]
   serviceRequests ServiceRequest[] // Service requests converted to this job
+  appointments     Appointment[]
+  dispatches      Dispatch[]
+  jobMaterials    JobMaterial[]
 
   @@unique([tenantId, jobNumber])
   @@index([tenantId])
@@ -1569,6 +1590,7 @@ model Estimate {
 
   options EstimateOption[]
   jobs    Job[]
+  appointments Appointment[]
 
   @@unique([tenantId, estimateNumber])
   @@index([tenantId])
@@ -2237,4 +2259,318 @@ model ServiceRequest {
   @@index([customerId])
   @@index([tenantId, createdAt])
   @@map("service_requests")
+}
+
+// ============================================================================
+// APPOINTMENT & SCHEDULING
+// ============================================================================
+
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+  RESCHEDULED
+}
+
+model Appointment {
+  id                String            @id @default(uuid())
+  tenantId          String
+  tenant            Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  appointmentNumber String?
+  customerId        String
+  customer          Customer          @relation(fields: [customerId], references: [id])
+  addressId         String?
+  address           Address?          @relation(fields: [addressId], references: [id])
+  serviceLocationId String?
+  serviceLocation   ServiceLocation?  @relation(fields: [serviceLocationId], references: [id])
+  
+  // Scheduling
+  scheduledStart    DateTime
+  scheduledEnd      DateTime
+  duration          Int               @default(60) // minutes
+  timezone          String            @default("America/New_York")
+  
+  // Details
+  title             String
+  description       String?           @db.Text
+  appointmentType   String?           // CONSULTATION, SERVICE, INSTALLATION, MAINTENANCE, REPAIR
+  status            AppointmentStatus @default(SCHEDULED)
+  priority          JobPriority       @default(NORMAL)
+  
+  // Assignment
+  assignedToId      String?
+  assignedTo        Employee?         @relation(fields: [assignedToId], references: [id])
+  assignedAt        DateTime?
+  
+  // Tracking
+  confirmedAt       DateTime?
+  startedAt         DateTime?
+  completedAt       DateTime?
+  cancelledAt       DateTime?
+  cancellationReason String?
+  rescheduledFromId String?
+  rescheduledFrom   Appointment?      @relation("AppointmentRescheduleFrom", fields: [rescheduledFromId], references: [id])
+  rescheduledToId   String?
+  rescheduledTo     Appointment?      @relation("AppointmentRescheduleTo", fields: [rescheduledToId], references: [id])
+  
+  // Related entities
+  jobId             String?
+  job               Job?              @relation(fields: [jobId], references: [id])
+  estimateId        String?
+  estimate          Estimate?         @relation(fields: [estimateId], references: [id])
+  
+  // Notifications
+  reminderSent      Boolean           @default(false)
+  reminderSentAt    DateTime?
+  confirmationSent  Boolean           @default(false)
+  
+  // Metadata
+  customFields      Json              @default("{}")
+  notes             String?          @db.Text
+  createdById       String?
+  createdBy         User?             @relation("AppointmentCreatedBy", fields: [createdById], references: [id])
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  
+  // Relations
+  rescheduledFromAppointments Appointment[] @relation("AppointmentRescheduleFrom")
+  rescheduledToAppointments   Appointment[] @relation("AppointmentRescheduleTo")
+  
+  @@index([tenantId])
+  @@index([customerId])
+  @@index([tenantId, scheduledStart])
+  @@index([tenantId, status])
+  @@index([assignedToId])
+  @@index([tenantId, scheduledStart, scheduledEnd])
+  @@map("appointments")
+}
+
+// ============================================================================
+// DISPATCH WORKFLOW
+// ============================================================================
+
+enum DispatchStatus {
+  PENDING
+  ASSIGNED
+  DISPATCHED
+  ACKNOWLEDGED
+  EN_ROUTE
+  ARRIVED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  REASSIGNED
+}
+
+model Dispatch {
+  id                String          @id @default(uuid())
+  tenantId          String
+  tenant            Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  dispatchNumber    String?
+  jobId             String
+  job               Job             @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  
+  // Assignment
+  assignedToId      String
+  assignedTo        Employee        @relation(fields: [assignedToId], references: [id])
+  assignedById      String?
+  assignedBy        User?           @relation("DispatchAssignedBy", fields: [assignedById], references: [id])
+  
+  // Status tracking
+  status            DispatchStatus @default(PENDING)
+  priority          JobPriority     @default(NORMAL)
+  
+  // Timeline
+  dispatchedAt      DateTime?
+  acknowledgedAt    DateTime?
+  enRouteAt         DateTime?
+  arrivedAt         DateTime?
+  startedAt         DateTime?
+  completedAt       DateTime?
+  cancelledAt       DateTime?
+  
+  // Communication
+  notificationSent  Boolean         @default(false)
+  notificationSentAt DateTime?
+  acknowledgmentMethod String?      // SMS, PUSH, EMAIL, PHONE
+  
+  // Reassignment
+  previousDispatchId String?
+  previousDispatch   Dispatch?      @relation("DispatchReassignment", fields: [previousDispatchId], references: [id])
+  reassignmentReason String?
+  
+  // Metadata
+  notes             String?        @db.Text
+  customFields      Json            @default("{}")
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  
+  // Relations
+  reassignedDispatches Dispatch[]   @relation("DispatchReassignment")
+  
+  @@index([tenantId])
+  @@index([jobId])
+  @@index([assignedToId])
+  @@index([tenantId, status])
+  @@index([tenantId, dispatchedAt])
+  @@map("dispatches")
+}
+
+// ============================================================================
+// INVENTORY MANAGEMENT
+// ============================================================================
+
+enum InventoryItemStatus {
+  IN_STOCK
+  LOW_STOCK
+  OUT_OF_STOCK
+  ON_ORDER
+  DISCONTINUED
+}
+
+model InventoryItem {
+  id                    String              @id @default(uuid())
+  tenantId              String
+  tenant                Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sku                   String?
+  name                  String
+  description           String?             @db.Text
+  
+  // Material reference (if linked to Material catalog)
+  materialId            String?
+  material              Material?           @relation(fields: [materialId], references: [id])
+  
+  // Stock levels
+  quantityOnHand        Int                 @default(0)
+  quantityReserved      Int                 @default(0)
+  quantityAvailable     Int                 @default(0) // Calculated: onHand - reserved
+  reorderPoint          Int?
+  reorderQuantity       Int?
+  maxStockLevel         Int?
+  
+  // Pricing
+  unitCost              Decimal             @db.Decimal(10, 2)
+  averageCost           Decimal?            @db.Decimal(10, 2) // For FIFO/LIFO tracking
+  lastPurchaseCost      Decimal?            @db.Decimal(10, 2)
+  
+  // Location
+  warehouseLocation     String?
+  binLocation           String?
+  serviceLocationId     String?
+  serviceLocation       ServiceLocation?    @relation(fields: [serviceLocationId], references: [id])
+  
+  // Status
+  status                InventoryItemStatus @default(IN_STOCK)
+  isActive              Boolean             @default(true)
+  
+  // Tracking
+  lastCountedAt         DateTime?
+  lastPurchasedAt       DateTime?
+  lastSoldAt            DateTime?
+  
+  // Metadata
+  customFields          Json                @default("{}")
+  notes                 String?             @db.Text
+  createdAt             DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
+  
+  // Relations
+  jobMaterials          JobMaterial[]
+  
+  @@unique([tenantId, sku])
+  @@index([tenantId])
+  @@index([materialId])
+  @@index([tenantId, status])
+  @@index([serviceLocationId])
+  @@map("inventory_items")
+}
+
+// ============================================================================
+// JOB MATERIAL USAGE TRACKING
+// ============================================================================
+
+model JobMaterial {
+  id                String         @id @default(uuid())
+  jobId             String
+  job               Job            @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  inventoryItemId   String?
+  inventoryItem     InventoryItem? @relation(fields: [inventoryItemId], references: [id])
+  materialId       String?
+  material          Material?      @relation(fields: [materialId], references: [id])
+  
+  // Usage details
+  name              String
+  description       String?
+  quantity          Decimal        @db.Decimal(10, 3)
+  unitOfMeasure     String         @default("EACH")
+  unitCost          Decimal        @db.Decimal(10, 2)
+  totalCost         Decimal        @db.Decimal(10, 2)
+  
+  // Inventory tracking
+  deductedFromInventory Boolean     @default(false)
+  deductedAt          DateTime?
+  
+  // Metadata
+  notes             String?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  
+  @@index([jobId])
+  @@index([inventoryItemId])
+  @@index([materialId])
+  @@map("job_materials")
+}
+
+// ============================================================================
+// SERVICE LOCATIONS
+// ============================================================================
+
+model ServiceLocation {
+  id                String            @id @default(uuid())
+  tenantId          String
+  tenant            Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name              String
+  description       String?           @db.Text
+  
+  // Address
+  addressId         String?
+  address           Address?          @relation(fields: [addressId], references: [id])
+  street            String?
+  streetLine2       String?
+  city              String?
+  state             String?
+  zip               String?
+  country           String            @default("US")
+  latitude          Decimal?          @db.Decimal(10, 7)
+  longitude         Decimal?          @db.Decimal(10, 7)
+  
+  // Details
+  locationType      String?          // WAREHOUSE, OFFICE, SERVICE_CENTER, FIELD_LOCATION
+  contactName       String?
+  contactPhone      String?
+  contactEmail       String?
+  operatingHours    Json             @default("{}") // Store hours as JSON
+  timezone          String           @default("America/New_York")
+  
+  // Status
+  isActive          Boolean          @default(true)
+  isPrimary         Boolean          @default(false)
+  
+  // Metadata
+  customFields      Json            @default("{}")
+  notes             String?         @db.Text
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  
+  // Relations
+  appointments      Appointment[]
+  inventoryItems   InventoryItem[]
+  
+  @@index([tenantId])
+  @@index([addressId])
+  @@index([tenantId, isActive])
+  @@map("service_locations")
 }

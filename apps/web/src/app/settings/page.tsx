@@ -72,6 +72,7 @@ export default function SettingsPage() {
   // Helper for tabs
   const tabs = [
     { id: 'account', label: 'Account', icon: UserCircleIcon },
+    { id: 'users', label: 'Users', icon: UserCircleIcon, href: '/settings/users' },
     { id: 'company', label: 'Company', icon: BuildingOfficeIcon },
     { id: 'notifications', label: 'Notifications', icon: BellIcon },
     { id: 'mobile', label: 'Mobile App', icon: DevicePhoneMobileIcon },
@@ -118,25 +119,42 @@ export default function SettingsPage() {
             <Card>
               <CardContent className="p-2">
                 <nav className="space-y-1">
-                  {tabs.map((tab) => (
-                    <button
-                      key={tab.id}
-                      className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md ${
-                        activeTab === tab.id
-                          ? 'bg-blue-50 text-blue-700'
-                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                      }`}
-                      onClick={() => setActiveTab(tab.id)}
-                    >
-                      <tab.icon
-                        className={`mr-3 h-5 w-5 ${
-                          activeTab === tab.id ? 'text-blue-500' : 'text-gray-400'
+                  {tabs.map((tab) => {
+                    const TabButton = tab.href ? (
+                      <a
+                        key={tab.id}
+                        href={tab.href}
+                        className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md ${
+                          'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                         }`}
-                        aria-hidden="true"
-                      />
-                      {tab.label}
-                    </button>
-                  ))}
+                      >
+                        <tab.icon
+                          className="mr-3 h-5 w-5 text-gray-400"
+                          aria-hidden="true"
+                        />
+                        {tab.label}
+                      </a>
+                    ) : (
+                      <button
+                        key={tab.id}
+                        className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md ${
+                          activeTab === tab.id
+                            ? 'bg-blue-50 text-blue-700'
+                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                        }`}
+                        onClick={() => setActiveTab(tab.id)}
+                      >
+                        <tab.icon
+                          className={`mr-3 h-5 w-5 ${
+                            activeTab === tab.id ? 'text-blue-500' : 'text-gray-400'
+                          }`}
+                          aria-hidden="true"
+                        />
+                        {tab.label}
+                      </button>
+                    );
+                    return TabButton;
+                  })}
                 </nav>
               </CardContent>
             </Card>

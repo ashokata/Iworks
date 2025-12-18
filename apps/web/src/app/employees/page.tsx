@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/Card';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Employee, employeeService } from '@/services/employeeService';
-import { TrashIcon, PencilIcon } from '@heroicons/react/24/outline';
+import { TrashIcon, PencilIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { useState } from 'react';
 
 export default function EmployeesPage() {
@@ -16,9 +16,9 @@ export default function EmployeesPage() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   // Fetch all employees
-  const { data: employees = [], isLoading, error } = useQuery({
+  const { data: employees = [], isLoading, error } = useQuery<Employee[]>({
     queryKey: ['employees'],
-    queryFn: employeeService.getAllEmployees,
+    queryFn: () => employeeService.getAllEmployees(),
     enabled: isAuthenticated,
   });
 
@@ -57,8 +57,8 @@ export default function EmployeesPage() {
     );
   }
 
-  const activeEmployees = employees.filter(emp => emp.status === 'Active');
-  const technicians = employees.filter(emp => emp.isTechnician === true);
+  const activeEmployees = employees.filter(emp => !emp.isArchived);
+  const technicians = employees.filter(emp => emp.isDispatchEnabled === true);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -71,6 +71,15 @@ export default function EmployeesPage() {
               <p className="text-blue-100 mt-1">Manage your team and workforce</p>
             </div>
             <div className="flex items-center space-x-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push('/employees/create')}
+                className="bg-white text-[#0f118a] hover:bg-gray-100"
+              >
+                <PlusIcon className="h-4 w-4 mr-2" />
+                Add Employee
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -140,36 +149,47 @@ export default function EmployeesPage() {
                   </td>
                 </tr>
               ) : (
-                employees.map((employee) => (
+                employees.map((employee) => {
+                  // Use employee's own fields if available, otherwise fall back to user fields
+                  const displayName = employee.firstName && employee.lastName
+                    ? `${employee.firstName} ${employee.lastName}`.trim()
+                    : employee.user
+                      ? `${employee.user.firstName || ''} ${employee.user.lastName || ''}`.trim() || employee.user.email || 'Unknown'
+                      : employee.email || employee.employeeNumber || 'Unknown';
+                  const displayEmail = employee.email || employee.user?.email || '';
+                  const displayPhone = employee.phone || employee.user?.phone || '';
+                  const displayRole = employee.user?.role || employee.jobTitle || 'N/A';
+                  
+                  return (
                   <tr key={employee.id}>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{employee.name}</div>
+                      <div className="text-sm font-medium text-gray-900">{displayName}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-500">{employee.email}</div>
+                      <div className="text-sm text-gray-500">{displayEmail}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-500">{employee.phone}</div>
+                      <div className="text-sm text-gray-500">{displayPhone}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-500">{employee.role || 'N/A'}</div>
+                      <div className="text-sm text-gray-500">{displayRole}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        employee.isTechnician 
+                        employee.isDispatchEnabled 
                           ? 'bg-blue-100 text-blue-800' 
                           : 'bg-gray-100 text-gray-800'
                       }`}>
-                        {employee.isTechnician ? 'Yes' : 'No'}
+                        {employee.isDispatchEnabled ? 'Yes' : 'No'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        employee.status === 'Active'
+                        !employee.isArchived
                           ? 'bg-green-100 text-green-800' 
                           : 'bg-red-100 text-red-800'
                       }`}>
-                        {employee.status || 'Inactive'}
+                        {employee.isArchived ? 'Inactive' : 'Active'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -189,7 +209,8 @@ export default function EmployeesPage() {
                       </button>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>

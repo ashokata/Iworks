@@ -36,19 +36,17 @@ export default function CreateEmployeePage() {
   const [showSuccess, setShowSuccess] = useState(false);
 
   // Form state
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [role, setRole] = useState('');
-  const [bio, setBio] = useState('');
+  const [jobTitle, setJobTitle] = useState('');
+  const [department, setDepartment] = useState('');
   const [hireDate, setHireDate] = useState('');
-  const [yearsOfExperience, setYearsOfExperience] = useState(0);
   const [isActive, setIsActive] = useState(true);
   const [isTechnician, setIsTechnician] = useState(false);
+  const [hourlyRate, setHourlyRate] = useState('');
   const [profileImage, setProfileImage] = useState('');
-  const [skills, setSkills] = useState('');
-  const [specialty, setSpecialty] = useState('');
-  const [certifications, setCertifications] = useState('');
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [privateNotes, setPrivateNotes] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -57,7 +55,7 @@ export default function CreateEmployeePage() {
   const { data: employeeDataFromApi } = useQuery({
     queryKey: ['employee', employeeId],
     queryFn: () => employeeService.getEmployeeById(employeeId!),
-    enabled: false, // Don't auto-fetch, we'll fetch manually if cache fails
+    enabled: !!employeeId, // Enable query when employeeId is present
   });
 
   // Get employee data from cache if ID is present (don't make API call)
@@ -75,35 +73,27 @@ export default function CreateEmployeePage() {
         if (employeeData) {
           console.log('[Employee Create Page] Found employee in cache:', employeeData);
           
-          setName(employeeData.name || '');
-          setEmail(employeeData.email || '');
-          setPhone(employeeData.phone || '');
-          setRole(employeeData.role || '');
-          setBio(employeeData.bio || '');
+          // Use employee's own fields first, then fall back to user fields
+          const user = employeeData.user;
+          setFirstName(employeeData.firstName || user?.firstName || '');
+          setLastName(employeeData.lastName || user?.lastName || '');
+          setEmail(employeeData.email || user?.email || '');
+          setPhone(employeeData.phone || user?.phone || '');
+          setJobTitle(employeeData.jobTitle || '');
+          setDepartment(employeeData.department || '');
           setHireDate(employeeData.hireDate || '');
-          setYearsOfExperience(employeeData.yearsOfExperience || 0);
-          setIsActive(employeeData.status === 'Active');
-          setIsTechnician(employeeData.isTechnician || false);
-          setProfileImage(employeeData.profileImage || '');
+          setIsActive(!employeeData.isArchived);
+          setIsTechnician(employeeData.isDispatchEnabled || false);
+          setHourlyRate(employeeData.hourlyRate?.toString() || '');
+          setProfileImage(user?.avatarUrl || '');
           
-          // Handle skills, specialty, certifications - they can be arrays or strings
-          if (employeeData.skills) {
-            const skillsStr = Array.isArray(employeeData.skills) ? employeeData.skills.join(', ') : String(employeeData.skills);
-            console.log('[Employee Create Page] Setting skills:', skillsStr);
-            setSkills(skillsStr);
-          }
-          if (employeeData.specialty) {
-            const specialtyStr = Array.isArray(employeeData.specialty) ? employeeData.specialty.join(', ') : String(employeeData.specialty);
-            console.log('[Employee Create Page] Setting specialty:', specialtyStr);
-            setSpecialty(specialtyStr);
-          }
-          if (employeeData.certifications) {
-            const certificationsStr = Array.isArray(employeeData.certifications) ? employeeData.certifications.join(', ') : String(employeeData.certifications);
-            console.log('[Employee Create Page] Setting certifications:', certificationsStr);
-            setCertifications(certificationsStr);
-          }
-          
-          console.log('[Employee Create Page] Form fields set from cache:', { name: employeeData.name, email: employeeData.email, phone: employeeData.phone, role: employeeData.role });
+          console.log('[Employee Create Page] Form fields set from cache:', { 
+            firstName: employeeData.firstName || user?.firstName, 
+            lastName: employeeData.lastName || user?.lastName, 
+            email: employeeData.email || user?.email, 
+            phone: employeeData.phone || user?.phone,
+            jobTitle: employeeData.jobTitle 
+          });
         } else {
           console.log('[Employee Create Page] Employee not found in cache, fetching from API');
           // Fetch from API if not in cache
@@ -128,35 +118,27 @@ export default function CreateEmployeePage() {
     if (employeeDataFromApi) {
       console.log('[Employee Create Page] Received employee data from API:', employeeDataFromApi);
       
-      setName(employeeDataFromApi.name || '');
-      setEmail(employeeDataFromApi.email || '');
-      setPhone(employeeDataFromApi.phone || '');
-      setRole(employeeDataFromApi.role || '');
-      setBio(employeeDataFromApi.bio || '');
+      // Use employee's own fields first, then fall back to user fields
+      const user = employeeDataFromApi.user;
+      setFirstName(employeeDataFromApi.firstName || user?.firstName || '');
+      setLastName(employeeDataFromApi.lastName || user?.lastName || '');
+      setEmail(employeeDataFromApi.email || user?.email || '');
+      setPhone(employeeDataFromApi.phone || user?.phone || '');
+      setJobTitle(employeeDataFromApi.jobTitle || '');
+      setDepartment(employeeDataFromApi.department || '');
       setHireDate(employeeDataFromApi.hireDate || '');
-      setYearsOfExperience(employeeDataFromApi.yearsOfExperience || 0);
-      setIsActive(employeeDataFromApi.status === 'Active');
-      setIsTechnician(employeeDataFromApi.isTechnician || false);
-      setProfileImage(employeeDataFromApi.profileImage || '');
+      setIsActive(!employeeDataFromApi.isArchived);
+      setIsTechnician(employeeDataFromApi.isDispatchEnabled || false);
+      setHourlyRate(employeeDataFromApi.hourlyRate?.toString() || '');
+      setProfileImage(user?.avatarUrl || '');
       
-      // Handle skills, specialty, certifications - they can be arrays or strings
-      if (employeeDataFromApi.skills) {
-        const skillsStr = Array.isArray(employeeDataFromApi.skills) ? employeeDataFromApi.skills.join(', ') : String(employeeDataFromApi.skills);
-        console.log('[Employee Create Page] Setting skills from API:', skillsStr);
-        setSkills(skillsStr);
-      }
-      if (employeeDataFromApi.specialty) {
-        const specialtyStr = Array.isArray(employeeDataFromApi.specialty) ? employeeDataFromApi.specialty.join(', ') : String(employeeDataFromApi.specialty);
-        console.log('[Employee Create Page] Setting specialty from API:', specialtyStr);
-        setSpecialty(specialtyStr);
-      }
-      if (employeeDataFromApi.certifications) {
-        const certificationsStr = Array.isArray(employeeDataFromApi.certifications) ? employeeDataFromApi.certifications.join(', ') : String(employeeDataFromApi.certifications);
-        console.log('[Employee Create Page] Setting certifications from API:', certificationsStr);
-        setCertifications(certificationsStr);
-      }
-      
-      console.log('[Employee Create Page] Form fields set from API:', { name: employeeDataFromApi.name, email: employeeDataFromApi.email, phone: employeeDataFromApi.phone, role: employeeDataFromApi.role });
+      console.log('[Employee Create Page] Form fields set from API:', { 
+        firstName: employeeDataFromApi.firstName || user?.firstName, 
+        lastName: employeeDataFromApi.lastName || user?.lastName, 
+        email: employeeDataFromApi.email || user?.email, 
+        phone: employeeDataFromApi.phone || user?.phone,
+        jobTitle: employeeDataFromApi.jobTitle 
+      });
     }
   }, [employeeDataFromApi]);
 
@@ -180,23 +162,9 @@ export default function CreateEmployeePage() {
   }, []);
 
   const createEmployeeMutation = useMutation({
-    mutationFn: (empData: CreateEmployeeRequest) => {
-      // Split name into firstName and lastName
-      const nameParts = (empData.name || '').trim().split(' ');
-      const firstName = nameParts[0] || '';
-      const lastName = nameParts.slice(1).join(' ') || '';
-      
-      const transformedData = {
-        email: empData.email,
-        firstName,
-        lastName,
-        phone: empData.phone,
-        role: empData.isTechnician ? 'FIELD_TECH' : 'OFFICE_STAFF',
-        jobTitle: empData.role || (empData.isTechnician ? 'Field Technician' : 'Staff'),
-        isDispatchEnabled: empData.isTechnician,
-        canBeBookedOnline: empData.isTechnician,
-      };
-      return employeeService.createEmployee(transformedData as any);
+    mutationFn: (empData: any) => {
+      console.log('[Employee Create Page] Creating employee with data:', empData);
+      return employeeService.createEmployee(empData);
     },
     onSuccess: () => {
       setShowSuccess(true);
@@ -212,21 +180,9 @@ export default function CreateEmployeePage() {
   });
 
   const updateEmployeeMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: CreateEmployeeRequest }) => {
-      // Split name into firstName and lastName
-      const nameParts = (data.name || '').trim().split(' ');
-      const firstName = nameParts[0] || '';
-      const lastName = nameParts.slice(1).join(' ') || '';
-      
-      const transformedData = {
-        firstName,
-        lastName,
-        phone: data.phone,
-        jobTitle: data.role || (data.isTechnician ? 'Field Technician' : 'Staff'),
-        isDispatchEnabled: data.isTechnician,
-        notes: data.bio,
-      };
-      return employeeService.updateEmployee(id, transformedData as any);
+    mutationFn: ({ id, data }: { id: string; data: any }) => {
+      console.log('[Employee Create Page] Updating employee:', id, data);
+      return employeeService.updateEmployee(id, data);
     },
     onSuccess: () => {
       setShowSuccess(true);
@@ -244,26 +200,18 @@ export default function CreateEmployeePage() {
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!name.trim()) {
-      newErrors.name = 'Name is required';
+    if (!firstName.trim()) {
+      newErrors.firstName = 'First name is required';
+    }
+
+    if (!lastName.trim()) {
+      newErrors.lastName = 'Last name is required';
     }
 
     if (!email.trim()) {
       newErrors.email = 'Email is required';
     } else if (!/^\S+@\S+\.\S+$/.test(email)) {
       newErrors.email = 'Invalid email address';
-    }
-
-    if (!phone.trim()) {
-      newErrors.phone = 'Phone number is required';
-    }
-
-    if (!role.trim()) {
-      newErrors.role = 'Role is required';
-    }
-
-    if (!hireDate) {
-      newErrors.hireDate = 'Hire date is required';
     }
 
     setErrors(newErrors);
@@ -277,30 +225,27 @@ export default function CreateEmployeePage() {
       return;
     }
     if (validateForm()) {
-      // Map frontend fields to backend OData schema
-      const employeeData = {
-        name,
-        email,
-        phone,
-        role,
-        bio,
-        hireDate,
-        yearsOfExperience,
-        isActive,
-        isTechnician,
-        // profileImage is omitted as it's not used by the endpoint
-        skills: skills.toString(),
-        specialty: specialty.toString(),
-        certifications: certifications.toString(),
+      // Map frontend fields to backend schema
+      const employeeData: any = {
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: email.trim(),
+        phone: phone.trim() || undefined,
+        jobTitle: jobTitle.trim() || undefined,
+        department: department.trim() || undefined,
+        hourlyRate: hourlyRate ? parseFloat(hourlyRate) : undefined,
+        isDispatchEnabled: isTechnician,
+        canBeBookedOnline: isTechnician,
+        role: isTechnician ? 'FIELD_TECH' : 'OFFICE_STAFF' as const,
       };
       
       if (employeeId) {
         // Update existing employee
-        console.log('Employee PATCH payload:', JSON.stringify(employeeData, null, 2));
+        console.log('[Employee Create Page] Updating employee:', employeeId, employeeData);
         updateEmployeeMutation.mutate({ id: employeeId, data: employeeData });
       } else {
         // Create new employee
-        console.log('Employee POST payload:', JSON.stringify(employeeData, null, 2));
+        console.log('[Employee Create Page] Creating employee:', employeeData);
         createEmployeeMutation.mutate(employeeData);
       }
     }
@@ -428,15 +373,26 @@ export default function CreateEmployeePage() {
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Full Name *</label>
+                  <label className="block text-xs text-gray-500 mb-1">First Name *</label>
                   <input
                     type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
-                    placeholder="Enter employee name..."
+                    placeholder="Enter first name..."
                   />
-                  {errors.name && <p className="text-xs text-red-600 mt-1">{errors.name}</p>}
+                  {errors.firstName && <p className="text-xs text-red-600 mt-1">{errors.firstName}</p>}
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Last Name *</label>
+                  <input
+                    type="text"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
+                    placeholder="Enter last name..."
+                  />
+                  {errors.lastName && <p className="text-xs text-red-600 mt-1">{errors.lastName}</p>}
                 </div>
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">Email *</label>
@@ -450,7 +406,7 @@ export default function CreateEmployeePage() {
                   {errors.email && <p className="text-xs text-red-600 mt-1">{errors.email}</p>}
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Phone *</label>
+                  <label className="block text-xs text-gray-500 mb-1">Phone</label>
                   <input
                     type="tel"
                     value={phone}
@@ -458,7 +414,6 @@ export default function CreateEmployeePage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
                     placeholder="Phone number"
                   />
-                  {errors.phone && <p className="text-xs text-red-600 mt-1">{errors.phone}</p>}
                 </div>
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">Is Active</label>
@@ -522,97 +477,45 @@ export default function CreateEmployeePage() {
               
               <div className="grid grid-cols-3 gap-4 mb-4">
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Role *</label>
+                  <label className="block text-xs text-gray-500 mb-1">Job Title</label>
                   <input
                     type="text"
-                    value={role}
-                    onChange={(e) => setRole(e.target.value)}
+                    value={jobTitle}
+                    onChange={(e) => setJobTitle(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
-                    placeholder="e.g., Manager, Technician"
+                    placeholder="e.g., Field Technician"
                   />
-                  {errors.role && <p className="text-xs text-red-600 mt-1">{errors.role}</p>}
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Years of Experience</label>
+                  <label className="block text-xs text-gray-500 mb-1">Department</label>
+                  <input
+                    type="text"
+                    value={department}
+                    onChange={(e) => setDepartment(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
+                    placeholder="e.g., Service"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Hourly Rate</label>
                   <input
                     type="number"
-                    value={yearsOfExperience}
-                    onChange={(e) => setYearsOfExperience(Number(e.target.value))}
+                    step="0.01"
+                    value={hourlyRate}
+                    onChange={(e) => setHourlyRate(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
-                    min="0"
+                    placeholder="0.00"
                   />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Hire Date *</label>
-                  <input
-                    type="date"
-                    value={hireDate}
-                    onChange={(e) => setHireDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
-                  />
-                  {errors.hireDate && <p className="text-xs text-red-600 mt-1">{errors.hireDate}</p>}
                 </div>
               </div>
-
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Bio</label>
+                <label className="block text-xs text-gray-500 mb-1">Notes</label>
                 <textarea
-                  value={bio}
-                  onChange={(e) => setBio(e.target.value)}
+                  value={privateNotes}
+                  onChange={(e) => setPrivateNotes(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
                   rows={3}
-                  placeholder="Brief bio or description..."
-                />
-              </div>
-            </div>
-
-            {/* Skills Section */}
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-gray-900">Skills</h3>
-              </div>
-              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                <input
-                  type="text"
-                  value={skills}
-                  onChange={(e) => setSkills(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
-                  placeholder="Comma-separated skills (e.g., Project Management, Leadership)"
-                />
-              </div>
-            </div>
-
-            {/* Specialty Section */}
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-gray-900">Specialty Areas</h3>
-              </div>
-              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                <input
-                  type="text"
-                  value={specialty}
-                  onChange={(e) => setSpecialty(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
-                  placeholder="Comma-separated specialties"
-                />
-              </div>
-            </div>
-
-            {/* Certifications Section */}
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center">
-                  <AcademicCapIcon className="h-5 w-5 text-gray-600 mr-2" />
-                  <h3 className="font-semibold text-gray-900">Certifications & Licenses</h3>
-                </div>
-              </div>
-              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                <input
-                  type="text"
-                  value={certifications}
-                  onChange={(e) => setCertifications(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
-                  placeholder="Comma-separated certifications"
+                  placeholder="Private notes about this employee..."
                 />
               </div>
             </div>

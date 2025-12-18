@@ -34,6 +34,12 @@ import serviceRequestsRoutes from './routes/service-requests.routes';
 // Import Tenant routes
 import tenantRoutes from './routes/tenant.routes';
 
+// Import Configurations routes
+import configurationsRoutes from './routes/configurations.routes';
+
+// Import Users routes
+import usersRoutes from './routes/users.routes';
+
 const app = express();
 const PORT = process.env.PORT || 4000;
 
@@ -84,6 +90,12 @@ app.use(serviceRequestsRoutes);
 
 // Register Tenant routes
 app.use(tenantRoutes);
+
+// Register Configurations routes
+app.use(configurationsRoutes);
+
+// Register Users routes
+app.use(usersRoutes);
 
 // Health check
 app.get('/health', async (req, res) => {
@@ -336,7 +348,17 @@ import { employeePostgresService } from './services/employee.postgres.service';
 // List employees
 app.get('/employees', async (req, res) => {
   try {
-    const tenantId = req.headers['x-tenant-id'] as string || 'local-tenant';
+    const tenantId = req.headers['x-tenant-id'] as string || 
+                     req.headers['X-Tenant-Id'] as string || 
+                     req.headers['X-Tenant-ID'] as string || 
+                     'local-tenant';
+    
+    console.log('[API] List employees - Tenant ID:', tenantId);
+    console.log('[API] List employees - Headers:', {
+      'x-tenant-id': req.headers['x-tenant-id'],
+      'X-Tenant-Id': req.headers['X-Tenant-Id'],
+      'X-Tenant-ID': req.headers['X-Tenant-ID']
+    });
     
     const filters = {
       search: req.query.search as string | undefined,
@@ -348,13 +370,26 @@ app.get('/employees', async (req, res) => {
     };
     
     const employees = await employeePostgresService.listEmployees(tenantId, filters);
+    console.log('[API] Found employees for tenant:', tenantId, 'Count:', employees.length);
     
     // Format response for frontend
-    const formattedEmployees = employees.map(emp => ({
-      id: emp.id,
-      employeeId: emp.id,
-      userId: emp.userId,
-      user: emp.user ? {
+    const formattedEmployees = employees.map(emp => {
+      // Get employee's own fields (will be available after migration)
+      const empEmail = (emp as any).email || emp.user?.email || null;
+      const empFirstName = (emp as any).firstName || emp.user?.firstName || null;
+      const empLastName = (emp as any).lastName || emp.user?.lastName || null;
+      const empPhone = (emp as any).phone || emp.user?.phone || null;
+      
+      return {
+        id: emp.id,
+        employeeId: emp.id,
+        userId: emp.userId,
+        // Include employee's own email/name fields (for employees without user accounts)
+        email: empEmail,
+        firstName: empFirstName,
+        lastName: empLastName,
+        phone: empPhone,
+        user: emp.user ? {
         id: emp.user.id,
         email: emp.user.email,
         firstName: emp.user.firstName,
@@ -387,12 +422,17 @@ app.get('/employees', async (req, res) => {
       createdAt: emp.createdAt,
       updatedAt: emp.updatedAt,
       // Frontend compatibility fields
-      name: emp.user ? `${emp.user.firstName || ''} ${emp.user.lastName || ''}`.trim() : 'Unknown',
-      email: emp.user?.email,
-      phone: emp.user?.phone,
+      name: empFirstName && empLastName 
+        ? `${empFirstName} ${empLastName}`.trim() 
+        : emp.user 
+          ? `${emp.user.firstName || ''} ${emp.user.lastName || ''}`.trim() 
+          : 'Unknown',
+      email: empEmail,
+      phone: empPhone,
       status: emp.isArchived ? 'Inactive' : 'Active',
       isTechnician: emp.isDispatchEnabled,
-    }));
+      };
+    });
     
     res.json({ employees: formattedEmployees, total: formattedEmployees.length });
   } catch (error: any) {

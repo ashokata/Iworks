@@ -182,6 +182,11 @@ export interface Employee {
   user?: User;
   tenantId: string;
   employeeNumber?: string;
+  // Employee's own fields (for employees without user accounts)
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
   hireDate?: string;
   terminationDate?: string;
   jobTitle?: string;

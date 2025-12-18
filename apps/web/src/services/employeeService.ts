@@ -6,6 +6,7 @@
  */
 
 import { API_CONFIG } from '@/config/api.config';
+import { apiClient } from '@/services/apiClient';
 import type {
   Employee,
   EmployeeRole,
@@ -13,11 +14,6 @@ import type {
   User,
   PaginatedResponse,
 } from '@/types/database.types';
-
-// Get tenant ID from environment
-const getTenantId = () => {
-  return process.env.NEXT_PUBLIC_TENANT_ID || 'local-tenant';
-};
 
 // Transform API response to frontend Employee type
 const transformEmployee = (apiEmployee: any): Employee => {
@@ -29,6 +25,11 @@ const transformEmployee = (apiEmployee: any): Employee => {
     user: user.id ? transformUser(user) : undefined,
     tenantId: apiEmployee.tenantId,
     employeeNumber: apiEmployee.employeeNumber || apiEmployee.employee_number,
+    // Employee's own fields (for employees without user accounts)
+    email: apiEmployee.email || undefined,
+    firstName: apiEmployee.firstName || undefined,
+    lastName: apiEmployee.lastName || undefined,
+    phone: apiEmployee.phone || undefined,
     hireDate: apiEmployee.hireDate || apiEmployee.hire_date,
     terminationDate: apiEmployee.terminationDate || apiEmployee.termination_date,
     jobTitle: apiEmployee.jobTitle || apiEmployee.job_title || user.role,
@@ -134,7 +135,6 @@ export const employeeService = {
    */
   getAllEmployees: async (filters?: EmployeeFilters): Promise<Employee[]> => {
     try {
-      const tenantId = getTenantId();
       console.log('[Employee Service] Fetching employees from PostgreSQL API');
       
       // Build query string
@@ -146,32 +146,20 @@ export const employeeService = {
       if (filters?.includeArchived) params.append('includeArchived', 'true');
       
       const queryString = params.toString();
-      const url = `${API_CONFIG.BASE_URL}/employees${queryString ? `?${queryString}` : ''}`;
+      const url = `/employees${queryString ? `?${queryString}` : ''}`;
       
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-tenant-id': tenantId,
-        },
-      });
-
-      if (!response.ok) {
-        // If endpoint doesn't exist yet, return empty array
-        if (response.status === 404) {
-          console.warn('[Employee Service] Employees endpoint not available, returning empty array');
-          return [];
-        }
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const data = await apiClient.get<{ employees: any[] }>(url);
       console.log('[Employee Service] Received employees:', data.employees?.length || 0);
       
       // Transform each employee
       const employees = (data.employees || []).map(transformEmployee);
       return employees;
     } catch (error: any) {
+      // If endpoint doesn't exist yet, return empty array
+      if (error?.response?.status === 404) {
+        console.warn('[Employee Service] Employees endpoint not available, returning empty array');
+        return [];
+      }
       console.warn('[Employee Service] Error fetching employees, returning empty array:', error.message);
       return [];
     }
@@ -186,8 +174,6 @@ export const employeeService = {
     filters?: EmployeeFilters
   ): Promise<PaginatedResponse<Employee>> => {
     try {
-      const tenantId = getTenantId();
-      
       const params = new URLSearchParams();
       params.append('limit', limit.toString());
       params.append('offset', offset.toString());
@@ -195,21 +181,9 @@ export const employeeService = {
       if (filters?.role) params.append('role', filters.role);
       if (filters?.includeArchived) params.append('includeArchived', 'true');
       
-      const url = `${API_CONFIG.BASE_URL}/employees?${params.toString()}`;
+      const url = `/employees?${params.toString()}`;
       
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-tenant-id': tenantId,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const data = await apiClient.get<{ employees: any[]; total: number }>(url);
       const employees = (data.employees || []).map(transformEmployee);
       
       return {
@@ -238,29 +212,16 @@ export const employeeService = {
     try {
       console.log(`[Employee Service] Fetching employee: ${id}`);
       
-      const response = await fetch(`${API_CONFIG.BASE_URL}/employees/${id}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-tenant-id': getTenantId(),
-        },
-      });
-
-      if (response.status === 404) {
-        console.log('[Employee Service] Employee not found');
-        return null;
-      }
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const data = await apiClient.get<any>(`/employees/${id}`);
       
       // Handle { employee: ... } wrapper
       const employeeData = data.employee || data;
       return transformEmployee(employeeData);
     } catch (error: any) {
+      if (error?.response?.status === 404) {
+        console.log('[Employee Service] Employee not found');
+        return null;
+      }
       console.warn(`[Employee Service] Error fetching employee ${id}:`, error.message);
       return null;
     }
@@ -292,21 +253,7 @@ export const employeeService = {
     try {
       console.log('[Employee Service] Creating employee');
       
-      const response = await fetch(`${API_CONFIG.BASE_URL}/employees`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-tenant-id': getTenantId(),
-        },
-        body: JSON.stringify(employeeData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const data = await apiClient.post<{ employee: any }>('/employees', employeeData);
       console.log('[Employee Service] Employee created successfully');
       
       // Handle { employee: ... } wrapper
@@ -325,21 +272,7 @@ export const employeeService = {
     try {
       console.log(`[Employee Service] Updating employee: ${id}`);
       
-      const response = await fetch(`${API_CONFIG.BASE_URL}/employees/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-tenant-id': getTenantId(),
-        },
-        body: JSON.stringify(employeeData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const data = await apiClient.put<{ employee: any }>(`/employees/${id}`, employeeData);
       console.log('[Employee Service] Employee updated successfully');
       
       // Handle { employee: ... } wrapper
@@ -358,19 +291,7 @@ export const employeeService = {
     try {
       console.log(`[Employee Service] Archiving employee: ${id}`);
       
-      const response = await fetch(`${API_CONFIG.BASE_URL}/employees/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-tenant-id': getTenantId(),
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-      }
-
+      await apiClient.delete(`/employees/${id}`);
       console.log('[Employee Service] Employee archived successfully');
     } catch (error: any) {
       console.error(`[Employee Service] Error archiving employee ${id}:`, error);
@@ -383,19 +304,7 @@ export const employeeService = {
    */
   getEmployeeSchedule: async (employeeId: string): Promise<any[]> => {
     try {
-      const response = await fetch(`${API_CONFIG.BASE_URL}/employees/${employeeId}/schedule`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-tenant-id': getTenantId(),
-        },
-      });
-
-      if (!response.ok) {
-        return [];
-      }
-
-      const data = await response.json();
+      const data = await apiClient.get<{ schedule: any[] }>(`/employees/${employeeId}/schedule`);
       return data.schedule || [];
     } catch (error: any) {
       console.warn(`[Employee Service] Error fetching schedule for employee ${employeeId}:`, error.message);
@@ -408,20 +317,7 @@ export const employeeService = {
    */
   updateEmployeeSchedule: async (employeeId: string, schedule: any[]): Promise<any[]> => {
     try {
-      const response = await fetch(`${API_CONFIG.BASE_URL}/employees/${employeeId}/schedule`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-tenant-id': getTenantId(),
-        },
-        body: JSON.stringify({ schedule }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const data = await apiClient.put<{ schedule: any[] }>(`/employees/${employeeId}/schedule`, { schedule });
       return data.schedule || [];
     } catch (error: any) {
       console.error(`[Employee Service] Error updating schedule for employee ${employeeId}:`, error);
@@ -434,20 +330,7 @@ export const employeeService = {
    */
   addSkill: async (employeeId: string, skillId: string, proficiencyLevel?: string): Promise<EmployeeSkill> => {
     try {
-      const response = await fetch(`${API_CONFIG.BASE_URL}/employees/${employeeId}/skills`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-tenant-id': getTenantId(),
-        },
-        body: JSON.stringify({ skillId, proficiencyLevel }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const data = await apiClient.post<{ skill: any }>(`/employees/${employeeId}/skills`, { skillId, proficiencyLevel });
       return transformSkill(data.skill || data);
     } catch (error: any) {
       console.error('[Employee Service] Error adding skill:', error);
@@ -460,17 +343,7 @@ export const employeeService = {
    */
   removeSkill: async (employeeId: string, skillId: string): Promise<void> => {
     try {
-      const response = await fetch(`${API_CONFIG.BASE_URL}/employees/${employeeId}/skills/${skillId}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-tenant-id': getTenantId(),
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      await apiClient.delete(`/employees/${employeeId}/skills/${skillId}`);
     } catch (error: any) {
       console.error('[Employee Service] Error removing skill:', error);
       throw error;

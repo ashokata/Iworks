@@ -209,15 +209,31 @@ class ApiClient {
 
   async post<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
     const finalUrl = this.resolveUrl(url);
+    const tenantId = this.getCurrentTenantId();
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/c288bfc6-fede-4b2e-ba41-31212e9a87d0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'apiClient.ts:210',message:'POST request initiated',data:{url,finalUrl,data,tenantId,hasConfig:!!config,configHeaders:config?.headers},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
     console.log(`[API Client] POST ${finalUrl}`);
     console.debug('[API Client] Payload:', JSON.stringify(data, null, 2));
 
     try {
       const response = await this.client.post<T>(finalUrl, data, config);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/c288bfc6-fede-4b2e-ba41-31212e9a87d0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'apiClient.ts:216',message:'POST request successful',data:{url:finalUrl,status:response.status,statusText:response.statusText},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       console.log(`[API Client] Response: ${response.status}`);
       return response.data;
     } catch (error: any) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/c288bfc6-fede-4b2e-ba41-31212e9a87d0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'apiClient.ts:219',message:'POST request failed',data:{url:finalUrl,status:error?.response?.status,statusText:error?.response?.statusText,errorData:error?.response?.data,errorMessage:error?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       console.error(`[API Client] POST error: ${finalUrl}`, error?.message);
+      console.error(`[API Client] Error response:`, {
+        status: error?.response?.status,
+        statusText: error?.response?.statusText,
+        data: error?.response?.data,
+        headers: error?.response?.headers
+      });
       throw error;
     }
   }

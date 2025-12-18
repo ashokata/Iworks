@@ -3,9 +3,9 @@ import { Prisma } from '@prisma/client';
 
 export interface CreateEmployeeInput {
   tenantId: string;
-  email: string;
-  firstName: string;
-  lastName: string;
+  email?: string; // Optional - for matching with User accounts
+  firstName?: string; // Optional - can be set when user account is created
+  lastName?: string; // Optional - can be set when user account is created
   phone?: string;
   role?: 'OWNER' | 'ADMIN' | 'DISPATCHER' | 'FIELD_TECH' | 'OFFICE_STAFF';
   jobTitle?: string;
@@ -15,6 +15,7 @@ export interface CreateEmployeeInput {
   overtimeRate?: number;
   canBeBookedOnline?: boolean;
   isDispatchEnabled?: boolean;
+  status?: 'ACTIVE' | 'INACTIVE' | 'ON_LEAVE' | 'TERMINATED'; // Employee status
 }
 
 export interface UpdateEmployeeInput {
@@ -46,7 +47,8 @@ export interface EmployeeFilters {
 
 class EmployeePostgresService {
   /**
-   * Create a new employee with associated user
+   * Create a new employee WITHOUT automatically creating a User account
+   * Employee can exist independently and be matched with User by email later
    */
   async createEmployee(input: CreateEmployeeInput) {
     const prisma = getPrismaClient();
@@ -57,40 +59,57 @@ class EmployeePostgresService {
     });
     const employeeNumber = `EMP-${String(employeeCount + 1).padStart(4, '0')}`;
 
-    // First create or find the user
-    let user = await prisma.user.findFirst({
-      where: { email: input.email, tenantId: input.tenantId },
-    });
-
-    if (!user) {
-      user = await prisma.user.create({
-        data: {
-          tenantId: input.tenantId,
-          email: input.email,
-          firstName: input.firstName,
-          lastName: input.lastName,
-          phone: input.phone,
-          role: input.role || 'FIELD_TECH',
-          isActive: true,
+    // Try to find existing user by email if email is provided
+    let userId: string | null = null;
+    if (input.email) {
+      const existingUser = await prisma.user.findFirst({
+        where: { 
+          email: input.email.toLowerCase().trim(), 
+          tenantId: input.tenantId 
         },
       });
+      
+      if (existingUser) {
+        userId = existingUser.id;
+        console.log('[PG-Employee] Found existing user for email:', input.email);
+      } else {
+        console.log('[PG-Employee] No user account found for email:', input.email, '- Employee will be created without user association');
+      }
     }
 
-    // Create the employee linked to the user
+    // Create the employee (with or without user association)
+    // Note: email, firstName, lastName, phone fields will be available after migration
+    const employeeData: any = {
+      tenantId: input.tenantId,
+      userId: userId || undefined, // Only set if user exists
+      employeeNumber,
+      jobTitle: input.jobTitle,
+      department: input.department,
+      colorHex: input.colorHex || '#3B82F6',
+      hourlyRate: input.hourlyRate,
+      overtimeRate: input.overtimeRate,
+      canBeBookedOnline: input.canBeBookedOnline ?? true,
+      isDispatchEnabled: input.isDispatchEnabled ?? true,
+      status: input.status || 'ACTIVE',
+      hireDate: new Date(),
+    };
+
+    // Add email/name fields if they exist in schema (after migration)
+    if (input.email) {
+      employeeData.email = input.email.toLowerCase().trim();
+    }
+    if (input.firstName) {
+      employeeData.firstName = input.firstName;
+    }
+    if (input.lastName) {
+      employeeData.lastName = input.lastName;
+    }
+    if (input.phone) {
+      employeeData.phone = input.phone;
+    }
+
     const employee = await prisma.employee.create({
-      data: {
-        tenantId: input.tenantId,
-        userId: user.id,
-        employeeNumber,
-        jobTitle: input.jobTitle,
-        department: input.department,
-        colorHex: input.colorHex || '#3B82F6',
-        hourlyRate: input.hourlyRate,
-        overtimeRate: input.overtimeRate,
-        canBeBookedOnline: input.canBeBookedOnline ?? true,
-        isDispatchEnabled: input.isDispatchEnabled ?? true,
-        hireDate: new Date(),
-      },
+      data: employeeData,
       include: {
         user: true,
         skills: {
@@ -99,8 +118,121 @@ class EmployeePostgresService {
       },
     });
 
-    console.log('[PG-Employee] Created employee:', employee.id, 'for user:', user.id);
+    console.log('[PG-Employee] Created employee:', employee.id, userId ? `linked to user: ${userId}` : 'without user account');
     return employee;
+  }
+
+  /**
+   * Match employees with users by email address
+   * This should be called when a user verifies their email and creates an account
+   */
+  async matchEmployeeWithUser(tenantId: string, userEmail: string, userId: string): Promise<boolean> {
+    const prisma = getPrismaClient();
+    
+    console.log('[PG-Employee] Attempting to match employee with user:', { tenantId, userEmail, userId });
+    
+    // Get all employees for this tenant without user association
+    const employeesWithoutUser = await prisma.employee.findMany({
+      where: {
+        tenantId,
+        userId: null, // Only match if not already linked
+      },
+      include: {
+        user: false, // We know userId is null, but include for clarity
+      },
+    });
+
+    console.log('[PG-Employee] Found', employeesWithoutUser.length, 'employees without user association');
+
+    // Try to match by email field (if migration has been run and email field exists)
+    let employee = employeesWithoutUser.find((emp: any) => {
+      const empEmail = emp.email;
+      if (empEmail) {
+        const matches = empEmail.toLowerCase().trim() === userEmail.toLowerCase().trim();
+        console.log('[PG-Employee] Checking employee:', emp.id, 'email:', empEmail, 'matches:', matches);
+        return matches;
+      }
+      return false;
+    });
+
+    if (employee) {
+      console.log('[PG-Employee] Found matching employee by email:', employee.id);
+    } else {
+      console.log('[PG-Employee] No employee found with matching email:', userEmail);
+      console.log('[PG-Employee] Available employee emails:', employeesWithoutUser.map((e: any) => ({
+        id: e.id,
+        email: e.email || 'no email',
+        employeeNumber: e.employeeNumber
+      })));
+      
+      // Also check if we can match by user's email in employee's user relation (backward compatibility)
+      // This handles cases where employee was created before email field was added
+      for (const emp of employeesWithoutUser) {
+        if ((emp as any).user && (emp as any).user.email === userEmail.toLowerCase().trim()) {
+          console.log('[PG-Employee] Found matching employee via user relation:', emp.id);
+          employee = emp;
+          break;
+        }
+      }
+    }
+
+    if (employee) {
+      // Link employee to user and update email if not set
+      const updateData: any = { userId };
+      
+      // Update employee email if not set (for employees created before migration)
+      if (!(employee as any).email) {
+        updateData.email = userEmail.toLowerCase().trim();
+        console.log('[PG-Employee] Updating employee email field:', userEmail);
+      }
+      
+      await prisma.employee.update({
+        where: { id: employee.id },
+        data: updateData,
+      });
+      
+      console.log('[PG-Employee] Successfully matched employee:', employee.id, 'with user:', userId);
+      return true;
+    }
+
+    console.log('[PG-Employee] No matching employee found for email:', userEmail);
+    return false;
+  }
+
+  /**
+   * Sync employee data with user account (when user account is created/updated)
+   */
+  async syncEmployeeWithUser(tenantId: string, userId: string, userData: { firstName?: string; lastName?: string; email?: string; phone?: string }) {
+    const prisma = getPrismaClient();
+    
+    const employee = await prisma.employee.findFirst({
+      where: {
+        tenantId,
+        userId,
+      },
+    });
+
+    if (employee) {
+      // Update employee with user data if employee fields are empty
+      // Note: These fields will be available after migration
+      const updateData: any = {};
+      try {
+        if ((employee as any).firstName === null && userData.firstName) updateData.firstName = userData.firstName;
+        if ((employee as any).lastName === null && userData.lastName) updateData.lastName = userData.lastName;
+        if ((employee as any).email === null && userData.email) updateData.email = userData.email.toLowerCase().trim();
+        if ((employee as any).phone === null && userData.phone) updateData.phone = userData.phone;
+      } catch (e) {
+        // Fields don't exist yet, skip
+      }
+
+      if (Object.keys(updateData).length > 0) {
+        await prisma.employee.update({
+          where: { id: employee.id },
+          data: updateData,
+        });
+        console.log('[PG-Employee] Synced employee data with user:', employee.id);
+      }
+    }
   }
 
   /**
@@ -156,6 +288,7 @@ class EmployeePostgresService {
         },
       },
       orderBy: [
+        // Sort by user firstName/lastName (employee fields will be available after migration)
         { user: { firstName: 'asc' } },
         { user: { lastName: 'asc' } },
       ],

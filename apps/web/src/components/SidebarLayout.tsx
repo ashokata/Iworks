@@ -95,6 +95,7 @@ export default function SidebarLayout({
     { name: 'Service Requests', href: '/service-requests', icon: PhoneIcon, current: pathname === '/service-requests' },
     { name: 'Invoices', href: '/invoices', icon: DocumentTextIcon, current: pathname === '/invoices' || pathname.startsWith('/invoices/') },
     { name: 'Reports', href: '/reports', icon: ChartBarIcon, current: pathname === '/reports' || pathname.startsWith('/reports/') },
+    { name: 'Configurations', href: '/configurations', icon: Cog6ToothIcon, current: pathname === '/configurations' || pathname.startsWith('/configurations/') },
     { name: 'Permissions', href: '/settings/permissions', icon: ShieldCheckIcon, current: pathname === '/settings/permissions' || pathname.startsWith('/settings/permissions/') },
     { name: 'Settings', href: '/settings', icon: Cog6ToothIcon, current: pathname === '/settings' || pathname.startsWith('/settings/') },
   ];
