@@ -11,7 +11,10 @@ export interface CreateCustomerInput {
   mobilePhone?: string;
   homePhone?: string;
   workPhone?: string;
+  preferredContactMethod?: 'SMS' | 'EMAIL' | 'VOICE' | 'PUSH' | 'IN_APP';
+  notificationsEnabled?: boolean;
   notes?: string;
+  customFields?: Record<string, any>;
   // Address
   street?: string;
   streetLine2?: string;
@@ -30,7 +33,9 @@ export interface UpdateCustomerInput {
   mobilePhone?: string;
   homePhone?: string;
   workPhone?: string;
+  preferredContactMethod?: 'SMS' | 'EMAIL' | 'VOICE' | 'PUSH' | 'IN_APP';
   notes?: string;
+  customFields?: Record<string, any>;
   doNotService?: boolean;
   doNotServiceReason?: string;
   notificationsEnabled?: boolean;
@@ -58,12 +63,6 @@ class CustomerPostgresService {
     
     // Normalize tenant ID: remove whitespace, take first value if comma-separated
     const normalizedTenantId = String(input.tenantId).trim().split(',')[0].trim();
-    
-    // Validate tenant ID format (should be a UUID)
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(normalizedTenantId)) {
-      throw new Error(`Invalid tenant ID format: '${input.tenantId}'. Expected a valid UUID.`);
-    }
     
     // Validate tenant exists
     const tenant = await prisma.tenant.findUnique({
@@ -99,11 +98,14 @@ class CustomerPostgresService {
         mobilePhone: input.mobilePhone,
         homePhone: input.homePhone,
         workPhone: input.workPhone,
+        preferredContactMethod: input.preferredContactMethod,
+        notificationsEnabled: input.notificationsEnabled,
         notes: input.notes,
+        customFields: input.customFields || {},
         // Create primary address if street is provided
         addresses: input.street ? {
           create: {
-            type: 'BOTH',
+            type: 'SERVICE',
             street: input.street,
             streetLine2: input.streetLine2,
             city: input.city || '',
@@ -207,7 +209,9 @@ class CustomerPostgresService {
         mobilePhone: input.mobilePhone,
         homePhone: input.homePhone,
         workPhone: input.workPhone,
+        preferredContactMethod: input.preferredContactMethod,
         notes: input.notes,
+        customFields: input.customFields,
         doNotService: input.doNotService,
         doNotServiceReason: input.doNotServiceReason,
         notificationsEnabled: input.notificationsEnabled,
@@ -289,7 +293,7 @@ class CustomerPostgresService {
     tenantId: string,
     customerId: string,
     address: {
-      type?: 'SERVICE' | 'BILLING' | 'BOTH';
+      type?: 'SERVICE' | 'BILLING' | 'PRIMARY';
       name?: string;
       street: string;
       streetLine2?: string;
@@ -350,7 +354,7 @@ class CustomerPostgresService {
     customerId: string,
     addressId: string,
     address: {
-      type?: 'SERVICE' | 'BILLING' | 'BOTH';
+      type?: 'SERVICE' | 'BILLING' | 'PRIMARY';
       name?: string;
       street?: string;
       streetLine2?: string;

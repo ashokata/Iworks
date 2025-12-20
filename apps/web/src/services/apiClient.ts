@@ -241,6 +241,14 @@ class ApiClient {
         method: error?.config?.method,
         baseURL: error?.config?.baseURL
       });
+      
+      // Transform error to include response data at top level for easier access
+      if (error?.response?.data) {
+        error.error = error.response.data.error;
+        error.message = error.response.data.message || error.message;
+        error.details = error.response.data.details;
+      }
+      
       throw error;
     }
   }

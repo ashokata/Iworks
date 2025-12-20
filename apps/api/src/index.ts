@@ -129,6 +129,7 @@ app.get('/health/db', async (req, res) => {
 
 app.post('/customers', async (req, res) => {
   try {
+    console.log('[API] POST /customers - Request body:', JSON.stringify(req.body));
     const event = {
       httpMethod: 'POST',
       headers: req.headers,
@@ -137,9 +138,42 @@ app.post('/customers', async (req, res) => {
       queryStringParameters: null,
     };
     const result = await createCustomerHandler(event as any);
+    console.log('[API] POST /customers - Response status:', result.statusCode);
+    console.log('[API] POST /customers - Response body:', result.body);
     res.status(result.statusCode).json(JSON.parse(result.body));
   } catch (error: any) {
     console.error('[API] Create customer error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Check if email exists for tenant
+app.get('/customers/check-email', async (req, res) => {
+  try {
+    const tenantId = req.headers['x-tenant-id'] as string;
+    const email = req.query.email as string;
+    
+    if (!email) {
+      return res.status(400).json({ error: 'Email parameter is required' });
+    }
+    
+    console.log(`[API] Checking email existence for tenant ${tenantId}: ${email}`);
+    
+    const prisma = getPrismaClient();
+    const existingCustomer = await prisma.customer.findFirst({
+      where: {
+        tenantId,
+        email,
+        isArchived: false,
+      },
+    });
+    
+    const exists = !!existingCustomer;
+    console.log(`[API] Email ${email} exists: ${exists}`);
+    
+    res.status(200).json({ exists });
+  } catch (error: any) {
+    console.error('[API] Check email error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -222,20 +256,20 @@ app.delete('/customers/:id', async (req, res) => {
 import { customerPostgresService } from './services/customer.postgres.service';
 
 // Map frontend address type to backend enum
-const mapAddressType = (frontendType: string | undefined): 'SERVICE' | 'BILLING' | 'BOTH' => {
+const mapAddressType = (frontendType: string | undefined): 'SERVICE' | 'BILLING' | 'PRIMARY' => {
   if (!frontendType) return 'SERVICE';
-  const typeMap: Record<string, 'SERVICE' | 'BILLING' | 'BOTH'> = {
-    'Primary': 'BOTH',
-    'primary': 'BOTH',
+  const typeMap: Record<string, 'SERVICE' | 'BILLING' | 'PRIMARY'> = {
+    'Primary': 'PRIMARY',
+    'primary': 'PRIMARY',
     'Billing': 'BILLING',
     'billing': 'BILLING',
     'Service': 'SERVICE',
     'service': 'SERVICE',
-    'Both': 'BOTH',
-    'both': 'BOTH',
+    'Both': 'PRIMARY',
+    'both': 'PRIMARY',
     'SERVICE': 'SERVICE',
     'BILLING': 'BILLING',
-    'BOTH': 'BOTH',
+    'PRIMARY': 'PRIMARY',
   };
   return typeMap[frontendType] || 'SERVICE';
 };

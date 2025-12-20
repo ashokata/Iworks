@@ -376,7 +376,7 @@ async function main() {
         createdById: adminUser.id,
         addresses: {
           create: {
-            type: 'BOTH',
+            type: 'SERVICE',
             street: data.street,
             city: data.city,
             state: data.state,
