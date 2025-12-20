@@ -31,12 +31,12 @@ export {
   transformInvoiceToApi,
 } from './invoice.schema';
 
-// Technician Schema
+// Technician Schema (using Employee schema)
 export {
-  TECHNICIAN_FIELD_MAP,
-  transformTechnicianFromApi,
-  transformTechnicianToApi,
-} from './technician.schema';
+  EMPLOYEE_FIELD_MAP as TECHNICIAN_FIELD_MAP,
+  transformEmployeeFromApi as transformTechnicianFromApi,
+  transformEmployeeToApi as transformTechnicianToApi,
+} from './employee.schema';
 
 // Pricing Schema
 export {

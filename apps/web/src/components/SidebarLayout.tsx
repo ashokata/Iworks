@@ -180,13 +180,13 @@ export default function SidebarLayout({
                     className={`group flex items-center ${isCollapsed ? 'justify-center px-2' : 'px-4'} py-3 text-sm font-bold transition-all duration-200 ${
                       item.current
                         ? `bg-white/10 text-white ${!isCollapsed && 'border-l-4 border-blue-300'} shadow-lg ${styles.navLinkActive}`
-                        : `text-blue-100 hover:bg-white/10 hover:text-white ${!isCollapsed && 'hover:border-l-4 hover:border-blue-300'} hover:shadow-lg ${styles.navLinkShine}`
+                        : `text-white hover:bg-white/10 hover:text-white ${!isCollapsed && 'hover:border-l-4 hover:border-blue-300'} hover:shadow-lg ${styles.navLinkShine}`
                     }`}
                     title={isCollapsed ? item.name : ''}
                   >
                     <item.icon
                       className={`${isCollapsed ? 'mr-0' : 'mr-3'} h-5 w-5 ${
-                        item.current ? 'text-white' : 'text-blue-200 group-hover:text-white'
+                        item.current ? 'text-white' : 'text-white group-hover:text-white'
                       } transition-all`}
                       aria-hidden="true"
                     />

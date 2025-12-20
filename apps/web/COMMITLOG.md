@@ -4,6 +4,58 @@ All commits to this project are documented in this file.
 
 ---
 
+## 📦 Commit #27 - 2025-12-21 01:44 PM (IST)
+
+**Developer:** Ghanshyam Patil
+**Type:** Refactor / Feature Enhancement
+
+### 📝 Commit Message
+```
+refactor: Overhaul job create page with Prisma schema alignment and UI improvements
+
+- Update job form to match Prisma Job schema
+  - Add required fields: customerId, addressId, scheduledStart/End
+  - Add new fields: jobTypeId, arrivalWindow, estimatedDuration, internalNotes
+  - Remove deprecated fields: location string, assignedTo string, customerTags
+  - Fix priority enum mapping (Low/Medium/High → LOW/MEDIUM/HIGH/URGENT)
+  - Add test UUID defaults for customer/address (temporary)
+
+- Enhance UI/UX with navy blue theme
+  - Apply gradient blue header matching Jobs overview
+  - Integrate navy blue (#1e3a8a) throughout form fields, labels, focus states
+  - Update sidebar navigation text to white
+  - Add grey placeholders (placeholder:text-gray-400) to all inputs
+  - Remove left sidebar, estimates section, view toggle buttons
+  - Improve spacing, card styling, and responsive layout
+
+- Fix technical issues
+  - Resolve technician schema import by aliasing employee schema exports
+  - Fix validation to require only title and scheduledStart
+  - Add county state variable for pricing calculations
+  - Update Save button with loading spinner animation
+```
+
+### ✨ Changes
+**Files Modified:**
+- ✅ `apps/web/src/config/apiSchemas/index.ts` - Alias employee schema as technician
+- ✅ `apps/web/src/app/jobs/create/page.tsx` - Complete refactor with schema alignment
+- ✅ `apps/web/src/components/SidebarLayout.tsx` - White text for all nav items
+
+### 🎨 UI Improvements
+- Navy blue theme integration across all form elements
+- Enhanced header with better spacing and loading states
+- Consistent grey placeholders for better UX
+- Removed clutter (sidebar, estimates, view toggles)
+- Professional card-based layout with proper shadows
+
+### 🔧 Technical Details
+- State management updated to match Job schema fields
+- Priority enum mapper added for backend compatibility
+- Test UUIDs (00000000-0000-0000-0000-00000000000X) for optional fields
+- Red asterisks for mandatory fields (Job Title, Scheduled Start)
+
+---
+
 ## 📦 Commit #26 - 2025-12-20 8:41 PM (IST)
 
 **Developer:** Ghanshyam Patil
