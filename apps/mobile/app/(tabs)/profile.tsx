@@ -2,10 +2,12 @@ import { View, Text, ScrollView, TouchableOpacity, Switch, StyleSheet, useColorS
 import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuthStore } from '../../stores/authStore';
 
 export default function ProfileScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const { user, logout } = useAuthStore();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [offlineMode, setOfflineMode] = useState(true);
 
@@ -14,7 +16,10 @@ export default function ProfileScreen() {
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to logout?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Logout', style: 'destructive', onPress: () => console.log('Logout') },
+      { text: 'Logout', style: 'destructive', onPress: async () => {
+        await logout();
+        // Navigation will be handled by auth guard
+      }},
     ]);
   };
 
@@ -24,10 +29,12 @@ export default function ProfileScreen() {
         {/* Profile Header */}
         <View style={styles.profileHeader}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>JD</Text>
+            <Text style={styles.avatarText}>
+              {user?.firstName?.[0]?.toUpperCase()}{user?.lastName?.[0]?.toUpperCase()}
+            </Text>
           </View>
-          <Text style={styles.userName}>John Doe</Text>
-          <Text style={styles.userRole}>Field Technician</Text>
+          <Text style={styles.userName}>{user?.firstName} {user?.lastName}</Text>
+          <Text style={styles.userRole}>{user?.role || 'Field Technician'}</Text>
           <View style={styles.statusRow}>
             <View style={styles.statusDot} />
             <Text style={styles.statusText}>Online</Text>
