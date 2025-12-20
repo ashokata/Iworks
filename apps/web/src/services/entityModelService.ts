@@ -65,57 +65,6 @@ const entityRelationships: EntityRelationship[] = [
 
 const entityDefinitions: EntityDefinition[] = [
   {
-    name: 'Technician',
-    description: 'Field service personnel with skills, availability, and service areas',
-    attributes: [
-      { name: 'id', type: 'string', description: 'Unique identifier', required: true },
-      { name: 'name', type: 'string', description: 'Full name of the technician', required: true },
-      { name: 'email', type: 'string', description: 'Contact email', required: true },
-      { name: 'phone', type: 'string', description: 'Contact phone number', required: true },
-      { name: 'skills', type: 'string[]', description: 'List of skill IDs', required: true },
-      { name: 'rating', type: 'number', description: 'Performance rating (1-5)', required: false },
-      { name: 'tenantId', type: 'string', description: 'Multi-tenant identifier', required: true },
-      { name: 'yearsOfExperience', type: 'number', description: 'Years of professional experience', required: false },
-      { name: 'status', type: 'string', description: 'Current status (Available, Assigned, Off Duty)', required: true },
-      { name: 'profileImage', type: 'string', description: 'URL to profile image', required: false },
-      { name: 'employeeId', type: 'string', description: 'Reference to employee record', required: false }
-    ],
-    relationships: [
-      {
-        sourceEntity: 'Technician',
-        targetEntity: 'ServiceJob',
-        type: 'one-to-many',
-        description: 'A technician can be assigned to multiple service jobs'
-      },
-      {
-        sourceEntity: 'Technician',
-        targetEntity: 'Skill',
-        type: 'many-to-many',
-        description: 'Technicians possess multiple skills'
-      },
-      {
-        sourceEntity: 'Technician',
-        targetEntity: 'ServiceArea',
-        type: 'many-to-many',
-        description: 'Technicians cover multiple service areas'
-      },
-      {
-        sourceEntity: 'Technician',
-        targetEntity: 'Schedule',
-        type: 'one-to-many',
-        description: 'A technician has many schedule events'
-      },
-      {
-        sourceEntity: 'Technician',
-        targetEntity: 'Employee',
-        type: 'many-to-one',
-        description: 'A technician is linked to an employee record'
-      }
-    ],
-    implemented: true,
-    apiEndpoint: '/api/technicians'
-  },
-  {
     name: 'ServiceJob',
     description: 'Work orders assigned to technicians',
     attributes: [

@@ -3,7 +3,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Employee, employeeService } from '@/services/employeeService';
 import {
@@ -25,6 +25,7 @@ import { useState, useEffect } from 'react';
 export default function EmployeesPage() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleteConfirmName, setDeleteConfirmName] = useState<string>('');
@@ -33,6 +34,9 @@ export default function EmployeesPage() {
   const [itemsPerPage] = useState(20);
   const [showTopPagination, setShowTopPagination] = useState(true);
   const [showBottomPagination, setShowBottomPagination] = useState(false);
+  
+  // Check if we should filter for technicians only
+  const filterTechnicians = searchParams.get('filter') === 'technicians';
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -122,12 +126,15 @@ export default function EmployeesPage() {
 
   const activeEmployees = employees.filter(emp => !emp.isArchived);
   const technicians = employees.filter(emp => emp.isDispatchEnabled === true);
+  
+  // Apply filter if technicians filter is active
+  const displayedEmployees = filterTechnicians ? technicians : activeEmployees;
 
   // Pagination logic
-  const totalPages = Math.ceil((employees?.length || 0) / itemsPerPage);
+  const totalPages = Math.ceil((displayedEmployees?.length || 0) / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const paginatedEmployees = employees?.slice(startIndex, endIndex);
+  const paginatedEmployees = displayedEmployees?.slice(startIndex, endIndex);
 
   // Pagination component
   const PaginationControls = () => {
@@ -168,8 +175,8 @@ export default function EmployeesPage() {
           <div>
             <p className="text-sm text-gray-700">
               Showing <span className="font-medium">{startIndex + 1}</span> to{' '}
-              <span className="font-medium">{Math.min(endIndex, employees.length)}</span> of{' '}
-              <span className="font-medium">{employees.length}</span> employees
+              <span className="font-medium">{Math.min(endIndex, displayedEmployees.length)}</span> of{' '}
+              <span className="font-medium">{displayedEmployees.length}</span> {filterTechnicians ? 'technicians' : 'employees'}
             </p>
           </div>
           <div>
@@ -229,8 +236,8 @@ export default function EmployeesPage() {
         <div className="flex items-center justify-between max-w-7xl mx-auto">
           <div className="flex items-center space-x-4">
             <div>
-              <h1 className="text-2xl font-bold">Employee Management</h1>
-              <p className="text-sm text-blue-100">Manage your team and workforce</p>
+              <h1 className="text-2xl font-bold">{filterTechnicians ? 'Technician Management' : 'Employee Management'}</h1>
+              <p className="text-sm text-blue-100">{filterTechnicians ? 'Manage your field technicians' : 'Manage your team and workforce'}</p>
             </div>
           </div>
           <div className="flex items-center space-x-3">

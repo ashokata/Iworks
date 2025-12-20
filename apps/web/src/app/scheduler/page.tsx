@@ -22,11 +22,11 @@ export default function SchedulerRedirectPage() {
     const role = user?.role?.toLowerCase();
     if (role === 'admin' || role === 'manager') {
       router.push('/scheduler/admin');
-    } else if (role === 'technician') {
-      router.push('/scheduler/technician');
+    } else if (role === 'technician' || role === 'field_tech') {
+      router.push('/employees?filter=technicians');
     } else {
-      // Default to technician view for other roles
-      router.push('/scheduler/technician');
+      // Default to admin scheduler for other roles
+      router.push('/scheduler/admin');
     }
   }, [isAuthenticated, isLoading, user, router]);
 
