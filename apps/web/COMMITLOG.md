@@ -4,6 +4,106 @@ All commits to this project are documented in this file.
 
 ---
 
+## 📦 Commit #27 - 2025-12-21 7:30 PM (IST)
+
+**Developer:** Veera Kuppili
+**Type:** Fix / Enhancement
+
+### 📝 Commit Message
+```
+fix(customers): fix schema validation errors and improve customer creation form
+
+- Fix AddressType enum: remove invalid 'BOTH' value, use 'SERVICE', 'BILLING', 'PRIMARY'
+- Remove non-existent fields (isContractor, jobTitle) from customer schema, store in customFields JSON
+- Update customer creation form to use camelCase field names for PostgreSQL backend
+- Add customer type 'CONTRACTOR' as third option alongside Residential/Commercial
+- Implement email duplicate validation with real-time checking (per tenant)
+- Add preferred contact method selector (SMS, Email, Phone)
+- Improve form validation with better error handling and user feedback
+- Update address type mapping to support new enum values
+- Add checkEmailExists() service method for email validation
+- Simplify API request body building to use consistent camelCase
+
+Files changed:
+Frontend:
+- apps/web/src/app/customers/new/page.tsx - Enhanced customer creation form with validation
+- apps/web/src/services/customerService.ts - Fixed address types, added email checking
+- apps/web/src/services/apiClient.ts - Improved error response handling
+- apps/web/src/types/database.types.ts - Updated AddressType enum
+
+Backend:
+- apps/api/src/services/customer.postgres.service.ts - Removed invalid fields, added customFields
+- apps/api/src/handlers/customers/create-postgres.ts - Store extra fields in customFields JSON
+- apps/api/prisma/seed.ts - Fixed address type in seed data
+
+Database:
+- Add unique constraint on (tenantId, email) - email uniqueness scoped per tenant
+- apps/api/prisma/migrations/20251221004604_rename_address_type_both_to_primary/migration.sql
+- apps/api/prisma/migrations/20251221_add_unique_tenant_email_constraint/migration.sql
+
+Breaking Changes:
+- Customer API now requires camelCase field names instead of snake_case
+- AddressType 'BOTH' no longer valid, use 'PRIMARY' instead
+- Email addresses must be unique within each tenant (same email can exist across different tenants)
+```
+
+### ✨ Changes
+**Frontend:**
+- ✅ `apps/web/src/app/customers/new/page.tsx` - Enhanced customer creation form
+  - Added email duplicate validation with real-time checking
+  - Implemented preferred contact method selector (SMS, Email, Phone)
+  - Added CONTRACTOR customer type option
+  - Improved form validation with inline error messages
+  - Updated field names from snake_case to camelCase
+  - Removed "Card on file" checkbox
+  
+- ✅ `apps/web/src/services/customerService.ts` - Enhanced customer service
+  - Added `checkEmailExists()` method for email validation
+  - Fixed address type mapping (removed 'BOTH', added mapping helper)
+  - Simplified request body building to use only camelCase
+  - Fixed `isContractor` handling with null coalescing
+
+- ✅ `apps/web/src/services/apiClient.ts` - Improved error handling
+  - Added error transformation to expose response data at top level
+  - Better error.message and error.error accessibility
+
+- ✅ `apps/web/src/types/database.types.ts` - Updated type definitions
+  - Changed AddressType enum: 'BOTH' → 'PRIMARY'
+
+**Backend:**
+- ✅ `apps/api/src/services/customer.postgres.service.ts` - Fixed schema fields
+  - Removed invalid `isContractor` and `jobTitle` fields
+  - Added `customFields` JSON field support
+  - Changed address type from 'PRIMARY' to 'SERVICE' in create method
+
+- ✅ `apps/api/src/handlers/customers/create-postgres.ts` - Updated handler
+  - Store `isContractor` and `jobTitle` in customFields JSON object
+  - Maintain backward compatibility for input field names
+
+- ✅ `apps/api/prisma/seed.ts` - Fixed seed data
+  - Changed address type from 'BOTH' to 'SERVICE'
+
+**Database Migrations:**
+- 🆕 `apps/api/prisma/migrations/20251221004604_rename_address_type_both_to_primary/migration.sql`
+  - Rename AddressType enum value 'BOTH' to 'PRIMARY'
+  
+- 🆕 `apps/api/prisma/migrations/20251221_add_unique_tenant_email_constraint/migration.sql`
+  - Add unique constraint on (tenantId, email) for customers
+
+### 🐛 Issues Fixed
+- Fixed "Value 'PRIMARY' not found in enum 'AddressType'" error
+- Fixed "Unknown argument `isContractor`" error during customer creation
+- Fixed customer list not displaying due to invalid enum values
+- Fixed customer creation form using wrong field name format
+
+### ⚡ Improvements
+- Real-time email validation prevents duplicate entries
+- Better user experience with inline validation feedback
+- Consistent field naming across frontend and backend
+- Proper multi-tenant email uniqueness constraints
+
+---
+
 ## 📦 Commit #26 - 2025-12-20 8:41 PM (IST)
 
 **Developer:** Ghanshyam Patil
