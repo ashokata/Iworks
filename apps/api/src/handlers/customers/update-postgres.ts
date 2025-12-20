@@ -1,6 +1,9 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { z } from 'zod';
 import { customerPostgresService } from '../../services/customer.postgres.service';
+import { getPrismaClient } from '../../services/prisma.service';
+
+const prisma = getPrismaClient();
 
 // Validation schema - accepts both camelCase and snake_case
 const updateCustomerSchema = z.object({
@@ -24,6 +27,7 @@ const updateCustomerSchema = z.object({
   work_number: z.string().optional(),
   jobTitle: z.string().optional(),
   job_title: z.string().optional(),
+  preferredContactMethod: z.enum(['SMS', 'EMAIL', 'VOICE', 'PUSH', 'IN_APP']).optional(),
   notes: z.string().optional(),
   doNotService: z.boolean().optional(),
   doNotServiceReason: z.string().optional(),
@@ -137,6 +141,8 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       mobilePhone: body.mobilePhone || body.mobile_number || body.phone,
       homePhone: body.homePhone || body.home_number,
       workPhone: body.workPhone || body.work_number,
+      jobTitle: body.jobTitle || body.job_title,
+      preferredContactMethod: body.preferredContactMethod,
       notes: body.notes,
       doNotService: body.doNotService,
       doNotServiceReason: body.doNotServiceReason,
@@ -150,6 +156,33 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     );
 
     console.log('[PG-Update] Normalized data:', JSON.stringify(cleanData));
+
+    // Check if email already exists for another customer in this tenant
+    if (cleanData.email) {
+      const existingCustomer = await prisma.customer.findFirst({
+        where: {
+          tenantId,
+          email: cleanData.email,
+          isArchived: false,
+          NOT: {
+            id: customerId, // Exclude current customer
+          },
+        },
+        select: { id: true, email: true },
+      });
+
+      if (existingCustomer) {
+        console.log('[PG-Update] Email already exists for another customer:', cleanData.email);
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({
+            error: 'Email already exists',
+            message: `A customer with email "${cleanData.email}" already exists. Please use a different email address.`,
+          }),
+        };
+      }
+    }
 
     // Update customer
     const customer = await customerPostgresService.updateCustomer(tenantId, customerId, cleanData);

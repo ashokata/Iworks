@@ -49,7 +49,7 @@ enum CustomerType {
 enum AddressType {
   SERVICE
   BILLING
-  BOTH
+  PRIMARY
 }
 
 enum EmployeeRole {
@@ -713,6 +713,7 @@ model Customer {
   serviceRequests   ServiceRequest[]
   appointments      Appointment[]
 
+  @@unique([tenantId, email], name: "unique_tenant_email")
   @@index([tenantId])
   @@index([tenantId, customerNumber])
   @@index([tenantId, email])

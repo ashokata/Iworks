@@ -19,18 +19,18 @@ import {
 } from '@heroicons/react/24/outline';
 
 type FormData = {
-  first_name: string;
-  last_name: string;
-  type: 'homeowner' | 'business';
+  firstName: string;
+  lastName: string;
+  type: 'RESIDENTIAL' | 'COMMERCIAL' | 'CONTRACTOR';
   email: string;
-  mobile_number: string;
-  home_number: string;
-  work_number: string;
-  company: string;
-  job_title: string;
-  notifications_enabled: boolean;
-  has_improved_card_on_file: boolean;
-  is_contractor: boolean;
+  mobilePhone: string;
+  homePhone: string;
+  workPhone: string;
+  companyName: string;
+  jobTitle: string;
+  preferredContactMethod: 'SMS' | 'EMAIL' | 'VOICE' | 'PUSH' | 'IN_APP';
+  notificationsEnabled: boolean;
+  isContractor: boolean;
   notes: string;
   tags: string[];
 };
@@ -40,24 +40,25 @@ export default function AddPetCustomerPage() {
   const router = useRouter();
   
   const [formData, setFormData] = useState<FormData>({
-    first_name: '',
-    last_name: '',
-    type: 'homeowner',
+    firstName: '',
+    lastName: '',
+    type: 'RESIDENTIAL',
     email: '',
-    mobile_number: '',
-    home_number: '',
-    work_number: '',
-    company: '',
-    job_title: '',
-    notifications_enabled: true,
-    has_improved_card_on_file: false,
-    is_contractor: false,
+    mobilePhone: '',
+    homePhone: '',
+    workPhone: '',
+    companyName: '',
+    jobTitle: '',
+    preferredContactMethod: 'SMS',
+    notificationsEnabled: true,
+    isContractor: false,
     notes: '',
     tags: [],
   });
 
   const [tagsInput, setTagsInput] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isCheckingEmail, setIsCheckingEmail] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
 
@@ -76,13 +77,86 @@ export default function AddPetCustomerPage() {
     }
   }, [isAuthenticated, authLoading, router]);
 
+  // Debounced email validation
+  useEffect(() => {
+    const validateEmail = async () => {
+      // Clear email error if email is empty or being edited
+      if (!formData.email) {
+        setErrors(prev => {
+          if (prev.email) {
+            const newErrors = { ...prev };
+            delete newErrors.email;
+            return newErrors;
+          }
+          return prev;
+        });
+        return;
+      }
+
+      // Check format first
+      if (!/\S+@\S+\.\S+/.test(formData.email)) {
+        return; // Skip API call if format is invalid
+      }
+
+      console.log('[Email Validation] Checking email:', formData.email);
+      setIsCheckingEmail(true);
+      try {
+        const exists = await customerService.checkEmailExists(formData.email);
+        console.log('[Email Validation] Email exists result:', exists);
+        if (exists) {
+          console.log('[Email Validation] Setting error for duplicate email');
+          setErrors(prev => ({
+            ...prev,
+            email: 'A customer with this email already exists'
+          }));
+        } else {
+          console.log('[Email Validation] Email is unique, clearing errors');
+          // Clear email error if it exists
+          setErrors(prev => {
+            if (prev.email) {
+              const newErrors = { ...prev };
+              delete newErrors.email;
+              return newErrors;
+            }
+            return prev;
+          });
+        }
+      } catch (error) {
+        console.error('[Email Validation] Error checking email:', error);
+      } finally {
+        setIsCheckingEmail(false);
+      }
+    };
+
+    // Debounce the validation by 500ms
+    const timeoutId = setTimeout(validateEmail, 500);
+    return () => clearTimeout(timeoutId);
+  }, [formData.email]);
+
+  // Validate mobile phone when preferred contact method changes
+  useEffect(() => {
+    if ((formData.preferredContactMethod === 'SMS' || formData.preferredContactMethod === 'VOICE') && !formData.mobilePhone.trim()) {
+      setErrors(prev => ({ ...prev, mobilePhone: 'Mobile number is required for SMS or Phone contact' }));
+    } else {
+      // Clear mobile error if contact method changed to EMAIL or mobile is filled
+      setErrors(prev => {
+        if (prev.mobilePhone) {
+          const newErrors = { ...prev };
+          delete newErrors.mobilePhone;
+          return newErrors;
+        }
+        return prev;
+      });
+    }
+  }, [formData.preferredContactMethod, formData.mobilePhone]);
+
   // Handle form input changes
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
     
-    // Clear error when field is edited
-    if (errors[name]) {
+    // Clear error when field is edited (except for email - let async validation handle it)
+    if (errors[name] && name !== 'email') {
       setErrors(prev => {
         const newErrors = { ...prev };
         delete newErrors[name];
@@ -125,12 +199,32 @@ export default function AddPetCustomerPage() {
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
     
-    if (!formData.first_name.trim()) {
-      newErrors.first_name = 'First name is required';
+    // First name validation
+    if (!formData.firstName.trim()) {
+      newErrors.firstName = 'First name is required';
+    } else if (formData.firstName.trim().length < 3) {
+      newErrors.firstName = 'First name must be at least 3 characters';
     }
     
-    if (formData.email && !/\S+@\S+\.\S+/.test(formData.email)) {
+    // Last name validation
+    if (!formData.lastName.trim()) {
+      newErrors.lastName = 'Last name is required';
+    } else if (formData.lastName.trim().length < 3) {
+      newErrors.lastName = 'Last name must be at least 3 characters';
+    }
+    
+    // Email validation
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email address is required';
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = 'Invalid email format';
+    }
+    
+    // Mobile phone validation (required if preferred contact method is SMS or VOICE)
+    if ((formData.preferredContactMethod === 'SMS' || formData.preferredContactMethod === 'VOICE')) {
+      if (!formData.mobilePhone.trim()) {
+        newErrors.mobilePhone = 'Mobile number is required for SMS or Phone contact';
+      }
     }
     
     setErrors(newErrors);
@@ -150,33 +244,31 @@ export default function AddPetCustomerPage() {
     try {
       // Prepare customer data (without addresses - they can be added after customer is created)
       const customerData = {
-        first_name: formData.first_name,
-        last_name: formData.last_name,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
         email: formData.email,
-        mobile_number: formData.mobile_number,
-        home_number: formData.home_number,
-        work_number: formData.work_number,
-        company: formData.company,
-        job_title: formData.job_title,
+        mobilePhone: formData.mobilePhone,
+        homePhone: formData.homePhone,
+        workPhone: formData.workPhone,
+        companyName: formData.companyName,
+        jobTitle: formData.jobTitle,
         notes: formData.notes,
         type: formData.type,
-        is_contractor: formData.is_contractor,
+        preferredContactMethod: formData.preferredContactMethod,
+        isContractor: formData.isContractor,
+        notificationsEnabled: formData.notificationsEnabled,
       };
       
       // Create customer
       const newCustomer = await customerService.createCustomer(customerData);
       
-      // Add tags if any (skip if it fails - tags can be added later)
-      if (formData.tags.length > 0) {
-        try {
-          for (const tag of formData.tags) {
-            await customerService.addCustomerTag(newCustomer.id, tag);
-          }
-        } catch (tagError) {
-          console.warn('Failed to add tags, but customer was created:', tagError);
-          // Don't fail the whole operation
-        }
-      }
+      // TODO: Add tags functionality
+      // Tags can be added after customer creation through a separate API
+      // if (formData.tags.length > 0) {
+      //   for (const tag of formData.tags) {
+      //     await customerService.addCustomerTag(newCustomer.id, tag);
+      //   }
+      // }
       
       // Show success toast
       setToast({
@@ -188,12 +280,23 @@ export default function AddPetCustomerPage() {
       setTimeout(() => {
         router.push('/customers');
       }, 1500);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to create customer:', error);
-      setToast({
-        message: 'Failed to create customer. Please try again.',
-        type: 'error'
-      });
+      
+      // Check if it's a duplicate email error
+      const errorMessage = error?.response?.data?.message || error?.message || error?.error;
+      if (errorMessage && errorMessage.toLowerCase().includes('email already exists')) {
+        setErrors({ email: errorMessage });
+        setToast({
+          message: errorMessage,
+          type: 'error'
+        });
+      } else {
+        setToast({
+          message: 'Failed to create customer. Please try again.',
+          type: 'error'
+        });
+      }
     } finally {
       setIsSaving(false);
     }
@@ -315,7 +418,7 @@ export default function AddPetCustomerPage() {
                   <UserCircleIcon className="h-16 w-16 text-white" />
                 </div>
                 <h3 className="text-xl font-bold text-white mb-1">
-                  {formData.first_name || formData.last_name ? `${formData.first_name} ${formData.last_name}`.trim() : 'New Customer'}
+                  {formData.firstName || formData.lastName ? `${formData.firstName} ${formData.lastName}`.trim() : 'New Customer'}
                 </h3>
                 <p className="text-sm text-indigo-100 capitalize flex items-center justify-center">
                   <span className="inline-block w-2 h-2 rounded-full bg-white/60 mr-2"></span>
@@ -393,8 +496,8 @@ export default function AddPetCustomerPage() {
                     <label className="flex items-center p-3 bg-gray-50 hover:bg-gray-100 rounded-lg cursor-pointer transition-colors group">
                       <input
                         type="checkbox"
-                        name="notifications_enabled"
-                        checked={formData.notifications_enabled}
+                        name="notificationsEnabled"
+                        checked={formData.notificationsEnabled}
                         onChange={handleCheckboxChange}
                         className="h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
                       />
@@ -406,21 +509,8 @@ export default function AddPetCustomerPage() {
                     <label className="flex items-center p-3 bg-gray-50 hover:bg-gray-100 rounded-lg cursor-pointer transition-colors group">
                       <input
                         type="checkbox"
-                        name="has_improved_card_on_file"
-                        checked={formData.has_improved_card_on_file}
-                        onChange={handleCheckboxChange}
-                        className="h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-                      />
-                      <span className="ml-3 text-sm font-medium text-gray-700 group-hover:text-gray-900">
-                        💳 Card on file
-                      </span>
-                    </label>
-                    
-                    <label className="flex items-center p-3 bg-gray-50 hover:bg-gray-100 rounded-lg cursor-pointer transition-colors group">
-                      <input
-                        type="checkbox"
-                        name="is_contractor"
-                        checked={formData.is_contractor}
+                        name="isContractor"
+                        checked={formData.isContractor}
                         onChange={handleCheckboxChange}
                         className="h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
                       />
@@ -459,33 +549,54 @@ export default function AddPetCustomerPage() {
                     </label>
                     <input
                       type="text"
-                      name="first_name"
-                      value={formData.first_name}
+                      name="firstName"
+                      value={formData.firstName}
                       onChange={handleChange}
+                      onBlur={() => {
+                        if (!formData.firstName.trim()) {
+                          setErrors(prev => ({ ...prev, firstName: 'First name is required' }));
+                        } else if (formData.firstName.trim().length < 3) {
+                          setErrors(prev => ({ ...prev, firstName: 'First name must be at least 3 characters' }));
+                        }
+                      }}
                       className={`w-full px-4 py-3 bg-gray-50 border-2 ${
-                        errors.first_name ? 'border-red-300 bg-red-50' : 'border-gray-200 focus:border-blue-500 focus:bg-white'
+                        errors.firstName ? 'border-red-300 bg-red-50' : 'border-gray-200 focus:border-blue-500 focus:bg-white'
                       } rounded-xl transition-all duration-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-blue-100`}
                       placeholder="John"
                     />
-                    {errors.first_name && (
+                    {errors.firstName && (
                       <p className="text-xs text-red-600 mt-1.5 flex items-center">
-                        <span className="inline-block mr-1">⚠</span> {errors.first_name}
+                        <span className="inline-block mr-1">⚠</span> {errors.firstName}
                       </p>
                     )}
                   </div>
                   
                   <div className="group">
                     <label className="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wider">
-                      Last Name
+                      Last Name <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
-                      name="last_name"
-                      value={formData.last_name}
+                      name="lastName"
+                      value={formData.lastName}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 focus:border-blue-500 focus:bg-white rounded-xl transition-all duration-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-blue-100"
+                      onBlur={() => {
+                        if (!formData.lastName.trim()) {
+                          setErrors(prev => ({ ...prev, lastName: 'Last name is required' }));
+                        } else if (formData.lastName.trim().length < 3) {
+                          setErrors(prev => ({ ...prev, lastName: 'Last name must be at least 3 characters' }));
+                        }
+                      }}
+                      className={`w-full px-4 py-3 bg-gray-50 border-2 ${
+                        errors.lastName ? 'border-red-300 bg-red-50' : 'border-gray-200 focus:border-blue-500 focus:bg-white'
+                      } rounded-xl transition-all duration-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-blue-100`}
                       placeholder="Doe"
                     />
+                    {errors.lastName && (
+                      <p className="text-xs text-red-600 mt-1.5 flex items-center">
+                        <span className="inline-block mr-1">⚠</span> {errors.lastName}
+                      </p>
+                    )}
                   </div>
                 </div>
                 
@@ -493,47 +604,70 @@ export default function AddPetCustomerPage() {
                   <label className="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wider">
                     Customer Type
                   </label>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-3 gap-3">
                     <button
                       type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, type: 'homeowner' }))}
+                      onClick={() => setFormData(prev => ({ ...prev, type: 'RESIDENTIAL' }))}
                       className={`p-4 rounded-xl border-2 transition-all duration-200 ${
-                        formData.type === 'homeowner'
+                        formData.type === 'RESIDENTIAL'
                           ? 'border-blue-500 bg-blue-50 shadow-md'
                           : 'border-gray-200 bg-white hover:border-gray-300'
                       }`}
                     >
-                      <div className="flex items-center space-x-3">
+                      <div className="flex flex-col items-center space-y-2">
                         <div className={`p-2 rounded-lg ${
-                          formData.type === 'homeowner' ? 'bg-blue-100' : 'bg-gray-100'
+                          formData.type === 'RESIDENTIAL' ? 'bg-blue-100' : 'bg-gray-100'
                         }`}>
-                          <svg className={`h-5 w-5 ${formData.type === 'homeowner' ? 'text-blue-600' : 'text-gray-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <svg className={`h-5 w-5 ${formData.type === 'RESIDENTIAL' ? 'text-blue-600' : 'text-gray-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                           </svg>
                         </div>
-                        <span className={`font-semibold ${formData.type === 'homeowner' ? 'text-blue-700' : 'text-gray-700'}`}>
-                          Homeowner
+                        <span className={`font-semibold text-sm ${formData.type === 'RESIDENTIAL' ? 'text-blue-700' : 'text-gray-700'}`}>
+                          Residential
                         </span>
                       </div>
                     </button>
                     
                     <button
                       type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, type: 'business' }))}
+                      onClick={() => setFormData(prev => ({ ...prev, type: 'COMMERCIAL' }))}
                       className={`p-4 rounded-xl border-2 transition-all duration-200 ${
-                        formData.type === 'business'
+                        formData.type === 'COMMERCIAL'
                           ? 'border-purple-500 bg-purple-50 shadow-md'
                           : 'border-gray-200 bg-white hover:border-gray-300'
                       }`}
                     >
-                      <div className="flex items-center space-x-3">
+                      <div className="flex flex-col items-center space-y-2">
                         <div className={`p-2 rounded-lg ${
-                          formData.type === 'business' ? 'bg-purple-100' : 'bg-gray-100'
+                          formData.type === 'COMMERCIAL' ? 'bg-purple-100' : 'bg-gray-100'
                         }`}>
-                          <BuildingOfficeIcon className={`h-5 w-5 ${formData.type === 'business' ? 'text-purple-600' : 'text-gray-500'}`} />
+                          <BuildingOfficeIcon className={`h-5 w-5 ${formData.type === 'COMMERCIAL' ? 'text-purple-600' : 'text-gray-500'}`} />
                         </div>
-                        <span className={`font-semibold ${formData.type === 'business' ? 'text-purple-700' : 'text-gray-700'}`}>
-                          Business
+                        <span className={`font-semibold text-sm ${formData.type === 'COMMERCIAL' ? 'text-purple-700' : 'text-gray-700'}`}>
+                          Commercial
+                        </span>
+                      </div>
+                    </button>
+                    
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, type: 'CONTRACTOR' }))}
+                      className={`p-4 rounded-xl border-2 transition-all duration-200 ${
+                        formData.type === 'CONTRACTOR'
+                          ? 'border-orange-500 bg-orange-50 shadow-md'
+                          : 'border-gray-200 bg-white hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex flex-col items-center space-y-2">
+                        <div className={`p-2 rounded-lg ${
+                          formData.type === 'CONTRACTOR' ? 'bg-orange-100' : 'bg-gray-100'
+                        }`}>
+                          <svg className={`h-5 w-5 ${formData.type === 'CONTRACTOR' ? 'text-orange-600' : 'text-gray-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                        <span className={`font-semibold text-sm ${formData.type === 'CONTRACTOR' ? 'text-orange-700' : 'text-gray-700'}`}>
+                          Contractor
                         </span>
                       </div>
                     </button>
@@ -559,7 +693,65 @@ export default function AddPetCustomerPage() {
               <div className="p-6 space-y-5">
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wider">
-                    Email Address
+                    Preferred Contact Method
+                  </label>
+                  <div className="grid grid-cols-3 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, preferredContactMethod: 'SMS' }))}
+                      className={`p-3 rounded-lg border-2 transition-all duration-200 ${
+                        formData.preferredContactMethod === 'SMS'
+                          ? 'border-emerald-500 bg-emerald-50 shadow-md'
+                          : 'border-gray-200 bg-white hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-center space-x-2">
+                        <span className="text-xl">💬</span>
+                        <span className={`font-semibold text-sm ${formData.preferredContactMethod === 'SMS' ? 'text-emerald-700' : 'text-gray-700'}`}>
+                          SMS
+                        </span>
+                      </div>
+                    </button>
+                    
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, preferredContactMethod: 'EMAIL' }))}
+                      className={`p-3 rounded-lg border-2 transition-all duration-200 ${
+                        formData.preferredContactMethod === 'EMAIL'
+                          ? 'border-emerald-500 bg-emerald-50 shadow-md'
+                          : 'border-gray-200 bg-white hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-center space-x-2">
+                        <span className="text-xl">📧</span>
+                        <span className={`font-semibold text-sm ${formData.preferredContactMethod === 'EMAIL' ? 'text-emerald-700' : 'text-gray-700'}`}>
+                          Email
+                        </span>
+                      </div>
+                    </button>
+                    
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, preferredContactMethod: 'VOICE' }))}
+                      className={`p-3 rounded-lg border-2 transition-all duration-200 ${
+                        formData.preferredContactMethod === 'VOICE'
+                          ? 'border-emerald-500 bg-emerald-50 shadow-md'
+                          : 'border-gray-200 bg-white hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-center space-x-2">
+                        <span className="text-xl">📞</span>
+                        <span className={`font-semibold text-sm ${formData.preferredContactMethod === 'VOICE' ? 'text-emerald-700' : 'text-gray-700'}`}>
+                          Phone
+                        </span>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wider">
+                    Email Address <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <EnvelopeIcon className="h-5 w-5 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2" />
@@ -568,11 +760,19 @@ export default function AddPetCustomerPage() {
                       name="email"
                       value={formData.email}
                       onChange={handleChange}
-                      className={`w-full pl-12 pr-4 py-3 bg-gray-50 border-2 ${
+                      className={`w-full pl-12 pr-12 py-3 bg-gray-50 border-2 ${
                         errors.email ? 'border-red-300 bg-red-50' : 'border-gray-200 focus:border-emerald-500 focus:bg-white'
                       } rounded-xl transition-all duration-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-emerald-100`}
                       placeholder="john.doe@example.com"
                     />
+                    {isCheckingEmail && (
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                        <svg className="animate-spin h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                      </div>
+                    )}
                   </div>
                   {errors.email && (
                     <p className="text-xs text-red-600 mt-1.5 flex items-center">
@@ -584,16 +784,28 @@ export default function AddPetCustomerPage() {
                 <div className="grid grid-cols-3 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wider">
-                      📱 Mobile
+                      📱 Mobile {(formData.preferredContactMethod === 'SMS' || formData.preferredContactMethod === 'VOICE') && <span className="text-red-500">*</span>}
                     </label>
                     <input
                       type="text"
-                      name="mobile_number"
-                      value={formData.mobile_number}
+                      name="mobilePhone"
+                      value={formData.mobilePhone}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 focus:border-emerald-500 focus:bg-white rounded-xl transition-all duration-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-emerald-100"
+                      onBlur={() => {
+                        if ((formData.preferredContactMethod === 'SMS' || formData.preferredContactMethod === 'VOICE') && !formData.mobilePhone.trim()) {
+                          setErrors(prev => ({ ...prev, mobilePhone: 'Mobile number is required for SMS or Phone contact' }));
+                        }
+                      }}
+                      className={`w-full px-4 py-3 bg-gray-50 border-2 ${
+                        errors.mobilePhone ? 'border-red-300 bg-red-50' : 'border-gray-200 focus:border-emerald-500 focus:bg-white'
+                      } rounded-xl transition-all duration-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-emerald-100`}
                       placeholder="(555) 123-4567"
                     />
+                    {errors.mobilePhone && (
+                      <p className="text-xs text-red-600 mt-1.5 flex items-center">
+                        <span className="inline-block mr-1">⚠</span> {errors.mobilePhone}
+                      </p>
+                    )}
                   </div>
                   
                   <div>
@@ -602,8 +814,8 @@ export default function AddPetCustomerPage() {
                     </label>
                     <input
                       type="text"
-                      name="home_number"
-                      value={formData.home_number}
+                      name="homePhone"
+                      value={formData.homePhone}
                       onChange={handleChange}
                       className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 focus:border-emerald-500 focus:bg-white rounded-xl transition-all duration-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-emerald-100"
                       placeholder="(555) 123-4567"
@@ -616,8 +828,8 @@ export default function AddPetCustomerPage() {
                     </label>
                     <input
                       type="text"
-                      name="work_number"
-                      value={formData.work_number}
+                      name="workPhone"
+                      value={formData.workPhone}
                       onChange={handleChange}
                       className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 focus:border-emerald-500 focus:bg-white rounded-xl transition-all duration-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-emerald-100"
                       placeholder="(555) 123-4567"
@@ -628,7 +840,7 @@ export default function AddPetCustomerPage() {
             </div>
 
             {/* Business Information Card - Conditional */}
-            {formData.type === 'business' && (
+            {formData.type === 'COMMERCIAL' && (
               <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300 animate-fadeIn">
                 <div className="bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-4">
                   <div className="flex items-center space-x-3">
@@ -650,8 +862,8 @@ export default function AddPetCustomerPage() {
                       </label>
                       <input
                         type="text"
-                        name="company"
-                        value={formData.company}
+                        name="companyName"
+                        value={formData.companyName}
                         onChange={handleChange}
                         className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 focus:border-purple-500 focus:bg-white rounded-xl transition-all duration-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-purple-100"
                         placeholder="Acme Corporation"
@@ -664,8 +876,8 @@ export default function AddPetCustomerPage() {
                       </label>
                       <input
                         type="text"
-                        name="job_title"
-                        value={formData.job_title}
+                        name="jobTitle"
+                        value={formData.jobTitle}
                         onChange={handleChange}
                         className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 focus:border-purple-500 focus:bg-white rounded-xl transition-all duration-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-purple-100"
                         placeholder="Manager"
