@@ -52,7 +52,6 @@ export default function Navigation() {
     { name: 'Jobs', href: '/jobs', icon: BriefcaseIcon, current: pathname === '/jobs' || pathname.startsWith('/jobs/') },
     { name: 'Schedule', href: '/scheduler', icon: DocumentTextIcon, current: pathname === '/scheduler' || pathname.startsWith('/scheduler/') },
     { name: 'Customers', href: '/customers', icon: UserGroupIcon, current: pathname === '/customers' || pathname.startsWith('/customers/') },
-    { name: 'Technicians', href: '/technicians', icon: UserIcon, current: pathname === '/technicians' || pathname.startsWith('/technicians/') },
     { name: 'Employees', href: '/employees', icon: UserGroupIcon, current: pathname === '/employees' || pathname.startsWith('/employees/') },
     { name: 'Invoices', href: '/invoices', icon: DocumentTextIcon, current: pathname === '/invoices' || pathname.startsWith('/invoices/') },
     { name: 'Reports', href: '/reports', icon: ChartBarIcon, current: pathname === '/reports' || pathname.startsWith('/reports/') },

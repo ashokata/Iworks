@@ -88,7 +88,7 @@ const transformAddresses = (addressData: any): Address[] => {
     return addressData.map((addr: any) => ({
       id: addr.id || `addr-${Date.now()}`,
       customerId: addr.customerId || '',
-      type: addr.type || 'BOTH',
+      type: addr.type || 'PRIMARY',
       name: addr.name,
       street: addr.street || addr.address || '',
       streetLine2: addr.streetLine2 || addr.street2 || addr.addressLine2 || '',
@@ -149,7 +149,7 @@ const buildRequestBody = (data: any): Record<string, any> => {
   const homePhone = data.homePhone || data.home_number;
   const workPhone = data.workPhone || data.work_number;
   const jobTitle = data.jobTitle || data.job_title;
-  const isContractor = data.isContractor || data.is_contractor;
+  const isContractor = data.isContractor ?? data.is_contractor;
   const notificationsEnabled = data.notificationsEnabled ?? data.notifications_enabled;
   
   // If display_name is provided but firstName/lastName are not, split display_name
@@ -163,47 +163,20 @@ const buildRequestBody = (data: any): Record<string, any> => {
     }
   }
   
-  // Map fields to both camelCase and snake_case for backend compatibility
-  if (firstName !== undefined) {
-    body.firstName = firstName;
-    body.first_name = firstName;
-  }
-  if (lastName !== undefined) {
-    body.lastName = lastName;
-    body.last_name = lastName;
-  }
-  if (displayName !== undefined) {
-    body.display_name = displayName;
-    body.displayName = displayName;
-  }
-  if (companyName !== undefined) {
-    body.companyName = companyName;
-    body.company_name = companyName;
-    body.company = companyName;
-  }
-  if (data.email !== undefined) body.email = data.email;
-  if (mobilePhone !== undefined) {
-    body.mobilePhone = mobilePhone;
-    body.mobile_number = mobilePhone;
-    body.phone = mobilePhone;
-  }
-  if (homePhone !== undefined) {
-    body.homePhone = homePhone;
-    body.home_number = homePhone;
-  }
-  if (workPhone !== undefined) {
-    body.workPhone = workPhone;
-    body.work_number = workPhone;
-  }
-  if (jobTitle !== undefined) body.jobTitle = jobTitle;
+  // Map fields to ONLY camelCase for backend (PostgreSQL API)
+  if (firstName !== undefined && firstName !== '') body.firstName = firstName;
+  if (lastName !== undefined && lastName !== '') body.lastName = lastName;
+  if (companyName !== undefined && companyName !== '') body.companyName = companyName;
+  if (data.email !== undefined && data.email !== '') body.email = data.email;
+  if (mobilePhone !== undefined && mobilePhone !== '') body.mobilePhone = mobilePhone;
+  if (homePhone !== undefined && homePhone !== '') body.homePhone = homePhone;
+  if (workPhone !== undefined && workPhone !== '') body.workPhone = workPhone;
+  if (jobTitle !== undefined && jobTitle !== '') body.jobTitle = jobTitle;
   if (isContractor !== undefined) body.isContractor = isContractor;
   if (data.type !== undefined) body.type = data.type?.toUpperCase?.() || data.type;
-  if (data.notes !== undefined) body.notes = data.notes;
+  if (data.notes !== undefined && data.notes !== '') body.notes = data.notes;
   if (data.preferredContactMethod !== undefined) body.preferredContactMethod = data.preferredContactMethod;
-  if (notificationsEnabled !== undefined) {
-    body.notificationsEnabled = notificationsEnabled;
-    body.notifications_enabled = notificationsEnabled;
-  }
+  if (notificationsEnabled !== undefined) body.notificationsEnabled = notificationsEnabled;
   
   // Handle update-specific fields
   if ('doNotService' in data && data.doNotService !== undefined) {
@@ -212,9 +185,8 @@ const buildRequestBody = (data: any): Record<string, any> => {
   if ('doNotServiceReason' in data && data.doNotServiceReason !== undefined) {
     body.doNotServiceReason = data.doNotServiceReason;
   }
-  if ('verificationStatus' in data && data.verificationStatus !== undefined) {
-    body.verificationStatus = data.verificationStatus;
-    body.verification_status = data.verificationStatus;
+  if ('verificationStatus' in data) {
+    body.verificationStatus = data.verificationStatus || data.verification_status;
   }
   
   // Handle address fields (for create)
@@ -232,6 +204,19 @@ const buildRequestBody = (data: any): Record<string, any> => {
   if ('country' in data) body.country = data.country;
   
   return body;
+};
+
+// Map frontend address type to database type
+const mapAddressTypeToDb = (addressType: string | undefined): 'SERVICE' | 'BILLING' | 'PRIMARY' => {
+  const typeMap: Record<string, 'SERVICE' | 'BILLING' | 'PRIMARY'> = {
+    'Primary': 'PRIMARY',
+    'Service': 'SERVICE',
+    'Billing': 'BILLING',
+    'PRIMARY': 'PRIMARY',
+    'SERVICE': 'SERVICE',
+    'BILLING': 'BILLING',
+  };
+  return typeMap[addressType || ''] || 'SERVICE';
 };
 
 // Export service interface with methods
@@ -414,8 +399,14 @@ export const customerService = {
     try {
       console.log(`[Customer Service] Adding address to customer: ${customerId}`);
       
+      // Map address type to database format
+      const addressData = {
+        ...address,
+        type: mapAddressTypeToDb((address as any).addressType || address.type),
+      };
+      
       // Use API client which automatically includes tenant ID from user session
-      const data = await apiClient.post<{ address: any } | any>(`/customers/${customerId}/addresses`, address);
+      const data = await apiClient.post<{ address: any } | any>(`/customers/${customerId}/addresses`, addressData);
       console.log('[Customer Service] Address added successfully');
       return (data as any).address || data;
     } catch (error: any) {
@@ -433,7 +424,7 @@ export const customerService = {
       
       // Map frontend address format to backend
       const addressData = {
-        type: address.addressType || address.type || 'SERVICE',
+        type: mapAddressTypeToDb(address.addressType || address.type),
         name: address.name,
         street: address.street,
         streetLine2: address.streetLine2 || address.street2,
@@ -465,7 +456,7 @@ export const customerService = {
       
       // Map frontend address format to backend
       const addressData = {
-        type: address.addressType || address.type,
+        type: mapAddressTypeToDb(address.addressType || address.type),
         name: address.name,
         street: address.street,
         streetLine2: address.streetLine2 || address.street2,
@@ -501,6 +492,24 @@ export const customerService = {
     } catch (error: any) {
       console.error(`[Customer Service] Error deleting address ${addressId}:`, error);
       throw error;
+    }
+  },
+  
+  /**
+   * Check if email already exists for the tenant
+   */
+  checkEmailExists: async (email: string): Promise<boolean> => {
+    try {
+      console.log(`[Customer Service] Checking if email exists: ${email}`);
+      
+      // Use API client which automatically includes tenant ID from user session
+      const response = await apiClient.get<{ exists: boolean }>(`/customers/check-email?email=${encodeURIComponent(email)}`);
+      console.log(`[Customer Service] Email exists check result:`, response.exists);
+      return response.exists;
+    } catch (error: any) {
+      console.error(`[Customer Service] Error checking email existence:`, error);
+      // In case of error, return false to not block the user (backend will catch it anyway)
+      return false;
     }
   },
 };

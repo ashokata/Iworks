@@ -1,10 +1,10 @@
 /**
  * Employee API Schema Mappings
  * 
- * Handles transformation between OData Employee API and frontend Technician interface
+ * Handles transformation between OData Employee API and frontend Employee interface
  */
 
-import { Technician } from '@/services/technicianService';
+import { Employee } from '@/types/database.types';
 
 /**
  * API Field Mapping for Employees
@@ -36,9 +36,9 @@ export const EMPLOYEE_FIELD_MAP = {
 } as const;
 
 /**
- * Transform OData Employee response to frontend Technician interface
+ * Transform OData Employee response to frontend Employee interface
  */
-export const transformEmployeeFromApi = (apiEmployee: any): Technician => {
+export const transformEmployeeFromApi = (apiEmployee: any): Employee => {
   console.log('[Employee Schema] Transforming employee:', apiEmployee?.EmployeeID || 'unknown');
   console.log('[Employee Schema] Raw API data:', apiEmployee);
   

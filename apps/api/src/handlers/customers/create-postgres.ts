@@ -1,6 +1,9 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { z } from 'zod';
 import { customerPostgresService } from '../../services/customer.postgres.service';
+import { getPrismaClient } from '../../services/prisma.service';
+
+const prisma = getPrismaClient();
 
 // Validation schema - accepts both camelCase and snake_case
 const createCustomerSchema = z.object({
@@ -22,6 +25,9 @@ const createCustomerSchema = z.object({
   work_number: z.string().optional(),
   jobTitle: z.string().optional(),
   job_title: z.string().optional(),
+  preferredContactMethod: z.enum(['SMS', 'EMAIL', 'VOICE', 'PUSH', 'IN_APP']).optional(),
+  notificationsEnabled: z.boolean().optional(),
+  notifications_enabled: z.boolean().optional(),
   isContractor: z.boolean().optional(),
   is_contractor: z.boolean().optional(),
   notes: z.string().optional(),
@@ -97,6 +103,15 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     if (customerType === 'HOMEOWNER') customerType = 'RESIDENTIAL';
     if (customerType === 'BUSINESS') customerType = 'COMMERCIAL';
     
+    // Build customFields object for fields not in main schema
+    const customFields: Record<string, any> = {};
+    if (body.isContractor !== undefined || body.is_contractor !== undefined) {
+      customFields.isContractor = body.isContractor ?? body.is_contractor;
+    }
+    if (body.jobTitle || body.job_title) {
+      customFields.jobTitle = body.jobTitle || body.job_title;
+    }
+    
     const normalizedData = {
       tenantId,
       type: customerType as 'RESIDENTIAL' | 'COMMERCIAL' | 'CONTRACTOR',
@@ -107,7 +122,10 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       mobilePhone: body.mobilePhone || body.mobile_number || body.phone,
       homePhone: body.homePhone || body.home_number,
       workPhone: body.workPhone || body.work_number,
+      preferredContactMethod: body.preferredContactMethod,
+      notificationsEnabled: body.notificationsEnabled ?? body.notifications_enabled,
       notes: body.notes,
+      customFields: Object.keys(customFields).length > 0 ? customFields : undefined,
       street: body.street || body.address,
       streetLine2: body.streetLine2,
       city: body.city,
@@ -117,6 +135,30 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     };
 
     console.log('[PG-Create] Normalized data:', JSON.stringify(normalizedData));
+
+    // Check if email already exists for this tenant
+    if (normalizedData.email) {
+      const existingCustomer = await prisma.customer.findFirst({
+        where: {
+          tenantId,
+          email: normalizedData.email,
+          isArchived: false,
+        },
+        select: { id: true, email: true },
+      });
+
+      if (existingCustomer) {
+        console.log('[PG-Create] Email already exists:', normalizedData.email);
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({
+            error: 'Email already exists',
+            message: `A customer with email "${normalizedData.email}" already exists. Please use a different email address.`,
+          }),
+        };
+      }
+    }
 
     // Create customer
     const customer = await customerPostgresService.createCustomer(normalizedData);

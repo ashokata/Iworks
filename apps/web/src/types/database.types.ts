@@ -17,7 +17,7 @@ export type PlanTier = 'STARTER' | 'ESSENTIALS' | 'PRO' | 'ENTERPRISE';
 export type CustomerType = 'RESIDENTIAL' | 'COMMERCIAL' | 'CONTRACTOR';
 export type CustomerVerificationStatus = 'VERIFIED' | 'UNVERIFIED' | 'PENDING';
 export type CustomerCreatedSource = 'WEB' | 'MOBILE' | 'VOICE_AGENT' | 'API' | 'IMPORT';
-export type AddressType = 'SERVICE' | 'BILLING' | 'BOTH';
+export type AddressType = 'SERVICE' | 'BILLING' | 'PRIMARY';
 
 export type EmployeeRole = 'OWNER' | 'ADMIN' | 'OFFICE_STAFF' | 'DISPATCHER' | 'FIELD_TECH' | 'SALES_REP';
 export type ProficiencyLevel = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' | 'EXPERT';

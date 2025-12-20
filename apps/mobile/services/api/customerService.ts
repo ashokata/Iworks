@@ -57,7 +57,7 @@ export interface CreateCustomerRequest {
     city: string;
     state: string;
     zipCode: string;
-    type?: 'SERVICE' | 'BILLING' | 'BOTH';
+    type?: 'SERVICE' | 'BILLING' | 'PRIMARY';
   };
 }
 

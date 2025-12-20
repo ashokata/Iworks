@@ -3,8 +3,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { scheduleService } from '@/services/scheduleService';
-import { Technician } from '@/services/technicianService';
-import { technicianService } from '@/services/technicianService';
+import { Employee } from '@/types/database.types';
+import { employeeService } from '@/services/employeeService';
 import { useAuth } from '@/contexts/AuthContext';
 import { ScheduleEvent, CalendarViewType, TechnicianResource } from '@/types/scheduleTypes';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -37,14 +37,14 @@ const AdminSchedulerPage = () => {
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [selectedTechnicians, setSelectedTechnicians] = useState<string[]>([]);
 
-  // Fetch technicians
+  // Fetch employees (technicians)
   const {
     data: technicians = [],
     isLoading: technicianLoading,
     error: technicianError
   } = useQuery({
-    queryKey: ['technicians'],
-    queryFn: () => technicianService.getAllTechnicians(),
+    queryKey: ['employees'],
+    queryFn: () => employeeService.getAllEmployees({ isDispatchEnabled: true }),
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
   });
