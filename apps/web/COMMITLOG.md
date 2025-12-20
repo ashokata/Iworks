@@ -4,6 +4,58 @@ All commits to this project are documented in this file.
 
 ---
 
+## 📦 Commit #26 - 2025-12-20 8:41 PM (IST)
+
+**Developer:** Ghanshyam Patil
+**Type:** Refactor / Cleanup
+
+### 📝 Commit Message
+```
+refactor: Consolidate technician module into employee system
+
+- Remove duplicate technician pages and components
+  - Delete /technicians list, create, and detail pages
+  - Remove technicianService.ts and related schemas
+  - Clean up technician navigation menu items
+
+- Fix backend and database issues
+  - Resolve port conflicts and missing dependencies
+  - Seed database with demo data (10 customers, 2 employees, 5 jobs)
+  - Fix tenant ID validation and mock data alignment
+
+- Consolidate to unified employee management
+  - Update scheduler routing to use employees with filter
+  - Add ?filter=technicians URL parameter support
+  - Dynamic page titles based on filter state
+  - Route technician role users to filtered employee view
+
+- Resolve TypeScript compilation errors
+  - Fix tsconfig.json rootDir configuration
+  - Clean Next.js build cache
+```
+
+### ✨ Changes
+**Files Deleted:**
+- ❌ `apps/web/src/app/technicians/` - Entire directory
+- ❌ `apps/web/src/services/technicianService.ts`
+- ❌ `apps/web/src/config/apiSchemas/technician.schema.ts`
+- ❌ `apps/web/src/components/technicians/` - Entire directory
+- ❌ `apps/web/src/app/scheduler/technician/page.tsx`
+
+**Files Modified:**
+- ✅ `apps/web/src/components/SidebarLayout.tsx` - Removed Technicians nav item
+- ✅ `apps/web/src/components/Navigation.tsx` - Removed Technicians nav item
+- ✅ `apps/web/src/app/scheduler/admin/page.tsx` - Use employeeService
+- ✅ `apps/web/src/app/scheduler/page.tsx` - Route technicians to employees
+- ✅ `apps/web/src/app/employees/page.tsx` - Add technician filter support
+- ✅ `apps/web/src/config/apiSchemas/employee.schema.ts` - Use Employee type
+- ✅ `apps/web/src/services/entityModelService.ts` - Remove Technician entity
+- ✅ `apps/api/src/services/customer.postgres.service.ts` - Remove UUID validation
+- ✅ `apps/web/src/lib/mockData.ts` - Update tenant IDs to 'local-tenant'
+- ✅ `apps/api/tsconfig.json` - Fix rootDir configuration
+
+---
+
 ## 📦 Commit #25 - 2025-12-16 03:00 PM (IST)
 
 **Developer:** Ghanshyam Patil
