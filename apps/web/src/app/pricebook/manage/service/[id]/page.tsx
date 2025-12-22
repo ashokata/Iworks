@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, use } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -26,7 +26,8 @@ interface Material {
   serviceId: string;
 }
 
-export default function ServiceDetailPage({ params }: { params: { id: string } }) {
+export default function ServiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -42,15 +43,15 @@ export default function ServiceDetailPage({ params }: { params: { id: string } }
 
   // Fetch service
   const { data: serviceData } = useQuery({
-    queryKey: ['pricebook-service', params.id],
-    queryFn: () => pricebookService.getService(params.id),
+    queryKey: ['pricebook-service', id],
+    queryFn: () => pricebookService.getService(id),
   });
   const service = serviceData?.service || serviceData;
 
   // Fetch materials
   const { data: materialsData, isLoading } = useQuery({
-    queryKey: ['pricebook-materials', params.id],
-    queryFn: () => pricebookService.listMaterials(params.id),
+    queryKey: ['pricebook-materials', id],
+    queryFn: () => pricebookService.listMaterials(id),
   });
   const materials = materialsData?.materials || materialsData || [];
 

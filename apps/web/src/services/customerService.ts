@@ -113,7 +113,7 @@ const transformAddresses = (addressData: any): Address[] => {
     return [{
       id: `addr-legacy-${Date.now()}`,
       customerId: '',
-      type: 'BOTH',
+      type: 'PRIMARY',
       street: addressData,
       streetLine2: '',
       city: '',
@@ -203,6 +203,23 @@ const buildRequestBody = (data: any): Record<string, any> => {
   }
   if ('country' in data) body.country = data.country;
   
+  // Handle addresses array (for create with multiple addresses)
+  if ('addresses' in data && Array.isArray(data.addresses) && data.addresses.length > 0) {
+    body.addresses = data.addresses.map((addr: any) => ({
+      type: mapAddressTypeToDb(addr.type || addr.addressType),
+      name: addr.name,
+      street: addr.street,
+      streetLine2: addr.streetLine2 || addr.street2,
+      city: addr.city,
+      state: addr.state,
+      zip: addr.zip || addr.zipCode,
+      country: addr.country || 'US',
+      accessNotes: addr.accessNotes,
+      gateCode: addr.gateCode,
+      isPrimary: addr.isPrimary
+    }));
+  }
+  
   return body;
 };
 
@@ -237,15 +254,30 @@ export const customerService = {
       const queryString = params.toString();
       const url = `/customers${queryString ? `?${queryString}` : ''}`;
       
+      console.log('[Customer Service] Request URL:', url);
+      
       // Use API client which automatically includes tenant ID from user session
       const data = await apiClient.get<{ customers: any[]; total: number }>(url);
       console.log('[Customer Service] Received customers:', data.customers?.length || 0);
       
+      // Check if we got an error response
+      if (!data.customers && (data as any).error) {
+        console.error('[Customer Service] API returned error:', (data as any).error);
+        throw new Error((data as any).error || 'Failed to fetch customers');
+      }
+      
       // Transform each customer
       const customers = (data.customers || []).map(transformCustomer);
+      console.log('[Customer Service] Transformed customers:', customers.length);
       return customers;
     } catch (error: any) {
       console.error('[Customer Service] Error fetching customers:', error);
+      
+      // Add more context to the error
+      if (error?.response?.status === 400 && error?.response?.data?.error?.includes('Tenant ID')) {
+        throw new Error('Session expired or invalid. Please log in again.');
+      }
+      
       throw error;
     }
   },
@@ -337,8 +369,11 @@ export const customerService = {
   createCustomer: async (customerData: CreateCustomerRequest): Promise<Customer> => {
     try {
       console.log('[Customer Service] Creating customer');
+      console.log('[Customer Service] Input data:', JSON.stringify(customerData, null, 2));
       
       const body = buildRequestBody(customerData);
+      console.log('[Customer Service] Request body after buildRequestBody:', JSON.stringify(body, null, 2));
+      console.log('[Customer Service] Addresses in body:', body.addresses);
       
       // Use API client which automatically includes tenant ID from user session
       const data = await apiClient.post<{ customer: any } | any>('/customers', body);

@@ -369,6 +369,18 @@ app.delete('/customers/:customerId/addresses/:addressId', async (req, res) => {
     res.status(204).send();
   } catch (error: any) {
     console.error('[API] Delete address error:', error);
+    
+    // Return 400 for validation errors (primary address, last address)
+    if (error.message.includes('Cannot delete') || error.message.includes('must have')) {
+      return res.status(400).json({ error: error.message });
+    }
+    
+    // Return 404 for not found errors
+    if (error.message.includes('not found')) {
+      return res.status(404).json({ error: error.message });
+    }
+    
+    // Return 500 for other errors
     res.status(500).json({ error: error.message });
   }
 });

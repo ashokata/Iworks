@@ -230,12 +230,12 @@ router.post('/api/auth/login', async (req, res) => {
         }
       } else {
         // Plain text password - compare directly (for local development)
+        // This handles passwords like 'demo-hash' or 'password123'
         passwordValid = password === user.passwordHash;
-        console.log('[API] Password check (plain text):', passwordValid);
+        console.log('[API] Password check (plain text):', passwordValid, { provided: password, stored: user.passwordHash });
       }
     } else {
-      // Fallback for development/testing (remove in production)
-      // Only allow if passwordHash is null/empty and password matches a test password
+      // Fallback for development/testing if passwordHash is null
       passwordValid = password === 'password123';
       console.log('[API] Password check (fallback - no hash):', passwordValid);
     }

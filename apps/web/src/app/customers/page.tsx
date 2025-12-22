@@ -303,7 +303,7 @@ export default function CustomersPage() {
   // Helper function to get primary address
   const getPrimaryAddress = (customer: Customer) => {
     // Handle both wrapped and unwrapped address structures
-    const addresses = customer.addresses?.data || customer.addresses || [];
+    const addresses = (customer.addresses as any)?.data || customer.addresses || [];
     if (!Array.isArray(addresses) || addresses.length === 0) return null;
     const primaryAddress = addresses.find((addr: any) => addr.isPrimary);
     return primaryAddress || addresses[0];
@@ -570,17 +570,36 @@ export default function CustomersPage() {
               </svg>
             </div>
             <p className="font-medium text-gray-900 mb-2">Failed to load customers</p>
-            <p className="text-gray-500 mb-2 text-center">There was an error connecting to the API</p>
-            <p className="text-xs text-gray-400 mb-4 text-center max-w-md">
-              {error instanceof Error ? error.message : 'Request failed with status code 500'}
-            </p>
-            <p className="text-xs text-gray-400 mb-4">
-              Check browser console (F12) for detailed error logs
-            </p>
-            <Button onClick={() => refetch()}>
-              <ArrowPathIcon className="h-4 w-4 mr-2" />
-              Retry
-            </Button>
+            {error instanceof Error && error.message.includes('Session expired') ? (
+              <>
+                <p className="text-gray-500 mb-2 text-center">Your session has expired</p>
+                <p className="text-xs text-gray-400 mb-4 text-center max-w-md">
+                  Please log in again to continue
+                </p>
+                <Button onClick={() => router.push('/login')}>
+                  Go to Login
+                </Button>
+              </>
+            ) : (
+              <>
+                <p className="text-gray-500 mb-2 text-center">There was an error connecting to the API</p>
+                <p className="text-xs text-gray-400 mb-4 text-center max-w-md">
+                  {error instanceof Error ? error.message : 'Request failed - please check your connection'}
+                </p>
+                <p className="text-xs text-gray-400 mb-4">
+                  Check browser console (F12) for detailed error logs
+                </p>
+                <div className="flex gap-2">
+                  <Button onClick={() => refetch()} variant="outline">
+                    <ArrowPathIcon className="h-4 w-4 mr-2" />
+                    Retry
+                  </Button>
+                  <Button onClick={() => router.push('/login')}>
+                    Re-login
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       ) : !customers || customers.length === 0 || filteredCustomers?.length === 0 ? (
@@ -751,7 +770,7 @@ export default function CustomersPage() {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
-                              {customer.type === 'business' ? 
+                              {customer.type === 'COMMERCIAL' ? 
                                 <BuildingOfficeIcon className="h-5 w-5 text-blue-600" /> :
                                 <HomeIcon className="h-5 w-5 text-blue-600" />
                               }
@@ -784,7 +803,7 @@ export default function CustomersPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            customer.type === 'business' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
+                            customer.type === 'COMMERCIAL' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
                           }`}>
                             {customer.type ? (customer.type.charAt(0).toUpperCase() + customer.type.slice(1)) : 'Homeowner'}
                           </span>
@@ -823,7 +842,7 @@ export default function CustomersPage() {
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex flex-wrap gap-1">
-                            {(customer.tags?.data || customer.tags || []).length ? (customer.tags?.data || customer.tags || []).slice(0, 2).map((tag: string) => (
+                            {((customer.tags as any)?.data || customer.tags || []).length ? ((customer.tags as any)?.data || customer.tags || []).slice(0, 2).map((tag: string) => (
                               <span key={tag} className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">
                                 <TagIcon className="h-3 w-3 mr-1" />
                                 {tag}
@@ -831,9 +850,9 @@ export default function CustomersPage() {
                             )) : (
                               <span className="text-sm text-gray-400">No tags</span>
                             )}
-                            {(customer.tags?.data || customer.tags || []).length > 2 && (
+                            {((customer.tags as any)?.data || customer.tags || []).length > 2 && (
                               <span className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">
-                                +{(customer.tags?.data || customer.tags || []).length - 2}
+                                +{((customer.tags as any)?.data || customer.tags || []).length - 2}
                               </span>
                             )}
                           </div>
@@ -1096,9 +1115,9 @@ export default function CustomersPage() {
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center space-x-3">
                         <div className={`h-12 w-12 rounded-full flex items-center justify-center flex-shrink-0 ${
-                          customer.type === 'business' ? 'bg-purple-100' : 'bg-blue-100'
+                          customer.type === 'COMMERCIAL' ? 'bg-purple-100' : 'bg-blue-100'
                         }`}>
-                          {customer.type === 'business' ? (
+                          {customer.type === 'COMMERCIAL' ? (
                             <BuildingOfficeIcon className="h-6 w-6 text-purple-600" />
                           ) : (
                             <HomeIcon className="h-6 w-6 text-blue-600" />
@@ -1114,7 +1133,7 @@ export default function CustomersPage() {
                         </div>
                       </div>
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        customer.type === 'business' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
+                        customer.type === 'COMMERCIAL' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
                       }`}>
                         {customer.type ? (customer.type.charAt(0).toUpperCase() + customer.type.slice(1)) : 'Home'}
                       </span>
@@ -1145,9 +1164,9 @@ export default function CustomersPage() {
                     </div>
 
                     {/* Tags */}
-                    {(customer.tags?.data || customer.tags || []).length > 0 && (
+                    {((customer.tags as any)?.data || customer.tags || []).length > 0 && (
                       <div className="flex flex-wrap gap-1 mb-3">
-                        {(customer.tags?.data || customer.tags || []).slice(0, 2).map((tag: string) => (
+                        {((customer.tags as any)?.data || customer.tags || []).slice(0, 2).map((tag: string) => (
                           <span
                             key={tag}
                             className="inline-flex items-center px-2 py-0.5 bg-gray-100 text-gray-700 text-xs rounded-full"
@@ -1156,9 +1175,9 @@ export default function CustomersPage() {
                             {tag}
                           </span>
                         ))}
-                        {(customer.tags?.data || customer.tags || []).length > 2 && (
+                        {((customer.tags as any)?.data || customer.tags || []).length > 2 && (
                           <span className="inline-flex items-center px-2 py-0.5 bg-gray-100 text-gray-700 text-xs rounded-full">
-                            +{(customer.tags?.data || customer.tags || []).length - 2}
+                            +{((customer.tags as any)?.data || customer.tags || []).length - 2}
                           </span>
                         )}
                       </div>

@@ -27,7 +27,10 @@ export function SearchableSelect({
 }: SearchableSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [openUpward, setOpenUpward] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const filteredOptions = options.filter(option =>
@@ -36,17 +39,35 @@ export function SearchableSelect({
 
   const selectedOption = options.find(opt => opt.value === value);
 
+  // Check positioning when opening
+  useEffect(() => {
+    if (isOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      const dropdownMaxHeight = 256;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      setOpenUpward(spaceBelow < dropdownMaxHeight + 20);
+    }
+  }, [isOpen]);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (
+        containerRef.current && 
+        !containerRef.current.contains(target)
+      ) {
         setIsOpen(false);
         setSearchQuery('');
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen && searchInputRef.current) {
@@ -60,6 +81,7 @@ export function SearchableSelect({
         <label className="block text-sm font-semibold text-gray-700 mb-2">{label}</label>
       )}
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={`w-full text-left appearance-none border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-gray-400 bg-white cursor-pointer text-gray-900 flex items-center justify-between ${className}`}
@@ -71,7 +93,12 @@ export function SearchableSelect({
       </button>
 
       {isOpen && (
-        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-hidden">
+        <div 
+          ref={dropdownRef}
+          className={`absolute left-0 right-0 bg-white border border-gray-300 rounded-lg shadow-2xl max-h-64 overflow-hidden z-50 ${
+            openUpward ? 'bottom-full mb-1 flex flex-col-reverse' : 'top-full mt-1'
+          }`}
+        >
           <div className="p-2 border-b border-gray-200">
             <div className="relative">
               <MagnifyingGlassIcon className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -102,13 +129,13 @@ export function SearchableSelect({
                     setIsOpen(false);
                     setSearchQuery('');
                   }}
-                  className={`w-full text-left px-4 py-2.5 text-sm hover:bg-blue-50 flex items-center justify-between transition-colors ${
+                  className={`w-full text-left px-4 py-2.5 text-sm hover:bg-blue-50 flex items-center justify-between gap-3 transition-colors ${
                     value === option.value ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-900'
                   }`}
                 >
-                  <span>{option.label}</span>
+                  <span className="flex-1 truncate">{option.label}</span>
                   {value === option.value && (
-                    <CheckIcon className="h-4 w-4 text-blue-600" />
+                    <CheckIcon className="h-4 w-4 text-blue-600 flex-shrink-0" />
                   )}
                 </button>
               ))

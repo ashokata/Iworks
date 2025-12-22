@@ -84,9 +84,10 @@ export default function SidebarLayout({
     { name: 'Schedule', href: '/schedule', icon: CalendarIcon, current: pathname === '/schedule' || pathname.startsWith('/schedule/') },
     { name: 'Dispatch', href: '/dispatch', icon: TruckIcon, current: pathname === '/dispatch' },
     { name: 'Customers', href: '/customers', icon: UserGroupIcon, current: pathname === '/customers' || pathname.startsWith('/customers/') },
+    { name: 'Service Request', href: '/service-requests', icon: DocumentTextIcon, current: pathname === '/service-requests' || pathname.startsWith('/service-requests/') },
     { name: 'Employees', href: '/employees', icon: UserGroupIcon, current: pathname === '/employees' || pathname.startsWith('/employees/') },
     { name: 'Invoices', href: '/invoices', icon: DocumentTextIcon, current: pathname === '/invoices' || pathname.startsWith('/invoices/') },
-    { name: 'Configurations', href: '/configurations', icon: Cog6ToothIcon, current: pathname === '/configurations' || pathname.startsWith('/configurations/') || pathname.startsWith('/pricebook') || pathname.startsWith('/service-requests') || pathname.startsWith('/reports') },
+    { name: 'Configurations', href: '/configurations', icon: Cog6ToothIcon, current: pathname === '/configurations' || pathname.startsWith('/configurations/') || pathname.startsWith('/pricebook') || pathname.startsWith('/reports') },
     { name: 'Settings', href: '/settings', icon: Cog6ToothIcon, current: pathname === '/settings' || pathname.startsWith('/settings/') },
   ];
 

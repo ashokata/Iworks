@@ -116,7 +116,7 @@ export default function PetCustomerViewPage() {
   // Helper function to get primary address
   const getPrimaryAddress = () => {
     // Handle both wrapped and unwrapped address structures
-    const addresses = customer.addresses?.data || customer.addresses || [];
+    const addresses = (customer.addresses as any)?.data || customer.addresses || [];
     if (!Array.isArray(addresses) || addresses.length === 0) return null;
     const primaryAddress = addresses.find((addr: any) => addr.isPrimary);
     return primaryAddress || addresses[0];
@@ -138,7 +138,8 @@ export default function PetCustomerViewPage() {
     }
   };
 
-  const formatDate = (dateString: string) => {
+  // Helper to format dates
+  const formatDate = (dateString: string | undefined) => {
     if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString();
   };
@@ -200,7 +201,7 @@ export default function PetCustomerViewPage() {
               <CardContent className="pt-6">
                 <div className="flex items-center mb-6">
                   <div className="h-16 w-16 bg-blue-100 rounded-full flex items-center justify-center mr-4">
-                    {customer.type === 'business' ? 
+                    {customer.type === 'COMMERCIAL' ? 
                       <BuildingOfficeIcon className="h-10 w-10 text-blue-600" /> :
                       <HomeIcon className="h-10 w-10 text-blue-600" />
                     }
@@ -211,11 +212,11 @@ export default function PetCustomerViewPage() {
                     </h2>
                     <div className="flex items-center mt-1">
                       <span className={`text-xs px-2 py-1 rounded-full ${
-                        customer.type === 'business' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
+                        customer.type === 'COMMERCIAL' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
                       }`}>
                         {customer.type ? (customer.type.charAt(0).toUpperCase() + customer.type.slice(1)) : 'Homeowner'}
                       </span>
-                      {customer.is_contractor && (
+                      {(customer as any).is_contractor && (
                         <span className="ml-2 text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded-full">
                           Contractor
                         </span>
@@ -232,24 +233,24 @@ export default function PetCustomerViewPage() {
                     </div>
                   )}
                   
-                  {customer.mobile_number && (
+                  {(customer as any).mobile_number && (
                     <div className="flex items-center">
                       <PhoneIcon className="h-5 w-5 text-gray-400 mr-3" />
-                      <span className="text-gray-600">{customer.mobile_number} (Mobile)</span>
+                      <span className="text-gray-600">{(customer as any).mobile_number} (Mobile)</span>
                     </div>
                   )}
                   
-                  {customer.home_number && (
+                  {(customer as any).home_number && (
                     <div className="flex items-center">
                       <PhoneIcon className="h-5 w-5 text-gray-400 mr-3" />
-                      <span className="text-gray-600">{customer.home_number} (Home)</span>
+                      <span className="text-gray-600">{(customer as any).home_number} (Home)</span>
                     </div>
                   )}
                   
-                  {customer.work_number && (
+                  {(customer as any).work_number && (
                     <div className="flex items-center">
                       <PhoneIcon className="h-5 w-5 text-gray-400 mr-3" />
-                      <span className="text-gray-600">{customer.work_number} (Work)</span>
+                      <span className="text-gray-600">{(customer as any).work_number} (Work)</span>
                     </div>
                   )}
 
@@ -260,10 +261,10 @@ export default function PetCustomerViewPage() {
                     </div>
                   )}
                   
-                  {customer.job_title && (
+                  {(customer as any).job_title && (
                     <div className="flex items-center">
                       <UserCircleIcon className="h-5 w-5 text-gray-400 mr-3" />
-                      <span className="text-gray-600">{customer.job_title}</span>
+                      <span className="text-gray-600">{(customer as any).job_title}</span>
                     </div>
                   )}
 
@@ -283,8 +284,8 @@ export default function PetCustomerViewPage() {
                 <div className="mt-4 pt-4 border-t">
                   <h3 className="text-sm font-medium text-gray-900 mb-2">Tags</h3>
                   <div className="flex flex-wrap gap-2">
-                    {(customer.tags?.data || customer.tags || []).length > 0 ? (
-                      (customer.tags?.data || customer.tags || []).map((tag: string) => (
+                    {((customer.tags as any)?.data || customer.tags || []).length > 0 ? (
+                      ((customer.tags as any)?.data || customer.tags || []).map((tag: string) => (
                         <span key={tag} className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded-full">
                           <TagIcon className="h-3 w-3 mr-1" />
                           {tag}
@@ -308,20 +309,20 @@ export default function PetCustomerViewPage() {
                     <h3 className="text-sm font-medium text-gray-900">Card on File</h3>
                     <span 
                       className={`inline-block py-1 px-2 text-xs rounded-full ${
-                        customer.has_improved_card_on_file ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                        (customer as any).has_improved_card_on_file ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
                       }`}
                     >
-                      {customer.has_improved_card_on_file ? 'Yes' : 'No'}
+                      {(customer as any).has_improved_card_on_file ? 'Yes' : 'No'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between mt-2">
                     <h3 className="text-sm font-medium text-gray-900">Notifications</h3>
                     <span 
                       className={`inline-block py-1 px-2 text-xs rounded-full ${
-                        customer.notifications_enabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                        (customer as any).notifications_enabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
                       }`}
                     >
-                      {customer.notifications_enabled ? 'Enabled' : 'Disabled'}
+                      {(customer as any).notifications_enabled ? 'Enabled' : 'Disabled'}
                     </span>
                   </div>
                 </div>

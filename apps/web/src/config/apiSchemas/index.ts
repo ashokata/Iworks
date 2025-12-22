@@ -32,11 +32,11 @@ export {
 } from './invoice.schema';
 
 // Technician Schema
-export {
-  TECHNICIAN_FIELD_MAP,
-  transformTechnicianFromApi,
-  transformTechnicianToApi,
-} from './technician.schema';
+// export {
+//   TECHNICIAN_FIELD_MAP,
+//   transformTechnicianFromApi,
+//   transformTechnicianToApi,
+// } from './technician.schema';
 
 // Pricing Schema
 export {
