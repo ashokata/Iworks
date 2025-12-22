@@ -2,6 +2,7 @@
 export { apiClient } from './client';
 export { jobService } from './jobService';
 export { customerService } from './customerService';
+export { authService } from './authService';
 
 // Re-export types
 export type { 

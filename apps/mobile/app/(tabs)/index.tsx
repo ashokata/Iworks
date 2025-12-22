@@ -1,7 +1,10 @@
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, StyleSheet, useColorScheme } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, StyleSheet, useColorScheme, Dimensions } from 'react-native';
 import { useState, useCallback } from 'react';
 import { format } from 'date-fns';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import { Swipeable } from 'react-native-gesture-handler';
 
 const mockJobs = [
   {

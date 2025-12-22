@@ -4,9 +4,11 @@
 
 // API Configuration
 export const API_CONFIG = {
-  // Use deployed AWS API for mobile
-  // For local development, set EXPO_PUBLIC_API_URL to your computer's IP (e.g., http://192.168.1.x:4000)
-  BASE_URL: process.env.EXPO_PUBLIC_API_URL || 'https://gpajab36b7.execute-api.us-east-1.amazonaws.com/prod',
+  // For local development, use your computer's IP address (e.g., http://192.168.1.x:4000)
+  // Find your IP: Windows: ipconfig | Mac/Linux: ifconfig
+  // Or use localhost if running on same device: http://localhost:4000
+  // Your IP: 192.168.0.44
+  BASE_URL: process.env.EXPO_PUBLIC_API_URL || 'http://192.168.0.44:4000',
   TIMEOUT: 30000, // 30 seconds
 };
 

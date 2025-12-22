@@ -31,8 +31,13 @@ class ApiClient {
     // Request interceptor - add auth token
     this.client.interceptors.request.use(
       async (config) => {
-        // Add tenant ID header
-        config.headers['x-tenant-id'] = APP_CONFIG.DEFAULT_TENANT_ID;
+        // Don't add tenant ID header for login/auth endpoints
+        const isAuthEndpoint = config.url?.includes('/auth/login') || config.url?.includes('/auth/register');
+        
+        if (!isAuthEndpoint) {
+          // Add tenant ID header for non-auth endpoints
+          config.headers['x-tenant-id'] = APP_CONFIG.DEFAULT_TENANT_ID;
+        }
 
         // Add auth token if available
         try {
@@ -55,33 +60,53 @@ class ApiClient {
     // Response interceptor - handle errors and token refresh
     this.client.interceptors.response.use(
       (response) => {
-        console.log(`[API Client] Response ${response.status} from ${response.config.url}`);
+        if (response?.config?.url) {
+          console.log(`[API Client] Response ${response.status} from ${response.config.url}`);
+        }
         return response;
       },
       async (error) => {
+        // Handle network errors or errors without response
+        if (!error.response && !error.config) {
+          console.error('[API Client] Network error:', error.message);
+          return Promise.reject(error);
+        }
+
         const originalRequest = error.config;
 
-        // Handle 401 - try to refresh token
-        if (error.response?.status === 401 && !originalRequest._retry) {
-          originalRequest._retry = true;
+        // Handle 401 - try to refresh token (only if refresh token exists)
+        if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
+          // Check if we have a refresh token before attempting refresh
+          const hasRefreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
+          
+          if (hasRefreshToken) {
+            originalRequest._retry = true;
 
-          try {
-            const newToken = await this.refreshToken();
-            originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
-            return this.client(originalRequest);
-          } catch (refreshError) {
-            // Refresh failed - clear tokens and redirect to login
-            await this.clearTokens();
-            // TODO: Navigate to login screen
-            return Promise.reject(refreshError);
+            try {
+              const newToken = await this.refreshToken();
+              if (originalRequest.headers) {
+                originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
+              }
+              return this.client(originalRequest);
+            } catch (refreshError) {
+              // Refresh failed - clear tokens and redirect to login
+              await this.clearTokens();
+              // TODO: Navigate to login screen
+              return Promise.reject(refreshError);
+            }
           }
+          // No refresh token available - just reject the error
         }
 
         // Log other errors
         console.error('[API Client] Error:', {
-          url: error.config?.url,
-          status: error.response?.status,
-          message: error.response?.data?.message || error.message,
+          url: error.config?.url || 'unknown',
+          baseURL: error.config?.baseURL || 'unknown',
+          fullURL: error.config ? `${error.config.baseURL}${error.config.url}` : 'unknown',
+          status: error.response?.status || 'no status',
+          statusText: error.response?.statusText || 'no status text',
+          data: error.response?.data || 'no data',
+          message: error.response?.data?.message || error.response?.data?.error || error.message || 'Unknown error',
         });
 
         return Promise.reject(error);

@@ -19,7 +19,12 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.fieldsmartpro.app",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "Take photos of job sites and equipment",
+        "NSPhotoLibraryUsageDescription": "Select photos from your library",
+        "NSLocationWhenInUseUsageDescription": "Show your location for navigation",
+        "NSLocationAlwaysUsageDescription": "Track location for time entries",
+        "NSMicrophoneUsageDescription": "Record voice notes"
       }
     },
     "android": {
@@ -27,7 +32,15 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1E40AF"
       },
-      "package": "com.fieldsmartpro.app"
+      "package": "com.fieldsmartpro.app",
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -35,7 +48,23 @@
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-camera",
+      "expo-location",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow FieldSmartPro to access your photos for job documentation.",
+          "cameraPermission": "Allow FieldSmartPro to take photos for job documentation."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#1E40AF"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

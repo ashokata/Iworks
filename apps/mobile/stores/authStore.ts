@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
-import { apiClient } from '../services/api/client';
+import { authService } from '../services/api';
 
 // Storage keys
 const USER_KEY = 'user_data';
@@ -36,29 +36,43 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   login: async (email: string, password: string) => {
     set({ isLoading: true, error: null });
-    
+
     try {
       // Make login API call
-      const response = await apiClient.post<{
-        accessToken: string;
-        refreshToken: string;
-        user: User;
-      }>('/auth/login', { email, password });
+      const response = await authService.login({ email, password });
 
-      // Store tokens
-      await apiClient.setTokens(response.accessToken, response.refreshToken);
-      
+      // Map API response to User interface
+      const nameParts = response.user.name?.split(' ') || [];
+      const user: User = {
+        id: response.user.id,
+        email: response.user.email,
+        firstName: nameParts[0] || '',
+        lastName: nameParts.slice(1).join(' ') || '',
+        role: response.user.role,
+        tenantId: response.user.tenantId,
+      };
+
       // Store user data
-      await SecureStore.setItemAsync(USER_KEY, JSON.stringify(response.user));
+      await SecureStore.setItemAsync(USER_KEY, JSON.stringify(user));
 
       set({
-        user: response.user,
+        user,
         isAuthenticated: true,
         isLoading: false,
         error: null,
       });
     } catch (error: any) {
-      const errorMessage = error.response?.data?.message || 'Login failed. Please try again.';
+      console.error('[Auth Store] Login error:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        url: error.config?.url,
+      });
+      
+      const errorMessage = error.response?.data?.error || 
+                          error.response?.data?.message || 
+                          error.message || 
+                          'Login failed. Please check your credentials.';
       set({
         isLoading: false,
         error: errorMessage,
@@ -69,11 +83,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   logout: async () => {
     set({ isLoading: true });
-    
+
     try {
-      // Clear tokens from API client
-      await apiClient.logout();
-      
+      // Clear tokens via auth service
+      await authService.logout();
+
       // Clear user data
       await SecureStore.deleteItemAsync(USER_KEY);
 
@@ -96,12 +110,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   checkAuth: async () => {
     set({ isLoading: true });
-    
+
     try {
-      // Check for existing token
-      const token = await apiClient.getToken();
-      
-      if (!token) {
+      // Check if authenticated
+      const isAuthenticated = await authService.isAuthenticated();
+
+      if (!isAuthenticated) {
         set({
           user: null,
           isAuthenticated: false,
@@ -112,7 +126,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       // Try to get stored user data
       const userData = await SecureStore.getItemAsync(USER_KEY);
-      
+
       if (userData) {
         const user = JSON.parse(userData);
         set({
@@ -123,16 +137,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       } else {
         // Token exists but no user data - fetch from API
         try {
-          const response = await apiClient.get<{ user: User }>('/auth/me');
-          await SecureStore.setItemAsync(USER_KEY, JSON.stringify(response.user));
+          const profileData: any = await authService.getProfile();
+          const nameParts = profileData.name?.split(' ') || [];
+          const user: User = {
+            id: profileData.id,
+            email: profileData.email,
+            firstName: profileData.firstName || nameParts[0] || '',
+            lastName: profileData.lastName || nameParts.slice(1).join(' ') || '',
+            role: profileData.role,
+            tenantId: profileData.tenantId,
+            avatarUrl: profileData.avatarUrl,
+          };
+          await SecureStore.setItemAsync(USER_KEY, JSON.stringify(user));
           set({
-            user: response.user,
+            user,
             isAuthenticated: true,
             isLoading: false,
           });
         } catch {
           // Token invalid - clear auth
-          await apiClient.logout();
+          await authService.logout();
           set({
             user: null,
             isAuthenticated: false,

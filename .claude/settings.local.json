@@ -12,7 +12,10 @@
       "Bash(find:*)",
       "Bash(netstat:*)",
       "Bash(findstr:*)",
-      "Bash(xargs:*)"
+      "Bash(xargs:*)",
+      "Bash(npm install:*)",
+      "Bash(npx expo install:*)",
+      "Bash(npm start)"
     ]
   }
 }
