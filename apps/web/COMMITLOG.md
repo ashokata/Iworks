@@ -4,6 +4,31 @@ All commits to this project are documented in this file.
 
 ---
 
+## 📦 Commit #28 - 2025-12-22 (IST)
+
+**Developer:** Veera Kuppili
+**Type:** Fix
+
+### 📝 Commit Message
+```
+fix(service-requests): pre-populate serviceAddressId and assignedToId in edit form
+
+- Check direct serviceAddressId field before nested serviceAddress.id
+- Add fallback to direct assignedToId field alongside assignedTo.id
+- Ensures edit form correctly displays previously selected address and technician
+```
+
+### ✨ Changes
+**Files Modified:**
+- ✅ `apps/web/src/app/service-requests/edit/[id]/page.tsx` - Fixed form pre-population logic
+
+**Impact:**
+- Edit form now correctly displays previously selected service address
+- Assigned technician properly pre-populated in edit mode
+- Improved data loading with multiple fallback strategies
+
+---
+
 ## 📦 Commit #27 - 2025-12-22 (IST)
 
 **Developer:** Veera Kuppili
