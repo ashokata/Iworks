@@ -87,8 +87,8 @@ export default function EditServiceRequestPage() {
         problemType: serviceRequest.problemType || 'HVAC',
         urgency: serviceRequest.urgency || 'MEDIUM',
         status: serviceRequest.status || 'NEW',
-        serviceAddressId: (serviceRequest.serviceAddress as any)?.id || '',
-        assignedToId: serviceRequest.assignedTo?.id || '',
+        serviceAddressId: serviceRequest.serviceAddressId || (serviceRequest.serviceAddress as any)?.id || '',
+        assignedToId: serviceRequest.assignedTo?.id || serviceRequest.assignedToId || '',
         notes: (serviceRequest as any).notes || '',
       };
       setFormData(initialData);
