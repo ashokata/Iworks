@@ -44,7 +44,12 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: true, // Allow all origins
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-tenant-id', 'x-user-id', 'X-Tenant-Id', 'X-User-Id'],
+  credentials: true,
+}));
 app.use(express.json());
 
 // Tenant isolation middleware - CRITICAL for multi-tenancy
@@ -741,6 +746,205 @@ app.delete('/employees/:id/skills/:skillId', async (req, res) => {
 // ============================================================================
 // JOB ROUTES
 // ============================================================================
+
+// GET all jobs
+app.get('/jobs', async (req, res) => {
+  try {
+    const tenantId = req.headers['x-tenant-id'] as string;
+    if (!tenantId) {
+      return res.status(400).json({ error: 'x-tenant-id header is required' });
+    }
+
+    const prisma = getPrismaClient();
+    const jobs = await prisma.job.findMany({
+      where: { tenantId },
+      include: {
+        customer: {
+          select: {
+            id: true,
+            customerNumber: true,
+            type: true,
+            firstName: true,
+            lastName: true,
+            companyName: true,
+            email: true,
+            mobilePhone: true,
+          },
+        },
+        address: {
+          select: {
+            id: true,
+            street: true,
+            city: true,
+            state: true,
+            zip: true,
+          },
+        },
+        jobType: true,
+        assignments: {
+          include: {
+            employee: {
+              include: {
+                user: {
+                  select: {
+                    firstName: true,
+                    lastName: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        lineItems: true,
+        attachments: true,
+        checklists: {
+          include: {
+            items: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Transform jobs for frontend
+    const transformedJobs = jobs.map((job) => ({
+      ...job,
+      customer: job.customer
+        ? {
+            ...job.customer,
+            displayName:
+              job.customer.companyName ||
+              `${job.customer.firstName || ''} ${job.customer.lastName || ''}`.trim() ||
+              'Unknown',
+          }
+        : undefined,
+      address: job.address
+        ? {
+            ...job.address,
+            fullAddress: `${job.address.street}, ${job.address.city}, ${job.address.state} ${job.address.zip}`,
+          }
+        : undefined,
+      assignments: job.assignments.map((a) => ({
+        ...a,
+        employee: a.employee
+          ? {
+              ...a.employee,
+              fullName: a.employee.user
+                ? `${a.employee.user.firstName || ''} ${a.employee.user.lastName || ''}`.trim()
+                : 'Unknown',
+            }
+          : undefined,
+      })),
+    }));
+
+    res.json({ jobs: transformedJobs, total: jobs.length });
+  } catch (error: any) {
+    console.error('[API] Get jobs error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET job by ID
+app.get('/jobs/:id', async (req, res) => {
+  try {
+    const tenantId = req.headers['x-tenant-id'] as string;
+    const { id } = req.params;
+
+    if (!tenantId) {
+      return res.status(400).json({ error: 'x-tenant-id header is required' });
+    }
+
+    const prisma = getPrismaClient();
+    const job = await prisma.job.findFirst({
+      where: { id, tenantId },
+      include: {
+        customer: {
+          select: {
+            id: true,
+            customerNumber: true,
+            type: true,
+            firstName: true,
+            lastName: true,
+            companyName: true,
+            email: true,
+            mobilePhone: true,
+          },
+        },
+        address: {
+          select: {
+            id: true,
+            street: true,
+            city: true,
+            state: true,
+            zip: true,
+          },
+        },
+        jobType: true,
+        assignments: {
+          include: {
+            employee: {
+              include: {
+                user: {
+                  select: {
+                    firstName: true,
+                    lastName: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        lineItems: true,
+        attachments: true,
+        checklists: {
+          include: {
+            items: true,
+          },
+        },
+      },
+    });
+
+    if (!job) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+
+    // Transform job for frontend
+    const transformedJob = {
+      ...job,
+      customer: job.customer
+        ? {
+            ...job.customer,
+            displayName:
+              job.customer.companyName ||
+              `${job.customer.firstName || ''} ${job.customer.lastName || ''}`.trim() ||
+              'Unknown',
+          }
+        : undefined,
+      address: job.address
+        ? {
+            ...job.address,
+            fullAddress: `${job.address.street}, ${job.address.city}, ${job.address.state} ${job.address.zip}`,
+          }
+        : undefined,
+      assignments: job.assignments.map((a) => ({
+        ...a,
+        employee: a.employee
+          ? {
+              ...a.employee,
+              fullName: a.employee.user
+                ? `${a.employee.user.firstName || ''} ${a.employee.user.lastName || ''}`.trim()
+                : 'Unknown',
+            }
+          : undefined,
+      })),
+    };
+
+    res.json({ job: transformedJob });
+  } catch (error: any) {
+    console.error('[API] Get job error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 app.post('/jobs', async (req, res) => {
   try {

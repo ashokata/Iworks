@@ -21,8 +21,23 @@ import type {
   EmployeeSummary,
 } from '@/types/database.types';
 
-// Get tenant ID from environment
+// Get tenant ID from user session (stored in localStorage)
 const getTenantId = () => {
+  // Try to get tenant ID from user session first
+  if (typeof window !== 'undefined') {
+    try {
+      const userStr = localStorage.getItem('authUser');
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        if (user?.tenantId) {
+          return user.tenantId;
+        }
+      }
+    } catch (e) {
+      console.warn('[Job Service] Error reading tenant ID from session:', e);
+    }
+  }
+  // Fall back to environment variable or default
   return process.env.NEXT_PUBLIC_TENANT_ID || 'local-tenant';
 };
 
