@@ -2533,6 +2533,8 @@ model ServiceLocation {
   id                String            @id @default(uuid())
   tenantId          String
   tenant            Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customerId        String?
+  customer          Customer?         @relation(fields: [customerId], references: [id])
   name              String
   description       String?           @db.Text
   
