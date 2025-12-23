@@ -8,13 +8,15 @@ const getTenantId = () => {
   return process.env.NEXT_PUBLIC_TENANT_ID || 'local-tenant';
 };
 
+export type Urgency = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' | 'EMERGENCY';
+
 export interface ServiceRequest {
   id: string;
   requestNumber: string | null;
   title: string;
   description: string;
   problemType: string;
-  urgency: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  urgency: Urgency;
   status: 'NEW' | 'ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
   createdSource: 'WEB' | 'VOICE_AGENT' | 'API';
   voiceCallId: string | null;
@@ -52,6 +54,19 @@ export interface ServiceRequest {
     duration: number;
     createdAt: string;
   } | null;
+}
+
+export interface CreateServiceRequestData {
+  customerId: string;
+  title: string;
+  description: string;
+  problemType: string;
+  urgency: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' | 'EMERGENCY';
+  status: 'NEW' | 'ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+  createdSource: 'WEB' | 'VOICE_AGENT' | 'API';
+  serviceAddressId?: string;
+  assignedToId?: string;
+  notes?: string;
 }
 
 export interface ServiceRequestsResponse {
@@ -111,6 +126,157 @@ export const serviceRequestService = {
       }
       console.error('[ServiceRequestService] Fetch error:', error);
       throw new Error(`Failed to fetch service requests: ${error.message}`);
+    }
+  },
+
+  getById: async (id: string): Promise<ServiceRequest> => {
+    const url = `${API_CONFIG.BASE_URL}/api/service-requests/${id}`;
+    console.log('[ServiceRequestService] Fetching by ID:', url);
+    
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      
+      const response = await fetch(url, {
+        headers: { 
+          'x-tenant-id': getTenantId(),
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[ServiceRequestService] Error response:', response.status, errorText);
+        throw new Error(`Failed to fetch service request: ${response.status} ${errorText}`);
+      }
+      
+      const data = await response.json();
+      console.log('[ServiceRequestService] Success:', data);
+      return data;
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.error('[ServiceRequestService] Request timeout');
+        throw new Error('Request timed out. Please check if the backend server is running.');
+      }
+      console.error('[ServiceRequestService] Fetch error:', error);
+      throw new Error(`Failed to fetch service request: ${error.message}`);
+    }
+  },
+
+  create: async (data: CreateServiceRequestData): Promise<ServiceRequest> => {
+    const url = `${API_CONFIG.BASE_URL}/api/service-requests`;
+    console.log('[ServiceRequestService] Creating:', url, data);
+    
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 
+          'x-tenant-id': getTenantId(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[ServiceRequestService] Error response:', response.status, errorText);
+        throw new Error(`Failed to create service request: ${response.status} ${errorText}`);
+      }
+      
+      const result = await response.json();
+      console.log('[ServiceRequestService] Created:', result);
+      return result;
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.error('[ServiceRequestService] Request timeout');
+        throw new Error('Request timed out. Please check if the backend server is running.');
+      }
+      console.error('[ServiceRequestService] Fetch error:', error);
+      throw new Error(`Failed to create service request: ${error.message}`);
+    }
+  },
+
+  update: async (id: string, data: Partial<ServiceRequest>): Promise<ServiceRequest> => {
+    const url = `${API_CONFIG.BASE_URL}/api/service-requests/${id}`;
+    console.log('[ServiceRequestService] Updating:', url, data);
+    
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: { 
+          'x-tenant-id': getTenantId(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[ServiceRequestService] Error response:', response.status, errorText);
+        throw new Error(`Failed to update service request: ${response.status} ${errorText}`);
+      }
+      
+      const result = await response.json();
+      console.log('[ServiceRequestService] Updated:', result);
+      return result;
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.error('[ServiceRequestService] Request timeout');
+        throw new Error('Request timed out. Please check if the backend server is running.');
+      }
+      console.error('[ServiceRequestService] Fetch error:', error);
+      throw new Error(`Failed to update service request: ${error.message}`);
+    }
+  },
+
+  delete: async (id: string): Promise<void> => {
+    const url = `${API_CONFIG.BASE_URL}/api/service-requests/${id}`;
+    console.log('[ServiceRequestService] Deleting:', url);
+    
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      
+      const response = await fetch(url, {
+        method: 'DELETE',
+        headers: { 
+          'x-tenant-id': getTenantId(),
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[ServiceRequestService] Error response:', response.status, errorText);
+        throw new Error(`Failed to delete service request: ${response.status} ${errorText}`);
+      }
+      
+      console.log('[ServiceRequestService] Deleted:', id);
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.error('[ServiceRequestService] Request timeout');
+        throw new Error('Request timed out. Please check if the backend server is running.');
+      }
+      console.error('[ServiceRequestService] Fetch error:', error);
+      throw new Error(`Failed to delete service request: ${error.message}`);
     }
   },
 };

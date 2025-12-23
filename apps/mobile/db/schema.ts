@@ -85,7 +85,6 @@ export const schema = appSchema({
         { name: 'state', type: 'string' },
         { name: 'zip_code', type: 'string' },
         { name: 'country', type: 'string' },
-        { name: 'is_primary', type: 'boolean' },
         { name: 'latitude', type: 'number', isOptional: true },
         { name: 'longitude', type: 'number', isOptional: true },
       ],

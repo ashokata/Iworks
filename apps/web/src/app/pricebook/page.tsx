@@ -61,14 +61,13 @@ export default function PricebookPage() {
               <p className="text-sm text-blue-100">Browse industry-specific service templates</p>
             </div>
           </div>
-            <Button
+          <Button
               variant="default"
               onClick={() => router.push('/pricebook/manage')}
               className="bg-white text-[#1a2a6c] hover:bg-gray-100"
             >
               Manage My Catalog
             </Button>
-          </div>
         </div>
       </div>
 

@@ -44,7 +44,6 @@ type FormCustomerAddress = {
   zipCode: string;
   county?: string;
   country?: string;
-  isPrimary?: boolean;
   isNew?: boolean; // Flag to track newly added addresses (not yet saved to DB)
 };
 
@@ -248,7 +247,6 @@ export default function PetCustomerEditPage() {
           zipCode: addr.zipCode || addr.zip || '',
           county: addr.county || '',
           country: addr.country || 'US',
-          isPrimary: addr.isPrimary || false,
           isNew: false,
         })),
         tags: (customer.tags || []).map((tag: any) => typeof tag === 'string' ? tag : tag.name || ''),
@@ -303,14 +301,6 @@ export default function PetCustomerEditPage() {
 
   // Address handling functions
   const handleAddAddress = () => {
-    if (formData.addresses.length >= 3) {
-      setToast({
-        message: 'Maximum of 3 addresses allowed',
-        type: 'error'
-      });
-      return;
-    }
-    
     // Determine smart default type (avoid duplicates)
     const existingTypes = formData.addresses.map(addr => addr.addressType);
     let defaultType: AddressType = 'Primary';
@@ -334,7 +324,6 @@ export default function PetCustomerEditPage() {
           city: '',
           state: '',
           zipCode: '',
-          isPrimary: defaultType === 'Primary',
           isNew: true, // Flag to indicate this is a new address not yet in DB
         }
       ]
@@ -342,6 +331,42 @@ export default function PetCustomerEditPage() {
   };
 
   const handleRemoveAddress = (index: number) => {
+    const addressToRemove = formData.addresses[index];
+    const isPrimary = addressToRemove.addressType === 'Primary';
+    const isLastAddress = formData.addresses.length === 1;
+    const isBilling = addressToRemove.addressType === 'Billing';
+    
+    // Count billing addresses
+    const billingAddresses = formData.addresses.filter(addr => addr.addressType === 'Billing');
+    const isLastBillingAddress = isBilling && billingAddresses.length === 1;
+    
+    // Prevent deletion of the last address
+    if (isLastAddress) {
+      setToast({
+        message: 'Cannot delete the last address. Every customer must have at least one primary address.',
+        type: 'error'
+      });
+      return;
+    }
+    
+    // Prevent deletion of the last billing address
+    if (isLastBillingAddress) {
+      setToast({
+        message: 'Cannot delete the last billing address. Every customer must have at least one billing address.',
+        type: 'error'
+      });
+      return;
+    }
+    
+    // Prevent deletion of primary address if it's not being replaced
+    if (isPrimary) {
+      setToast({
+        message: 'Cannot delete the primary address. Please designate another address as primary first.',
+        type: 'error'
+      });
+      return;
+    }
+    
     setFormData(prev => ({
       ...prev,
       addresses: prev.addresses.filter((_, i) => i !== index)
@@ -358,28 +383,38 @@ export default function PetCustomerEditPage() {
   };
 
   const handleAddressTypeChange = (index: number, newType: AddressType) => {
-    // Check for duplicate type
-    const existingTypes = formData.addresses.map((addr, i) => 
-      i !== index ? addr.addressType : null
-    );
-    
-    if (existingTypes.includes(newType)) {
-      setToast({
-        message: `A ${newType} address already exists. Please choose a different type.`,
-        type: 'error'
-      });
-      return;
+    // If changing to Primary, unset other primary addresses
+    if (newType === 'Primary') {
+      const hasPrimary = formData.addresses.some((addr, i) => 
+        i !== index && addr.addressType === 'Primary'
+      );
+      
+      if (hasPrimary) {
+        setToast({
+          message: 'Only one primary address is allowed. The previous primary address will be changed to Service.',
+          type: 'success'
+        });
+      }
     }
     
     setFormData(prev => ({
       ...prev,
-      addresses: prev.addresses.map((addr, i) => 
-        i === index ? { 
-          ...addr, 
-          addressType: newType,
-          isPrimary: newType === 'Primary'
-        } : addr
-      )
+      addresses: prev.addresses.map((addr, i) => {
+        if (i === index) {
+          // Update the selected address
+          return { 
+            ...addr, 
+            addressType: newType
+          };
+        } else if (newType === 'Primary' && addr.addressType === 'Primary') {
+          // If setting a new primary, change existing primary to Service
+          return {
+            ...addr,
+            addressType: 'Service'
+          };
+        }
+        return addr;
+      })
     }));
   };
 
@@ -413,6 +448,44 @@ export default function PetCustomerEditPage() {
       if (!formData.mobilePhone.trim()) {
         newErrors.mobilePhone = 'Mobile number is required for SMS or Phone contact';
       }
+    }
+    
+    // Validate primary address requirement
+    const primaryAddresses = formData.addresses.filter(addr => addr.addressType === 'Primary');
+    
+    // Must have at least one address
+    if (formData.addresses.length === 0) {
+      newErrors.addresses = 'At least one primary address is required';
+      setToast({
+        message: 'Every customer must have at least one primary address.',
+        type: 'error'
+      });
+    }
+    
+    // Must have exactly one primary address
+    if (primaryAddresses.length === 0) {
+      newErrors.addresses = 'A primary address is required for every customer';
+      setToast({
+        message: 'Please designate one address as the primary address.',
+        type: 'error'
+      });
+    } else if (primaryAddresses.length > 1) {
+      newErrors.addresses = 'Only one primary address is allowed per customer';
+      setToast({
+        message: 'Only one primary address is allowed. Please designate only one address as primary.',
+        type: 'error'
+      });
+    }
+    
+    // Validate billing address requirement
+    const billingAddresses = formData.addresses.filter(addr => addr.addressType === 'Billing');
+    
+    if (billingAddresses.length === 0) {
+      newErrors.addresses = 'At least one billing address is required';
+      setToast({
+        message: 'Every customer must have at least one billing address.',
+        type: 'error'
+      });
     }
     
     // Validate addresses
@@ -495,8 +568,15 @@ export default function PetCustomerEditPage() {
           if (!stillExists) {
             try {
               await customerService.deleteCustomerAddress(customerId, String(existingAddr.id));
-            } catch (err) {
-              console.warn('Failed to delete address:', err);
+            } catch (err: any) {
+              console.error('Failed to delete address:', err);
+              const errorMsg = err?.response?.data?.error || err?.message || 'Failed to delete address';
+              setToast({
+                message: errorMsg,
+                type: 'error'
+              });
+              setIsSaving(false);
+              return; // Stop the update process
             }
           }
         }
@@ -507,12 +587,11 @@ export default function PetCustomerEditPage() {
             street: addr.street,
             city: addr.city,
             state: addr.state,
-            zipCode: addr.zipCode,
+            zip: addr.zipCode, // Map zipCode to zip for backend
             street2: addr.street2,
             county: addr.county,
-            country: addr.country,
-            addressType: addr.addressType,
-            isPrimary: addr.isPrimary,
+            country: addr.country || 'US',
+            addressType: addr.addressType
           };
           
           if (addr.isNew) {
@@ -520,16 +599,30 @@ export default function PetCustomerEditPage() {
             try {
               console.log('[Address] Creating new address:', addressPayload);
               await customerService.addCustomerAddress(customerId, addressPayload);
-            } catch (err) {
-              console.warn('[Address] Failed to create address:', err);
+            } catch (err: any) {
+              console.error('[Address] Failed to create address:', err);
+              const errorMsg = err?.response?.data?.error || err?.message || 'Failed to create address';
+              setToast({
+                message: errorMsg,
+                type: 'error'
+              });
+              setIsSaving(false);
+              return; // Stop the update process
             }
           } else if (addr.id) {
             // Update existing address
             try {
               console.log('[Address] Updating address:', addr.id, addressPayload);
               await customerService.updateCustomerAddress(customerId, String(addr.id), addressPayload);
-            } catch (err) {
-              console.warn('[Address] Failed to update address:', err);
+            } catch (err: any) {
+              console.error('[Address] Failed to update address:', err);
+              const errorMsg = err?.response?.data?.error || err?.message || 'Failed to update address';
+              setToast({
+                message: errorMsg,
+                type: 'error'
+              });
+              setIsSaving(false);
+              return; // Stop the update process
             }
           }
         }
@@ -1224,18 +1317,30 @@ export default function PetCustomerEditPage() {
                     </div>
                     <div>
                       <h2 className="text-lg font-bold text-white">Customer Addresses</h2>
-                      <p className="text-xs text-amber-100">Manage up to 3 addresses</p>
+                      <p className="text-xs text-amber-100">Primary address required • Multiple addresses allowed</p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
                     <span className="text-sm font-bold text-white bg-white/20 px-3 py-1 rounded-full">
-                      {formData.addresses.length}/3
+                      {formData.addresses.length}
                     </span>
                   </div>
                 </div>
               </div>
               
               <div className="p-6 space-y-4">
+                {/* Info banner about primary addresses */}
+                {formData.addresses.length > 0 && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start space-x-3">
+                    <svg className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                    <div className="text-sm text-blue-700">
+                      <span className="font-semibold">Required:</span> Every customer must have exactly one primary address. If you select a new primary address, the previous one will automatically be changed to a Service address.
+                    </div>
+                  </div>
+                )}
+                
                 {formData.addresses.length === 0 ? (
                   <div className="text-center py-12 bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl border-2 border-dashed border-orange-200">
                     <MapPinIcon className="h-16 w-16 text-orange-300 mx-auto mb-4" />
@@ -1255,29 +1360,75 @@ export default function PetCustomerEditPage() {
                     {formData.addresses.map((address, index) => (
                       <div key={index} className="group relative bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl border-2 border-orange-200 p-5 hover:shadow-lg transition-all duration-200">
                         <div className="flex items-center justify-between mb-4">
-                          <div className="relative flex-1 max-w-xs">
-                            <select
-                              value={address.addressType || 'Primary'}
-                              onChange={(e) => handleAddressTypeChange(index, e.target.value as AddressType)}
-                              className="w-full appearance-none px-4 py-2.5 pr-10 bg-white border-2 border-orange-300 rounded-lg text-sm font-semibold text-orange-900 focus:ring-4 focus:ring-orange-100 focus:border-orange-500 transition-all cursor-pointer hover:border-orange-400"
-                            >
-                              <option value="Primary">📍 Primary Address</option>
-                              <option value="Billing">💳 Billing Address</option>
-                              <option value="Service">🔧 Service Address</option>
-                            </select>
-                            <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                              <svg className="h-5 w-5 text-orange-500" viewBox="0 0 20 20" fill="currentColor">
-                                <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                              </svg>
+                          <div className="flex items-center space-x-3 flex-1">
+                            <div className="relative flex-1 max-w-xs">
+                              <select
+                                value={address.addressType || 'Primary'}
+                                onChange={(e) => handleAddressTypeChange(index, e.target.value as AddressType)}
+                                className="w-full appearance-none px-4 py-2.5 pr-10 bg-white border-2 border-orange-300 rounded-lg text-sm font-semibold text-orange-900 focus:ring-4 focus:ring-orange-100 focus:border-orange-500 transition-all cursor-pointer hover:border-orange-400"
+                              >
+                                <option value="Primary">📍 Primary Address</option>
+                                <option value="Billing">💳 Billing Address</option>
+                                <option value="Service">🔧 Service Address</option>
+                              </select>
+                              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                <svg className="h-5 w-5 text-orange-500" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                                </svg>
+                              </div>
                             </div>
+                            {/* Primary Badge */}
+                            {address.addressType === 'Primary' && (
+                              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-md">
+                                <svg className="h-4 w-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                                Primary
+                              </span>
+                            )}
+                            {/* Billing Badge */}
+                            {address.addressType === 'Billing' && (
+                              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-md">
+                                <svg className="h-4 w-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                  <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z" />
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z" clipRule="evenodd" />
+                                </svg>
+                                Billing
+                              </span>
+                            )}
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveAddress(index)}
-                            className="p-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg transition-all hover:scale-110"
-                          >
-                            <TrashIcon className="h-5 w-5" />
-                          </button>
+                          {/* Show different UI for primary vs non-primary addresses */}
+                          {address.addressType === 'Primary' ? (
+                            <div className="flex items-center space-x-2 text-xs text-gray-500 italic">
+                              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                              </svg>
+                              <span>Protected</span>
+                            </div>
+                          ) : address.addressType === 'Billing' && formData.addresses.filter(addr => addr.addressType === 'Billing').length === 1 ? (
+                            <div className="flex items-center space-x-2 text-xs text-gray-500 italic">
+                              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                              </svg>
+                              <span>Protected</span>
+                            </div>
+                          ) : formData.addresses.length === 1 ? (
+                            <div className="flex items-center space-x-2 text-xs text-gray-500 italic">
+                              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                              </svg>
+                              <span>Protected</span>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveAddress(index)}
+                              className="p-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg transition-all hover:scale-110"
+                              title="Delete address"
+                            >
+                              <TrashIcon className="h-5 w-5" />
+                            </button>
+                          )}
                         </div>
                         
                         <div className="space-y-3">
@@ -1324,18 +1475,16 @@ export default function PetCustomerEditPage() {
                       </div>
                     ))}
                     
-                    {formData.addresses.length < 3 && (
-                      <button
-                        type="button"
-                        onClick={handleAddAddress}
-                        className="w-full p-4 border-2 border-dashed border-orange-300 rounded-xl hover:border-orange-500 hover:bg-orange-50 transition-all group"
-                      >
-                        <div className="flex items-center justify-center text-orange-600 group-hover:text-orange-700">
-                          <PlusIcon className="h-5 w-5 mr-2" />
-                          <span className="font-semibold">Add Another Address</span>
-                        </div>
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={handleAddAddress}
+                      className="w-full p-4 border-2 border-dashed border-orange-300 rounded-xl hover:border-orange-500 hover:bg-orange-50 transition-all group"
+                    >
+                      <div className="flex items-center justify-center text-orange-600 group-hover:text-orange-700">
+                        <PlusIcon className="h-5 w-5 mr-2" />
+                        <span className="font-semibold">Add Another Address</span>
+                      </div>
+                    </button>
                   </>
                 )}
               </div>

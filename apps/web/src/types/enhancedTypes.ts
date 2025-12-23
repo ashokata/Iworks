@@ -100,7 +100,6 @@ export interface Address {
   country: string;
   latitude?: number;
   longitude?: number;
-  isPrimary: boolean;
   isBilling: boolean;
 }
 

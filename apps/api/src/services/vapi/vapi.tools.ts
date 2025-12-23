@@ -90,12 +90,11 @@ export async function handleCreateCustomerAndServiceRequest(
       const address = await tx.address.create({
         data: {
           customerId: customer.id,
-          type: 'SERVICE',
+          type: 'PRIMARY',
           street: params.address.street,
           city: params.address.city,
           state: params.address.state,
           zip: params.address.zipCode,
-          isPrimary: true,
           isVerified: false,
         },
       });
@@ -552,7 +551,7 @@ async function sendNewRequestNotification(
     const customer = callData.customerId
       ? await prisma.customer.findUnique({
           where: { id: callData.customerId },
-          include: { addresses: { where: { isPrimary: true } } },
+          include: { addresses: { where: { type: 'PRIMARY' } } },
         })
       : null;
 

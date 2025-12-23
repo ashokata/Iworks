@@ -31,7 +31,7 @@ const createCustomerSchema = z.object({
   isContractor: z.boolean().optional(),
   is_contractor: z.boolean().optional(),
   notes: z.string().optional(),
-  // Address fields
+  // Flat address fields (backward compatibility)
   street: z.string().optional(),
   address: z.string().optional(), // Alias for street
   streetLine2: z.string().optional(),
@@ -40,6 +40,21 @@ const createCustomerSchema = z.object({
   zip: z.string().optional(),
   zipCode: z.string().optional(), // Alias
   country: z.string().optional(),
+  // Addresses array (new)
+  addresses: z.array(z.object({
+    type: z.enum(['SERVICE', 'BILLING', 'PRIMARY']).optional(),
+    name: z.string().optional(),
+    street: z.string(),
+    streetLine2: z.string().optional(),
+    city: z.string(),
+    state: z.string(),
+    zip: z.string(),
+    zipCode: z.string().optional(), // Alias
+    postalCode: z.string().optional(), // Alias
+    country: z.string().optional(),
+    accessNotes: z.string().optional(),
+    gateCode: z.string().optional()
+  })).optional(),
 }).passthrough(); // Allow additional fields
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
@@ -126,12 +141,26 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       notificationsEnabled: body.notificationsEnabled ?? body.notifications_enabled,
       notes: body.notes,
       customFields: Object.keys(customFields).length > 0 ? customFields : undefined,
+      // Flat address fields (backward compatibility)
       street: body.street || body.address,
       streetLine2: body.streetLine2,
       city: body.city,
       state: body.state,
       zip: body.zip || body.zipCode,
       country: body.country,
+      // Addresses array (new)
+      addresses: body.addresses?.map(addr => ({
+        type: addr.type || 'SERVICE',
+        name: addr.name,
+        street: addr.street,
+        streetLine2: addr.streetLine2,
+        city: addr.city,
+        state: addr.state,
+        zip: addr.zip || addr.zipCode || addr.postalCode,
+        country: addr.country || 'US',
+        accessNotes: addr.accessNotes,
+        gateCode: addr.gateCode
+      })),
     };
 
     console.log('[PG-Create] Normalized data:', JSON.stringify(normalizedData));

@@ -35,7 +35,6 @@ export interface CustomerAddress {
   state: string;
   zipCode: string;
   country: string;
-  isPrimary: boolean;
   latitude?: number;
   longitude?: number;
 }

@@ -79,7 +79,6 @@ export const transformCustomerAddressFromApi = (apiAddress: CustomerAddressAPI):
     city: apiAddress.City,
     state: apiAddress.State,
     zipCode: apiAddress.ZipCode,
-    isPrimary: apiAddress.AddressType === 'Primary',
     addressType: apiAddress.AddressType,
     street2: apiAddress.Address_Line_2 || null,
     county: apiAddress.County || null,
@@ -94,7 +93,7 @@ export const transformCustomerAddressFromApi = (apiAddress: CustomerAddressAPI):
  */
 export const transformCustomerAddressToApi = (address: any): Partial<CustomerAddressAPI> => {
   return {
-    AddressType: address.addressType || (address.isPrimary ? 'Primary' : 'Service'),
+    AddressType: address.addressType || 'Service',
     Address_Line1: address.street,
     Address_Line_2: address.street2 || address.Address_Line_2,
     City: address.city,

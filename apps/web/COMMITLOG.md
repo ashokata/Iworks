@@ -4,6 +4,202 @@ All commits to this project are documented in this file.
 
 ---
 
+## 📦 Commit #29 - 2025-12-23 (IST)
+
+**Developer:** Veera Kuppili
+**Type:** Refactor / Breaking Change
+
+### 📝 Commit Message
+```
+refactor: Remove isPrimary attribute, use type field for address classification
+
+BREAKING CHANGE: Removed isPrimary boolean field from addresses in favor of type enum
+
+Changes:
+- Database: Removed isPrimary column from Address model in Prisma schema
+- Migration: Created migration to sync isPrimary → type='PRIMARY' before dropping column
+- Backend: Updated customer.postgres.service to use type='PRIMARY' instead of isPrimary
+- API: Removed isPrimary from all POST/PUT endpoints and handlers
+- Frontend: Updated all customer pages (edit, new, list, view) to use type field
+- Services: Removed isPrimary from customerService and simpleCustomerService
+- Types: Removed isPrimary from all TypeScript interfaces (Address, database.types, etc)
+- Tests: Updated all unit tests, integration tests, and visual tests
+- Mobile: Removed is_primary from mobile app schema and interfaces
+- Validation: Added mandatory billing address requirement
+- UI: Added billing address badge (green) and protection for last billing address
+
+Migration details:
+1. Syncs existing data (sets type='PRIMARY' where isPrimary=true)
+2. Handles duplicate primary addresses (keeps oldest)
+3. Drops old isPrimary-based constraint
+4. Creates new type-based unique constraint
+5. Removes isPrimary column
+
+Files changed: 28
+- Backend: schema.prisma, seed.ts, services, handlers, index.ts
+- Frontend: edit/new/list/view pages, services, types
+- Mobile: db/schema.ts, customerService.ts
+- Tests: unit, integration, visual
+- Scripts: migration.sql, migrate-dynamodb-to-postgres.ts
+```
+
+### ✨ Changes
+
+**Database & Schema:**
+- ✅ `apps/api/prisma/schema.prisma` - Removed isPrimary from Address, Organization, ServiceLocation models
+- ✅ `apps/api/prisma/migrations/20251223_remove_isprimary_use_type/migration.sql` - New 5-step migration
+- ✅ `apps/api/prisma/seed.ts` - Changed to type='PRIMARY'
+
+**Backend Services:**
+- ✅ `apps/api/src/services/customer.postgres.service.ts` - Removed all isPrimary logic, now uses type='PRIMARY'
+- ✅ `apps/api/src/services/llm-function-executor.ts` - Find primary by type='PRIMARY'
+- ✅ `apps/api/src/services/vapi/vapi.tools.ts` - Changed to type='PRIMARY'
+- ✅ `apps/api/src/index.ts` - Removed isPrimary from POST/PUT address endpoints
+
+**API Handlers:**
+- ✅ `apps/api/src/handlers/customers/create-postgres.ts` - Removed isPrimary from Zod schema
+- ✅ `apps/api/src/handlers/customers/get-postgres.ts` - Find primary by type
+- ✅ `apps/api/src/handlers/customers/list-postgres.ts` - Find primary by type
+- ✅ `apps/api/src/handlers/customers/update-postgres.ts` - Find primary by type
+
+**Frontend Pages:**
+- ✅ `apps/web/src/app/customers/edit/[id]/page.tsx` - Removed isPrimary, added billing protection & badge
+- ✅ `apps/web/src/app/customers/new/page.tsx` - Removed isPrimary, added billing validation & badge
+- ✅ `apps/web/src/app/customers/page.tsx` - Find primary by type
+- ✅ `apps/web/src/app/customers/view/[id]/page.tsx` - Find primary by type
+
+**Frontend Services:**
+- ✅ `apps/web/src/services/customerService.ts` - Removed all isPrimary references
+- ✅ `apps/web/src/services/simpleCustomerService.ts` - Removed isPrimary from interfaces
+
+**Type Definitions:**
+- ✅ `apps/web/src/types/database.types.ts` - Removed isPrimary from Address & Organization
+- ✅ `apps/web/src/types/enhancedTypes.ts` - Removed isPrimary from Address
+- ✅ `apps/web/src/config/apiSchemas/customer.schema.ts` - Removed isPrimary logic
+
+**Mobile App:**
+- ✅ `apps/mobile/db/schema.ts` - Removed is_primary field
+- ✅ `apps/mobile/services/api/customerService.ts` - Removed isPrimary from interface
+
+**Tests:**
+- ✅ `apps/api/src/services/customer.postgres.service.unit.test.ts` - All tests use type='PRIMARY'
+- ✅ `apps/api/tests/integration/customer-create.integration.test.ts` - Changed to type
+- ✅ `apps/web/tests/visual/helpers.ts` - Visual test mock data
+- ✅ `apps/web/tests/visual/pages.visual.spec.ts` - Visual test spec
+
+**Scripts:**
+- ✅ `apps/api/scripts/migrate-dynamodb-to-postgres.ts` - Uses type='PRIMARY'
+
+**Impact:**
+- **BREAKING:** isPrimary field completely removed from all address records
+- Primary addresses now identified by `type='PRIMARY'` enum value
+- Database constraint updated to enforce single primary per customer via type field
+- Mandatory billing address requirement enforced (frontend & backend)
+- Last billing address protected from deletion (similar to primary)
+- UI improvements: Green billing badge, lock icon for protected addresses
+- Migration handles existing data automatically with deduplication
+- All test suites updated to reflect new architecture
+
+**Migration Required:**
+Run `npx prisma migrate deploy` to apply migration before deploying code changes
+
+---
+
+## 📦 Commit #28 - 2025-12-22 (IST)
+
+**Developer:** Veera Kuppili
+**Type:** Fix
+
+### 📝 Commit Message
+```
+fix(service-requests): pre-populate serviceAddressId and assignedToId in edit form
+
+- Check direct serviceAddressId field before nested serviceAddress.id
+- Add fallback to direct assignedToId field alongside assignedTo.id
+- Ensures edit form correctly displays previously selected address and technician
+```
+
+### ✨ Changes
+**Files Modified:**
+- ✅ `apps/web/src/app/service-requests/edit/[id]/page.tsx` - Fixed form pre-population logic
+
+**Impact:**
+- Edit form now correctly displays previously selected service address
+- Assigned technician properly pre-populated in edit mode
+- Improved data loading with multiple fallback strategies
+
+---
+
+## 📦 Commit #27 - 2025-12-22 (IST)
+
+**Developer:** Veera Kuppili
+**Type:** Feature / Enhancement
+
+### 📝 Commit Message
+```
+feat: implement Service Requests CRUD and enhance customer address management
+
+- Add Service Requests module with full CRUD operations
+  * Create, read, update, delete handlers (Lambda/PostgreSQL)
+  * New, edit, and view pages with modern UI
+  * Form validation and unsaved changes tracking
+  * Keyboard shortcuts (Ctrl+S save, Escape cancel)
+  * Voice Agent request protection (cannot delete)
+  * Support EMERGENCY urgency level
+
+- Enhance customer address management
+  * Support multiple addresses in single creation request
+  * Maintain backward compatibility with flat field structure
+  * Add addresses array with field name flexibility (camelCase/snake_case)
+
+- Add primary address constraint enforcement
+  * Database: partial unique index on (customerId, isPrimary)
+  * Backend: automatic primary address management
+  * Frontend: validation preventing multiple/no primary addresses
+
+- UI improvements
+  * Add Service Request to main navigation sidebar
+  * Fix SearchableSelect dropdown positioning (opens upward near bottom)
+  * Add service address modal for quick address creation
+  * Modern card layouts with gradient headers and toast notifications
+
+- Database migrations
+  * Rename email constraint to Prisma convention (customers_tenantId_email_key)
+  * Add single primary address constraint
+
+- Update services
+  * customerService: addresses array support with logging
+  * serviceRequestService: complete CRUD methods with timeout handling
+  * Resolve Technician schema conflict (use Employee schema)
+```
+
+### ✨ Changes
+**Files Created:**
+- ✅ `apps/api/prisma/migrations/20251220202504_init/migration.sql`
+- ✅ `apps/api/prisma/migrations/20251221_add_single_primary_address_constraint/migration.sql`
+- ✅ `apps/api/src/handlers/service-requests/create-postgres.ts`
+- ✅ `apps/api/src/handlers/service-requests/delete-postgres.ts`
+- ✅ `apps/api/src/handlers/service-requests/get-by-id-postgres.ts`
+- ✅ `apps/api/src/handlers/service-requests/update-postgres.ts`
+- ✅ `apps/web/src/app/service-requests/edit/[id]/page.tsx`
+- ✅ `apps/web/src/app/service-requests/new/page.tsx`
+- ✅ `apps/web/src/app/service-requests/view/[id]/page.tsx`
+
+**Files Modified:**
+- ✅ `apps/web/src/components/SidebarLayout.tsx` - Added Service Request nav item
+- ✅ `apps/web/src/components/ui/SearchableSelect.tsx` - Upward dropdown positioning
+- ✅ `apps/web/src/config/apiSchemas/index.ts` - Resolved Technician schema conflict
+- ✅ `apps/web/src/services/customerService.ts` - Addresses array support
+- ✅ `apps/web/src/services/serviceRequestService.ts` - Full CRUD operations
+
+**Impact:**
+- Complete Service Requests feature with CRUD operations
+- Enhanced customer address management with constraint enforcement
+- Improved UI/UX with better dropdown behavior and modern layouts
+- Database integrity with primary address constraints
+
+---
+
 ## 📦 Commit #26 - 2025-12-20 8:41 PM (IST)
 
 **Developer:** Ghanshyam Patil

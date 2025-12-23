@@ -150,7 +150,6 @@ export interface Organization {
   logoUrl?: string;
   employeeCount: number;
   foundedYear?: number;
-  isPrimary: boolean;
 }
 
 // ============================================================================
@@ -317,7 +316,6 @@ export interface Address {
   timezone?: string;
   accessNotes?: string;
   gateCode?: string;
-  isPrimary: boolean;
   isVerified: boolean;
   properties?: Property[];
   createdAt: string;

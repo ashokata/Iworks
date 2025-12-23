@@ -108,7 +108,7 @@ export default function ManagePricebookPage() {
               <p className="text-sm text-blue-100">Manage your service catalog categories and services</p>
             </div>
           </div>
-            <div className="flex gap-3">
+          <div className="flex gap-3">
               <Button
                 variant="outline"
                 onClick={() => router.push('/pricebook')}
@@ -124,7 +124,6 @@ export default function ManagePricebookPage() {
                 New Category
               </Button>
             </div>
-          </div>
         </div>
       </div>
 

@@ -198,7 +198,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     console.log('[PG-Update] Customer updated:', customer.id);
 
     // Format response for frontend compatibility
-    const primaryAddress = customer.addresses?.find(a => a.isPrimary) || customer.addresses?.[0];
+    const primaryAddress = customer.addresses?.find(a => a.type === 'PRIMARY') || customer.addresses?.[0];
     const response = {
       customer: {
         id: customer.id,
