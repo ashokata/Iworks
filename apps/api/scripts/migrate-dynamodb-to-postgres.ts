@@ -139,7 +139,7 @@ async function migrateCustomers() {
                 state: ddbCustomer.state || '',
                 zip: ddbCustomer.zipCode || '',
                 country: 'US',
-                isPrimary: true,
+                type: 'PRIMARY',
               },
             } : undefined,
           },

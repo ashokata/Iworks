@@ -235,7 +235,7 @@ export const mockData = {
           city: 'New York',
           state: 'NY',
           zip: '10001',
-          isPrimary: true,
+          type: 'PRIMARY',
         }
       ],
     },

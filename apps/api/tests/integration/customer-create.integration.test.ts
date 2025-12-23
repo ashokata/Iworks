@@ -171,7 +171,7 @@ describe('Customer Creation API Integration', () => {
             state: 'NY',
             zip: '10001',
             country: 'US',
-            isPrimary: true,
+            type: 'PRIMARY',
           },
         ],
         createdAt: new Date(),

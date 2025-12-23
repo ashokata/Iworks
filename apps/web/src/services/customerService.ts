@@ -101,7 +101,6 @@ const transformAddresses = (addressData: any): Address[] => {
       timezone: addr.timezone,
       accessNotes: addr.accessNotes,
       gateCode: addr.gateCode,
-      isPrimary: addr.isPrimary ?? true,
       isVerified: addr.isVerified ?? false,
       createdAt: addr.createdAt || new Date().toISOString(),
       updatedAt: addr.updatedAt || new Date().toISOString(),
@@ -120,7 +119,6 @@ const transformAddresses = (addressData: any): Address[] => {
       state: '',
       zip: '',
       country: 'US',
-      isPrimary: true,
       isVerified: false,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -215,8 +213,7 @@ const buildRequestBody = (data: any): Record<string, any> => {
       zip: addr.zip || addr.zipCode,
       country: addr.country || 'US',
       accessNotes: addr.accessNotes,
-      gateCode: addr.gateCode,
-      isPrimary: addr.isPrimary
+      gateCode: addr.gateCode
     }));
   }
   
@@ -468,8 +465,7 @@ export const customerService = {
         zip: address.zip || address.zipCode,
         country: address.country || 'US',
         accessNotes: address.accessNotes,
-        gateCode: address.gateCode,
-        isPrimary: address.isPrimary ?? false,
+        gateCode: address.gateCode
       };
       
       // Use API client which automatically includes tenant ID from user session
@@ -500,8 +496,7 @@ export const customerService = {
         zip: address.zip || address.zipCode,
         country: address.country,
         accessNotes: address.accessNotes,
-        gateCode: address.gateCode,
-        isPrimary: address.isPrimary,
+        gateCode: address.gateCode
       };
       
       // Use API client which automatically includes tenant ID from user session

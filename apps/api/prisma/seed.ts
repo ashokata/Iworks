@@ -382,7 +382,7 @@ async function main() {
             state: data.state,
             zip: data.zip,
             country: 'US',
-            isPrimary: true,
+            type: 'PRIMARY',
           },
         },
       },

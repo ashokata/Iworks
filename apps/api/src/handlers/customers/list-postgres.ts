@@ -63,7 +63,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     // Format response for frontend compatibility
     const formattedCustomers = result.customers.map(customer => {
-      const primaryAddress = customer.addresses?.find(a => a.isPrimary) || customer.addresses?.[0];
+      const primaryAddress = customer.addresses?.find(a => a.type === 'PRIMARY') || customer.addresses?.[0];
       return {
         id: customer.id,
         customerId: customer.id,

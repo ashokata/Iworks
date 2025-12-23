@@ -294,7 +294,6 @@ app.post('/customers/:customerId/addresses', async (req, res) => {
       country: req.body.country || 'US',
       accessNotes: req.body.accessNotes,
       gateCode: req.body.gateCode,
-      isPrimary: req.body.isPrimary ?? false,
     };
     
     const address = await customerPostgresService.addAddress(tenantId, customerId, addressData as any);
@@ -331,7 +330,6 @@ app.put('/customers/:customerId/addresses/:addressId', async (req, res) => {
       country: req.body.country,
       accessNotes: req.body.accessNotes,
       gateCode: req.body.gateCode,
-      isPrimary: req.body.isPrimary,
     };
     
     // Remove undefined values

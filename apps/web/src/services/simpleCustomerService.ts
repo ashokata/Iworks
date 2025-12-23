@@ -12,7 +12,6 @@ export interface CustomerAddress {
   city: string;
   state: string;
   zipCode: string;
-  isPrimary: boolean;
 }
 
 export interface Customer {
@@ -98,8 +97,7 @@ const transformCustomerToApiFormat = (customer: Partial<Customer>, includeId: bo
       street: addr.street,
       city: addr.city,
       state: addr.state,
-      postalCode: addr.zipCode,
-      isPrimary: addr.isPrimary
+      postalCode: addr.zipCode
     })),
     hasImprovedCardOnFile: customer.has_improved_card_on_file,
     doNotService: customer.do_not_service
@@ -122,8 +120,7 @@ const transformApiCustomerToCustomer = (apiCustomer: any): Customer => {
     street: addr.street,
     city: addr.city,
     state: addr.state,
-    zipCode: addr.zipCode,
-    isPrimary: addr.isPrimary
+    zipCode: addr.zipCode
   })) || [];
   
   // Then, convert to Customer format
@@ -357,8 +354,7 @@ export const simpleCustomerService = {
         street: response.data.street || address.street,
         city: response.data.city || address.city,
         state: response.data.state || address.state,
-        zipCode: response.data.zipCode || response.data.postalCode || address.zipCode,
-        isPrimary: response.data.isPrimary !== undefined ? response.data.isPrimary : address.isPrimary
+        zipCode: response.data.zipCode || response.data.postalCode || address.zipCode
       };
     } catch (error) {
       console.error(`Error adding address to customer with ID ${id} in API:`, error);
@@ -392,8 +388,7 @@ export const simpleCustomerService = {
           street: addr.street,
           city: addr.city,
           state: addr.state,
-          postalCode: addr.zipCode,
-          isPrimary: addr.isPrimary
+          postalCode: addr.zipCode
         })) || [],
         tags: [],
         hasImprovedCardOnFile: false,
@@ -438,8 +433,7 @@ export const simpleCustomerService = {
         street: addressData.street,
         city: addressData.city,
         state: addressData.state,
-        postalCode: addressData.zipCode,
-        isPrimary: addressData.isPrimary
+        postalCode: addressData.zipCode
       };
       
       const response = await apiClient.put<any>(
@@ -452,8 +446,7 @@ export const simpleCustomerService = {
         street: response.data.street || addressData.street || '',
         city: response.data.city || addressData.city || '',
         state: response.data.state || addressData.state || '',
-        zipCode: response.data.zipCode || response.data.postalCode || addressData.zipCode || '',
-        isPrimary: response.data.isPrimary !== undefined ? response.data.isPrimary : (addressData.isPrimary || false)
+        zipCode: response.data.zipCode || response.data.postalCode || addressData.zipCode || ''
       };
     } catch (error) {
       console.error('Error updating customer address in API:', error);

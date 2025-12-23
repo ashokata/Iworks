@@ -53,8 +53,7 @@ const createCustomerSchema = z.object({
     postalCode: z.string().optional(), // Alias
     country: z.string().optional(),
     accessNotes: z.string().optional(),
-    gateCode: z.string().optional(),
-    isPrimary: z.boolean().optional(),
+    gateCode: z.string().optional()
   })).optional(),
 }).passthrough(); // Allow additional fields
 
@@ -160,8 +159,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         zip: addr.zip || addr.zipCode || addr.postalCode,
         country: addr.country || 'US',
         accessNotes: addr.accessNotes,
-        gateCode: addr.gateCode,
-        isPrimary: addr.isPrimary,
+        gateCode: addr.gateCode
       })),
     };
 

@@ -305,7 +305,7 @@ export default function CustomersPage() {
     // Handle both wrapped and unwrapped address structures
     const addresses = (customer.addresses as any)?.data || customer.addresses || [];
     if (!Array.isArray(addresses) || addresses.length === 0) return null;
-    const primaryAddress = addresses.find((addr: any) => addr.isPrimary);
+    const primaryAddress = addresses.find((addr: any) => addr.type === 'PRIMARY' || addr.addressType === 'Primary');
     return primaryAddress || addresses[0];
   };
 

@@ -495,7 +495,6 @@ model Organization {
   logoUrl       String?
   employeeCount Int      @default(1)
   foundedYear   Int?
-  isPrimary     Boolean  @default(false)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -749,7 +748,6 @@ model Address {
   timezone    String?
   accessNotes String?
   gateCode    String?
-  isPrimary   Boolean     @default(false)
   isVerified  Boolean     @default(false)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
@@ -2553,12 +2551,11 @@ model ServiceLocation {
   contactName       String?
   contactPhone      String?
   contactEmail       String?
-  operatingHours    Json             @default("{}") // Store hours as JSON
+  operatingHours    Json             @default("{}")
   timezone          String           @default("America/New_York")
   
   // Status
   isActive          Boolean          @default(true)
-  isPrimary         Boolean          @default(false)
   
   // Metadata
   customFields      Json            @default("{}")

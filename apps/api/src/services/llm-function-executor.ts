@@ -404,7 +404,7 @@ export class LLMFunctionExecutor {
     // Use provided addressId or find primary address
     let addressId = args.addressId;
     if (!addressId && customer.addresses.length > 0) {
-      const primaryAddress = customer.addresses.find(a => a.isPrimary) || customer.addresses[0];
+      const primaryAddress = customer.addresses.find(a => a.type === 'PRIMARY') || customer.addresses[0];
       addressId = primaryAddress.id;
     }
 
@@ -810,7 +810,7 @@ export class LLMFunctionExecutor {
    * Format customer response for consistency
    */
   private formatCustomerResponse(customer: any) {
-    const primaryAddress = customer.addresses?.find((a: any) => a.isPrimary) || customer.addresses?.[0];
+    const primaryAddress = customer.addresses?.find((a: any) => a.type === 'PRIMARY') || customer.addresses?.[0];
     return {
       customerId: customer.id,
       customerNumber: customer.customerNumber,

@@ -6,8 +6,8 @@ import { Prisma } from '@prisma/client';
  * 
  * IMPORTANT: Address Management Rules
  * - A customer can have multiple addresses (service, billing, etc.)
- * - Only ONE address can be marked as primary (isPrimary = true)
- * - Database constraint enforces this: addresses_customer_primary_unique
+ * - Only ONE address can be marked as primary (type = 'PRIMARY')
+ * - Database constraint enforces this: addresses_customer_type_primary_unique
  * - When setting a new primary, the service automatically unsets the old primary
  */
 
@@ -44,7 +44,6 @@ export interface CreateCustomerInput {
     country?: string;
     accessNotes?: string;
     gateCode?: string;
-    isPrimary?: boolean;
   }>;
 }
 
@@ -117,50 +116,29 @@ class CustomerPostgresService {
     
     // Check if addresses array is provided (new method)
     if (input.addresses && input.addresses.length > 0) {
-      // Ensure only one address is marked as primary
-      const primaryAddresses = input.addresses.filter(addr => addr.isPrimary);
-      if (primaryAddresses.length > 1) {
-        // If multiple addresses are marked as primary, only keep the first one as primary
-        addressesToCreate = input.addresses.map((addr, index) => ({
-          type: addr.type || 'SERVICE',
-          name: addr.name,
-          street: addr.street,
-          streetLine2: addr.streetLine2,
-          city: addr.city,
-          state: addr.state,
-          zip: addr.zip,
-          country: addr.country || 'US',
-          accessNotes: addr.accessNotes,
-          gateCode: addr.gateCode,
-          isPrimary: index === 0 && addr.isPrimary, // Only first one keeps isPrimary if multiple were marked
-        }));
-      } else {
-        addressesToCreate = input.addresses.map(addr => ({
-          type: addr.type || 'SERVICE',
-          name: addr.name,
-          street: addr.street,
-          streetLine2: addr.streetLine2,
-          city: addr.city,
-          state: addr.state,
-          zip: addr.zip,
-          country: addr.country || 'US',
-          accessNotes: addr.accessNotes,
-          gateCode: addr.gateCode,
-          isPrimary: addr.isPrimary || false,
-        }));
-      }
+      addressesToCreate = input.addresses.map(addr => ({
+        type: addr.type || 'SERVICE',
+        name: addr.name,
+        street: addr.street,
+        streetLine2: addr.streetLine2,
+        city: addr.city,
+        state: addr.state,
+        zip: addr.zip,
+        country: addr.country || 'US',
+        accessNotes: addr.accessNotes,
+        gateCode: addr.gateCode
+      }));
     } 
     // Fallback to flat fields (backward compatibility)
     else if (input.street) {
       addressesToCreate = [{
-        type: 'SERVICE' as const,
+        type: 'PRIMARY' as const,
         street: input.street,
         streetLine2: input.streetLine2,
         city: input.city || '',
         state: input.state || '',
         zip: input.zip || '',
-        country: input.country || 'US',
-        isPrimary: true,
+        country: input.country || 'US'
       }];
     }
 
@@ -372,7 +350,6 @@ class CustomerPostgresService {
       country?: string;
       accessNotes?: string;
       gateCode?: string;
-      isPrimary?: boolean;
     }
   ): Promise<Address | null> {
     const prisma = getPrismaClient();
@@ -384,22 +361,6 @@ class CustomerPostgresService {
 
     if (!customer) {
       return null;
-    }
-
-    // If this is primary, unset other primary addresses
-    // This ensures only one primary address per customer
-    if (address.isPrimary) {
-      const existingPrimary = await prisma.address.findFirst({
-        where: { customerId, isPrimary: true },
-      });
-      
-      if (existingPrimary) {
-        console.log('[PG-Customer] Unsetting existing primary address:', existingPrimary.id);
-        await prisma.address.updateMany({
-          where: { customerId, isPrimary: true },
-          data: { isPrimary: false },
-        });
-      }
     }
 
     const newAddress = await prisma.address.create({
@@ -414,8 +375,7 @@ class CustomerPostgresService {
         zip: address.zip,
         country: address.country || 'US',
         accessNotes: address.accessNotes,
-        gateCode: address.gateCode,
-        isPrimary: address.isPrimary || false,
+        gateCode: address.gateCode
       },
     });
 
@@ -441,7 +401,6 @@ class CustomerPostgresService {
       country?: string;
       accessNotes?: string;
       gateCode?: string;
-      isPrimary?: boolean;
     }
   ): Promise<Address | null> {
     const prisma = getPrismaClient();
@@ -464,22 +423,6 @@ class CustomerPostgresService {
       return null;
     }
 
-    // If setting this as primary, unset other primary addresses
-    // This ensures only one primary address per customer
-    if (address.isPrimary) {
-      const otherPrimaryAddresses = await prisma.address.findMany({
-        where: { customerId, isPrimary: true, id: { not: addressId } },
-      });
-      
-      if (otherPrimaryAddresses.length > 0) {
-        console.log(`[PG-Customer] Found ${otherPrimaryAddresses.length} other primary address(es), unsetting them`);
-        await prisma.address.updateMany({
-          where: { customerId, isPrimary: true, id: { not: addressId } },
-          data: { isPrimary: false },
-        });
-      }
-    }
-
     const updatedAddress = await prisma.address.update({
       where: { id: addressId },
       data: {
@@ -492,8 +435,7 @@ class CustomerPostgresService {
         zip: address.zip,
         country: address.country,
         accessNotes: address.accessNotes,
-        gateCode: address.gateCode,
-        isPrimary: address.isPrimary,
+        gateCode: address.gateCode
       },
     });
 
@@ -534,7 +476,7 @@ class CustomerPostgresService {
     }
 
     // Prevent deletion of primary address - customer must maintain a primary address
-    if (addressToDelete.isPrimary) {
+    if (addressToDelete.type === 'PRIMARY') {
       throw new Error('Cannot delete the primary address. Please designate another address as primary first.');
     }
 
@@ -576,7 +518,7 @@ class CustomerPostgresService {
       where: { tenantId, isArchived: false },
       include: {
         addresses: {
-          where: { isPrimary: true },
+          where: { type: 'PRIMARY' },
           take: 1,
         },
         _count: {
@@ -606,7 +548,7 @@ class CustomerPostgresService {
       where: {
         customerId,
         customer: { tenantId },
-        isPrimary: true,
+        type: 'PRIMARY',
       },
     });
 

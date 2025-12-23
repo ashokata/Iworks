@@ -235,7 +235,7 @@ describe('CustomerPostgresService - createCustomer', () => {
         state: 'NY',
         zip: '10001',
         country: 'US',
-        isPrimary: true,
+        type: 'PRIMARY',
       };
 
       mockPrismaClient.customer.count.mockResolvedValue(0);
@@ -261,7 +261,7 @@ describe('CustomerPostgresService - createCustomer', () => {
       expect(result.addresses[0].city).toBe('New York');
       expect(result.addresses[0].state).toBe('NY');
       expect(result.addresses[0].zip).toBe('10001');
-      expect(result.addresses[0].isPrimary).toBe(true);
+      expect(result.addresses[0].type).toBe('PRIMARY');
 
       // Verify address was created with customer
       expect(mockPrismaClient.customer.create).toHaveBeenCalledWith({
@@ -274,7 +274,7 @@ describe('CustomerPostgresService - createCustomer', () => {
               state: 'NY',
               zip: '10001',
               country: 'US',
-              isPrimary: true,
+              type: 'PRIMARY',
             }),
           },
         }),
@@ -311,7 +311,7 @@ describe('CustomerPostgresService - createCustomer', () => {
             state: 'CA',
             zip: '90001',
             country: 'US',
-            isPrimary: true,
+            type: 'PRIMARY',
           },
         ],
         createdAt: new Date(),
