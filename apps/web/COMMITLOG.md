@@ -4,6 +4,88 @@ All commits to this project are documented in this file.
 
 ---
 
+## 📦 Commit #32 - 2025-12-24 (IST)
+
+**Developer:** Veera Kuppili
+**Type:** Feature
+
+### 📝 Commit Message
+```
+feat: add "Is Service Address Same as Primary Address" checkbox to service requests
+
+Implement checkbox functionality in service request new/edit pages to automatically
+populate service address from customer's primary address with smart duplicate prevention.
+
+Database Changes:
+- Add isServiceAddressSameAsPrimary boolean field to ServiceRequest model with default false
+- Applied schema change via prisma db push
+
+Backend Updates:
+- Update create handler to extract and store isServiceAddressSameAsPrimary from request body
+- Update update handler to handle isServiceAddressSameAsPrimary and customerId changes
+- Add comprehensive logging for debugging field values
+
+Frontend Features:
+- Add checkbox with disabled state when no customer is selected
+- Implement smart address matching to find existing SERVICE addresses matching primary
+- Create pending SERVICE address only if no match exists (prevents duplicates)
+- Disable service address dropdown when checkbox is checked
+- Auto-populate service address when checkbox is checked
+- Clear service address when checkbox is unchecked
+- Reset checkbox and address when customer changes (not during initial load)
+- Preserve loaded data during edit page initialization using prevCustomerIdRef
+- Display primary address details when checkbox is checked
+
+UI/UX Improvements:
+- Remove confusing status badge from new/edit page headers
+- Add disabled prop to SearchableSelect component with opacity-50 styling
+- Show "Using Primary Address" info box with address details
+- Graceful handling of customers without primary addresses
+
+Technical Implementation:
+- Use useRef to track customer changes vs initial load
+- UseEffect depends only on useSameAsPrimary to prevent unwanted re-runs
+- Validate existing serviceAddressId before overwriting during initial load
+- Comprehensive console logging throughout for debugging
+- Type-safe interfaces with isServiceAddressSameAsPrimary field
+
+Fixes:
+- Prevent duplicate SERVICE address creation when matching address exists
+- Preserve checkbox and address state during page load
+- Handle customer changes correctly without affecting initial data load
+- Backend now updates customerId when changed in edit mode
+```
+
+### ✨ Changes
+
+**Database Schema:**
+- ✅ `apps/api/prisma/schema.prisma` - Added `isServiceAddressSameAsPrimary Boolean @default(false)` to ServiceRequest model
+
+**Backend Handlers:**
+- ✅ `apps/api/src/handlers/service-requests/create-postgres.ts` - Extract and store isServiceAddressSameAsPrimary
+- ✅ `apps/api/src/handlers/service-requests/update-postgres.ts` - Handle isServiceAddressSameAsPrimary and customerId updates, added logging
+
+**Frontend Pages:**
+- ✅ `apps/web/src/app/service-requests/new/page.tsx` - Complete checkbox implementation with smart address matching
+- ✅ `apps/web/src/app/service-requests/edit/[id]/page.tsx` - Checkbox with initial load preservation and customer change detection
+
+**Components:**
+- ✅ `apps/web/src/components/ui/SearchableSelect.tsx` - Added disabled prop support with opacity-50 styling
+
+**Services:**
+- ✅ `apps/web/src/services/serviceRequestService.ts` - Added isServiceAddressSameAsPrimary to TypeScript interfaces
+
+### 🎯 Features Delivered
+- Checkbox automatically finds matching SERVICE addresses from customer's address list
+- Creates pending SERVICE address only when no match exists (prevents duplicates)
+- Smart initial load handling preserves data without triggering address re-creation
+- Customer change detection resets checkbox appropriately
+- Comprehensive logging for debugging throughout the flow
+
+### 📊 Files Changed: 7
+
+---
+
 ## 📦 Commit #31 - 2025-12-21 (IST)
 
 **Developer:** Veera Kuppili
