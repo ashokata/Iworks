@@ -347,6 +347,14 @@ export default function NewServiceRequestPage() {
       console.log('[ServiceRequest] Submitting data:', serviceRequestData);
       await serviceRequestService.create(serviceRequestData);
       
+      // Invalidate all service requests queries (list, counts, etc.)
+      await queryClient.invalidateQueries({ 
+        predicate: (query) => 
+          query.queryKey[0] === 'service-requests' || 
+          query.queryKey[0] === 'service-requests-voice-count' ||
+          query.queryKey[0] === 'service-requests-all-count'
+      });
+      
       setToast({
         message: 'Service request created successfully!',
         type: 'success'

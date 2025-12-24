@@ -4,6 +4,36 @@ All commits to this project are documented in this file.
 
 ---
 
+## 📦 Commit #33 - 2025-12-24 (IST)
+
+**Developer:** Veera Kuppili
+**Type:** Bug Fix
+
+### 📝 Commit Message
+```
+feat: fix service requests list refresh after create/update operations
+
+- Updated cache invalidation to use predicate function matching all related query keys
+- Ensures list page refreshes properly after creating or updating service requests
+- Invalidates service-requests, service-requests-voice-count, and service-requests-all-count queries
+- Fixes issue where list wasn't updating due to queryKey mismatch (activeTab and currentPage params)
+```
+
+### ✨ Changes
+
+**Frontend Pages:**
+- ✅ `apps/web/src/app/service-requests/new/page.tsx` - Updated cache invalidation with predicate function
+- ✅ `apps/web/src/app/service-requests/edit/[id]/page.tsx` - Updated cache invalidation with predicate function
+
+### 🎯 Issue Fixed
+- Service requests list page now properly refreshes after creating or updating records
+- Fixed query key mismatch where list page uses `['service-requests', activeTab, currentPage]` but invalidation only used `['service-requests']`
+- Predicate function now matches all queries starting with 'service-requests', 'service-requests-voice-count', or 'service-requests-all-count'
+
+### 📊 Files Changed: 2
+
+---
+
 ## 📦 Commit #32 - 2025-12-24 (IST)
 
 **Developer:** Veera Kuppili

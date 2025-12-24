@@ -406,9 +406,14 @@ export default function EditServiceRequestPage() {
       console.log('[ServiceRequest] ================================');
       await serviceRequestService.update(serviceRequestId, serviceRequestData);
       
-      // Invalidate queries
+      // Invalidate all service request related queries
       queryClient.invalidateQueries({ queryKey: ['service-request', serviceRequestId] });
-      queryClient.invalidateQueries({ queryKey: ['service-requests'] });
+      await queryClient.invalidateQueries({ 
+        predicate: (query) => 
+          query.queryKey[0] === 'service-requests' || 
+          query.queryKey[0] === 'service-requests-voice-count' ||
+          query.queryKey[0] === 'service-requests-all-count'
+      });
       
       setToast({
         message: 'Service request updated successfully!',
