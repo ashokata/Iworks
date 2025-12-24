@@ -4,6 +4,170 @@ All commits to this project are documented in this file.
 
 ---
 
+## 📦 Commit #31 - 2025-12-21 (IST)
+
+**Developer:** Veera Kuppili
+**Type:** Feature
+
+### 📝 Commit Message
+```
+feat: Implement comprehensive appointment calendar system with full CRUD operations
+
+Major Features:
+- Complete calendar UI with day, week, and month views
+- Full appointment management (create, read, update, delete)
+- Single-click to edit appointments, double-click grid to create new
+- Hover tooltips showing customer name and appointment time
+- Smart appointment sizing with white space optimization
+- Toast notifications for success/error feedback
+
+Backend Implementation:
+- RESTful API with 5 endpoints: POST, GET, GET/:id, PUT/:id, DELETE/:id
+- Prisma-based appointment handlers with tenant isolation
+- Foreign key validation for addressId and assignedToId
+- Comprehensive error handling and logging
+
+Frontend Implementation:
+- Three calendar view modes (day/week/month)
+- Appointment modal with all Prisma schema fields
+- Customer and employee dropdowns from database
+- Real-time appointment display on calendar grid
+- Appointment blocks show title and customer name
+- Blue-themed tooltips with customer and time info
+
+UI/UX Enhancements:
+- Reduced appointment block heights (50px single, 30px multiple)
+- Renamed "Schedule" to "Calendar" in navigation
+- Single-click interaction to open appointments
+- Smart tooltip positioning (above appointments)
+- Toast animations with slide-in-right effect
+
+Technical Details:
+- Backend: Express routes, Prisma ORM, PostgreSQL
+- Frontend: Next.js 15, React Query, Tailwind CSS
+- State Management: React Query for server state, useState for UI
+- Validation: Optional foreign keys only included if non-empty
+- Update Pattern: Checks selectedAppointment to branch create/update logic
+```
+
+### ✨ Changes
+
+#### Backend Files
+- **apps/api/src/index.ts** - Added appointment routes import
+- **apps/api/src/handlers/appointments/index.ts** (NEW) - Complete CRUD handlers (335 lines)
+  - createAppointment: Validates fields, handles optional foreign keys
+  - getAllAppointments: Returns appointments with customer/assignedTo relations
+  - getAppointmentById: Fetches single appointment
+  - updateAppointment: Partial update with spread operator
+  - deleteAppointment: Hard delete with tenant verification
+- **apps/api/src/routes/appointments.routes.ts** (NEW) - Express routes (38 lines)
+  - POST /appointments → createAppointment
+  - GET /appointments → getAllAppointments
+  - GET /appointments/:id → getAppointmentById
+  - PUT /appointments/:id → updateAppointment
+  - DELETE /appointments/:id → deleteAppointment
+
+#### Frontend Files
+- **apps/web/src/components/SidebarLayout.tsx** - Renamed "Schedule" to "Calendar"
+- **apps/web/tailwind.config.ts** - Added slide-in-right animation for toasts
+- **apps/web/src/app/calendar/page.tsx** (NEW) - Complete calendar UI (1097 lines)
+  - Three view modes: day/week/month with navigation
+  - Appointment modal with form validation
+  - handleSaveAppointment: Branches to create or update based on selectedAppointment
+  - handleAppointmentClick: Single-click loads appointment data
+  - handleGridClick: Double-click creates new appointment
+  - Appointment blocks: Wrapper div for tooltip, inner div for overflow control
+  - Tooltips: Blue theme, positioned above, shows customer + time
+- **apps/web/src/services/appointmentService.ts** (NEW) - API service layer (131 lines)
+  - createAppointment: POST /appointments
+  - updateAppointment: PUT /appointments/:id
+  - getAllAppointments: GET /appointments
+  - getAppointmentById: GET /appointments/:id
+  - deleteAppointment: DELETE /appointments/:id
+
+### 🐛 Bug Fixes
+- Fixed foreign key constraint violations by only including addressId/assignedToId when non-empty
+- Fixed update functionality by checking selectedAppointment state
+- Fixed tooltip visibility by repositioning from right to top
+- Fixed text overflow with two-div structure (wrapper + inner)
+
+### 🎨 UI Improvements
+- Reduced appointment height for better white space management
+- Single-click to open appointments (more intuitive)
+- Blue-themed tooltips matching application design
+- Customer name always visible on appointments
+- Smart appointment sizing based on number of appointments in slot
+
+---
+
+## 📦 Commit #30 - 2025-12-24 (IST)
+
+**Developer:** Veera Kuppili
+**Type:** Feature / Enhancement
+
+### 📝 Commit Message
+```
+feat: Implement address type separation and pending address staging
+
+Major Changes:
+- Separate SERVICE addresses from customer management pages
+- Add pending address staging system for service requests
+- Filter address dropdowns by type (SERVICE for service requests, PRIMARY/BILLING for customers)
+
+Customer Pages:
+- Remove 'Service' address type from customer new/edit pages
+- Filter out SERVICE addresses from display in customer pages
+- Make Customer Type and Preferred Contact Method required fields
+- Update validation to require at least one PRIMARY and one BILLING address
+- Change default address type from 'Service' to 'Billing'
+
+Service Request Pages:
+- Add pending addresses state for local staging before save
+- Filter Service Address dropdown to show only SERVICE type addresses
+- Change "Add Address" button to stage addresses instead of immediate save
+- Implement address saving on form submit (not on Add button click)
+- Fix navigation to redirect to service requests overview instead of view page
+- Add validation to prevent sending pending IDs to backend
+
+Schema:
+- Fix missing serviceLocations relation in Customer model
+
+Mock Data:
+- Add FieldSmartPro local development admin user
+
+Technical Details:
+- Pending addresses use temporary IDs (pending-{timestamp})
+- Real address IDs replace pending IDs during form submission
+- Console logging added for debugging service request data
+- Improved user feedback with updated toast messages
+```
+
+### ✨ Changes
+
+**Database & Schema:**
+- ✅ `apps/api/prisma/schema.prisma` - Added serviceLocations relation to Customer model
+
+**Frontend - Customer Pages:**
+- ✅ `apps/web/src/app/customers/edit/[id]/page.tsx` - Removed SERVICE address type, added filtering, made fields required
+- ✅ `apps/web/src/app/customers/new/page.tsx` - Removed SERVICE address type, changed default to Billing, added validation
+
+**Frontend - Service Request Pages:**
+- ✅ `apps/web/src/app/service-requests/new/page.tsx` - Added pending address staging system, SERVICE filtering
+- ✅ `apps/web/src/app/service-requests/edit/[id]/page.tsx` - Added pending address staging system, fixed navigation
+
+**Mock Data:**
+- ✅ `apps/web/src/lib/mockData.ts` - Added local development admin user
+
+### 🎯 Impact
+- Better data organization with clear address type separation
+- Improved UX with staged address creation (no accidental saves)
+- Consistent navigation flow in service request workflows
+- Enhanced form validation for required customer fields
+
+### 📊 Files Changed: 6
+
+---
+
 ## 📦 Commit #29 - 2025-12-23 (IST)
 
 **Developer:** Veera Kuppili

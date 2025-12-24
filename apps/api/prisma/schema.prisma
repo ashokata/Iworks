@@ -711,6 +711,7 @@ model Customer {
   aiConversations   AiConversation[]
   serviceRequests   ServiceRequest[]
   appointments      Appointment[]
+  serviceLocations  ServiceLocation[]
 
   @@unique([tenantId, email], name: "unique_tenant_email")
   @@index([tenantId])

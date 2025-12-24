@@ -58,6 +58,14 @@ export default function NewServiceRequestPage() {
     zip: '',
     type: 'SERVICE' as const
   });
+  const [pendingAddresses, setPendingAddresses] = useState<Array<{
+    id: string;
+    street: string;
+    city: string;
+    state: string;
+    zip: string;
+    type: 'SERVICE';
+  }>>([]);
 
   // Fetch customers for selection
   const { data: customers, isLoading: isLoadingCustomers } = useQuery({
@@ -90,6 +98,13 @@ export default function NewServiceRequestPage() {
       setSelectedCustomer(null);
     }
   }, [formData.customerId, customers]);
+
+  // Get customer addresses (only SERVICE type) + pending addresses
+  const customerAddresses = [
+    ...((selectedCustomer?.addresses as any)?.data || selectedCustomer?.addresses || [])
+      .filter((addr: any) => addr.type?.toUpperCase() === 'SERVICE'),
+    ...pendingAddresses
+  ];
 
   // Track unsaved changes
   useEffect(() => {
@@ -191,6 +206,26 @@ export default function NewServiceRequestPage() {
     setIsSaving(true);
     
     try {
+      let finalServiceAddressId = formData.serviceAddressId;
+      
+      // Save any pending addresses first
+      if (pendingAddresses.length > 0 && selectedCustomer) {
+        for (const pendingAddr of pendingAddresses) {
+          const { id, ...addressData } = pendingAddr;
+          const createdAddress = await customerService.addAddress(selectedCustomer.id, addressData);
+          
+          // If this was the selected address, update the ID to the real one
+          if (finalServiceAddressId === id) {
+            finalServiceAddressId = createdAddress.id;
+          }
+        }
+      }
+      
+      // Don't send pending IDs to backend - only send real IDs or null
+      const serviceAddressIdToSend = finalServiceAddressId?.startsWith('pending-') 
+        ? null 
+        : finalServiceAddressId;
+      
       const serviceRequestData = {
         customerId: formData.customerId,
         title: formData.title,
@@ -199,11 +234,12 @@ export default function NewServiceRequestPage() {
         urgency: formData.urgency,
         status: formData.status,
         createdSource: 'WEB' as const,
-        ...(formData.serviceAddressId && { serviceAddressId: formData.serviceAddressId }),
+        ...(serviceAddressIdToSend && { serviceAddressId: serviceAddressIdToSend }),
         ...(formData.assignedToId && { assignedToId: formData.assignedToId }),
         ...(formData.notes && { notes: formData.notes }),
       };
       
+      console.log('[ServiceRequest] Submitting data:', serviceRequestData);
       await serviceRequestService.create(serviceRequestData);
       
       setToast({
@@ -233,9 +269,6 @@ export default function NewServiceRequestPage() {
       </div>
     );
   }
-
-  // Get customer addresses
-  const customerAddresses = (selectedCustomer?.addresses as any)?.data || selectedCustomer?.addresses || [];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/20">
@@ -754,38 +787,32 @@ export default function NewServiceRequestPage() {
               </button>
               <button
                 type="button"
-                onClick={async () => {
+                onClick={() => {
                   if (!selectedCustomer || !newAddress.street || !newAddress.city || !newAddress.state || !newAddress.zip) {
                     setToast({ message: 'Please fill in all address fields', type: 'error' });
                     return;
                   }
                   
-                  try {
-                    const createdAddress = await customerService.addAddress(selectedCustomer.id, newAddress);
-                    
-                    // Update selected customer with new address
-                    const updatedCustomer = {
-                      ...selectedCustomer,
-                      addresses: [...(selectedCustomer.addresses || []), createdAddress]
-                    };
-                    setSelectedCustomer(updatedCustomer);
-                    
-                    // Auto-select the new address
-                    const event = {
-                      target: {
-                        name: 'serviceAddressId',
-                        value: createdAddress.id
-                      }
-                    } as React.ChangeEvent<HTMLSelectElement>;
-                    handleChange(event);
-                    
-                    setShowAddressModal(false);
-                    setNewAddress({ street: '', city: '', state: '', zip: '', type: 'SERVICE' });
-                    setToast({ message: 'Address added successfully', type: 'success' });
-                  } catch (error) {
-                    console.error('Error adding address:', error);
-                    setToast({ message: 'Failed to add address', type: 'error' });
-                  }
+                  // Stage address locally with temporary ID
+                  const stagedAddress = {
+                    id: `pending-${Date.now()}`,
+                    ...newAddress
+                  };
+                  
+                  setPendingAddresses([...pendingAddresses, stagedAddress]);
+                  
+                  // Auto-select the new address
+                  const event = {
+                    target: {
+                      name: 'serviceAddressId',
+                      value: stagedAddress.id
+                    }
+                  } as React.ChangeEvent<HTMLSelectElement>;
+                  handleChange(event);
+                  
+                  setShowAddressModal(false);
+                  setNewAddress({ street: '', city: '', state: '', zip: '', type: 'SERVICE' });
+                  setToast({ message: 'Address staged (will be saved with service request)', type: 'success' });
                 }}
                 disabled={!newAddress.street || !newAddress.city || !newAddress.state || !newAddress.zip}
                 className="px-4 py-2 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
