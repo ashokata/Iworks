@@ -4,6 +4,74 @@ All commits to this project are documented in this file.
 
 ---
 
+## 📦 Commit #30 - 2025-12-24 (IST)
+
+**Developer:** Veera Kuppili
+**Type:** Feature / Enhancement
+
+### 📝 Commit Message
+```
+feat: Implement address type separation and pending address staging
+
+Major Changes:
+- Separate SERVICE addresses from customer management pages
+- Add pending address staging system for service requests
+- Filter address dropdowns by type (SERVICE for service requests, PRIMARY/BILLING for customers)
+
+Customer Pages:
+- Remove 'Service' address type from customer new/edit pages
+- Filter out SERVICE addresses from display in customer pages
+- Make Customer Type and Preferred Contact Method required fields
+- Update validation to require at least one PRIMARY and one BILLING address
+- Change default address type from 'Service' to 'Billing'
+
+Service Request Pages:
+- Add pending addresses state for local staging before save
+- Filter Service Address dropdown to show only SERVICE type addresses
+- Change "Add Address" button to stage addresses instead of immediate save
+- Implement address saving on form submit (not on Add button click)
+- Fix navigation to redirect to service requests overview instead of view page
+- Add validation to prevent sending pending IDs to backend
+
+Schema:
+- Fix missing serviceLocations relation in Customer model
+
+Mock Data:
+- Add FieldSmartPro local development admin user
+
+Technical Details:
+- Pending addresses use temporary IDs (pending-{timestamp})
+- Real address IDs replace pending IDs during form submission
+- Console logging added for debugging service request data
+- Improved user feedback with updated toast messages
+```
+
+### ✨ Changes
+
+**Database & Schema:**
+- ✅ `apps/api/prisma/schema.prisma` - Added serviceLocations relation to Customer model
+
+**Frontend - Customer Pages:**
+- ✅ `apps/web/src/app/customers/edit/[id]/page.tsx` - Removed SERVICE address type, added filtering, made fields required
+- ✅ `apps/web/src/app/customers/new/page.tsx` - Removed SERVICE address type, changed default to Billing, added validation
+
+**Frontend - Service Request Pages:**
+- ✅ `apps/web/src/app/service-requests/new/page.tsx` - Added pending address staging system, SERVICE filtering
+- ✅ `apps/web/src/app/service-requests/edit/[id]/page.tsx` - Added pending address staging system, fixed navigation
+
+**Mock Data:**
+- ✅ `apps/web/src/lib/mockData.ts` - Added local development admin user
+
+### 🎯 Impact
+- Better data organization with clear address type separation
+- Improved UX with staged address creation (no accidental saves)
+- Consistent navigation flow in service request workflows
+- Enhanced form validation for required customer fields
+
+### 📊 Files Changed: 6
+
+---
+
 ## 📦 Commit #29 - 2025-12-23 (IST)
 
 **Developer:** Veera Kuppili
