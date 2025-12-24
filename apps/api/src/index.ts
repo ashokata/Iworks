@@ -40,6 +40,9 @@ import configurationsRoutes from './routes/configurations.routes';
 // Import Users routes
 import usersRoutes from './routes/users.routes';
 
+// Import Appointments routes
+import appointmentsRoutes from './routes/appointments.routes';
+
 const app = express();
 const PORT = process.env.PORT || 4000;
 
@@ -96,6 +99,9 @@ app.use(configurationsRoutes);
 
 // Register Users routes
 app.use(usersRoutes);
+
+// Register Appointments routes
+app.use(appointmentsRoutes);
 
 // Health check
 app.get('/health', async (req, res) => {
@@ -471,8 +477,6 @@ app.get('/employees', async (req, res) => {
         : emp.user 
           ? `${emp.user.firstName || ''} ${emp.user.lastName || ''}`.trim() 
           : 'Unknown',
-      email: empEmail,
-      phone: empPhone,
       status: emp.isArchived ? 'Inactive' : 'Active',
       isTechnician: emp.isDispatchEnabled,
       };
@@ -741,6 +745,126 @@ app.delete('/employees/:id/skills/:skillId', async (req, res) => {
 // ============================================================================
 // JOB ROUTES
 // ============================================================================
+
+// GET all jobs for tenant
+app.get('/jobs', async (req, res) => {
+  try {
+    const tenantId = req.headers['x-tenant-id'] as string;
+    if (!tenantId) {
+      return res.status(400).json({ error: 'x-tenant-id header is required' });
+    }
+
+    const { status, date, assignedTo } = req.query;
+    const prisma = getPrismaClient();
+    
+    const where: any = { tenantId };
+    if (status) where.status = status;
+    if (assignedTo) where.assignedEmployees = { some: { employeeId: assignedTo as string } };
+    if (date) {
+      const startOfDay = new Date(date as string);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(date as string);
+      endOfDay.setHours(23, 59, 59, 999);
+      where.scheduledStart = { gte: startOfDay, lte: endOfDay };
+    }
+
+    const jobs = await prisma.job.findMany({
+      where,
+      include: {
+        customer: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            companyName: true,
+            mobilePhone: true,
+            homePhone: true,
+            workPhone: true,
+            email: true,
+          },
+        },
+        address: true,
+        assignments: {
+          include: {
+            employee: {
+              select: { id: true, firstName: true, lastName: true },
+            },
+          },
+        },
+      },
+      orderBy: { scheduledStart: 'asc' },
+    });
+
+    res.json({ jobs, total: jobs.length });
+  } catch (error: any) {
+    console.error('[API] Get jobs error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET job by ID
+app.get('/jobs/:id', async (req, res) => {
+  try {
+    const tenantId = req.headers['x-tenant-id'] as string;
+    const { id } = req.params;
+
+    if (!tenantId) {
+      return res.status(400).json({ error: 'x-tenant-id header is required' });
+    }
+
+    const prisma = getPrismaClient();
+    const job = await prisma.job.findFirst({
+      where: { id, tenantId },
+      include: {
+        customer: true,
+        address: true,
+        assignments: {
+          include: {
+            employee: true,
+          },
+        },
+        lineItems: true,
+      },
+    });
+
+    if (!job) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+
+    res.json(job);
+  } catch (error: any) {
+    console.error('[API] Get job error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// UPDATE job status
+app.patch('/jobs/:id/status', async (req, res) => {
+  try {
+    const tenantId = req.headers['x-tenant-id'] as string;
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!tenantId) {
+      return res.status(400).json({ error: 'x-tenant-id header is required' });
+    }
+
+    const prisma = getPrismaClient();
+    const job = await prisma.job.update({
+      where: { id },
+      data: { 
+        status,
+        ...(status === 'IN_PROGRESS' && { actualStart: new Date() }),
+        ...(status === 'COMPLETED' && { actualEnd: new Date() }),
+      },
+    });
+
+    res.json(job);
+  } catch (error: any) {
+    console.error('[API] Update job status error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 app.post('/jobs', async (req, res) => {
   try {

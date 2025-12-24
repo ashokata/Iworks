@@ -1,179 +1,90 @@
 import { apiClient } from './client';
 
-// Types - these should eventually come from @fieldsmartpro/shared
 export interface Customer {
   id: string;
-  tenantId: string;
-  displayName: string;
+  customerNumber?: string;
+  type: 'RESIDENTIAL' | 'COMMERCIAL' | 'CONTRACTOR';
   firstName?: string;
   lastName?: string;
   companyName?: string;
-  type: CustomerType;
   email?: string;
-  phone?: string;
-  altPhone?: string;
-  website?: string;
+  mobilePhone?: string;
+  homePhone?: string;
+  workPhone?: string;
   notes?: string;
-  tags?: string[];
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-  
-  // Relations
-  addresses?: CustomerAddress[];
+  addresses?: Address[];
+  createdAt?: string;
 }
 
-export type CustomerType = 'RESIDENTIAL' | 'COMMERCIAL' | 'CONTRACTOR';
-
-export interface CustomerAddress {
+export interface Address {
   id: string;
-  customerId: string;
-  type: 'SERVICE' | 'BILLING' | 'BOTH';
+  type: 'SERVICE' | 'BILLING' | 'PRIMARY';
   street1: string;
   street2?: string;
   city: string;
   state: string;
-  zipCode: string;
-  country: string;
-  latitude?: number;
-  longitude?: number;
+  zip: string;
+  isPrimary?: boolean;
 }
 
-export interface CreateCustomerRequest {
-  firstName: string;
-  lastName?: string;
-  companyName?: string;
-  displayName?: string;
-  type?: CustomerType;
-  email?: string;
-  phone?: string;
-  altPhone?: string;
-  notes?: string;
-  tags?: string[];
-  address?: {
-    street1: string;
-    street2?: string;
-    city: string;
-    state: string;
-    zipCode: string;
-    type?: 'SERVICE' | 'BILLING' | 'PRIMARY';
-  };
+export interface CustomersResponse {
+  customers: Customer[];
+  total: number;
 }
 
-export interface UpdateCustomerRequest {
-  firstName?: string;
-  lastName?: string;
-  companyName?: string;
-  displayName?: string;
-  type?: CustomerType;
-  email?: string;
-  phone?: string;
-  altPhone?: string;
-  notes?: string;
-  tags?: string[];
-}
-
-/**
- * Customer Service - handles all customer-related API calls
- */
 export const customerService = {
   /**
-   * Get all customers (with optional search)
+   * Get all customers for tenant
    */
-  async getAllCustomers(search?: string): Promise<Customer[]> {
-    const url = search ? `/customers?search=${encodeURIComponent(search)}` : '/customers';
-    const response = await apiClient.get<{ customers: Customer[] }>(url);
-    return response.customers;
+  async getCustomers(params?: { 
+    search?: string;
+    type?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<CustomersResponse> {
+    const queryParams = new URLSearchParams();
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.type) queryParams.append('type', params.type);
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.offset) queryParams.append('offset', params.offset.toString());
+    
+    const query = queryParams.toString();
+    const url = `/customers${query ? `?${query}` : ''}`;
+    
+    const response = await apiClient.get<any>(url);
+    // API returns array directly, wrap it
+    if (Array.isArray(response)) {
+      return { customers: response, total: response.length };
+    }
+    return response;
   },
 
   /**
-   * Get a single customer by ID
+   * Get customer by ID
    */
   async getCustomerById(id: string): Promise<Customer> {
-    const response = await apiClient.get<{ customer: Customer }>(`/customers/${id}`);
-    return response.customer;
+    return apiClient.get<Customer>(`/customers/${id}`);
   },
 
   /**
-   * Create a new customer
+   * Create new customer
    */
-  async createCustomer(data: CreateCustomerRequest): Promise<Customer> {
-    const response = await apiClient.post<{ customer: Customer }>('/customers', data);
-    return response.customer;
+  async createCustomer(data: Partial<Customer>): Promise<Customer> {
+    return apiClient.post<Customer>('/customers', data);
   },
 
   /**
-   * Update a customer
+   * Update customer
    */
-  async updateCustomer(id: string, data: UpdateCustomerRequest): Promise<Customer> {
-    const response = await apiClient.put<{ customer: Customer }>(`/customers/${id}`, data);
-    return response.customer;
+  async updateCustomer(id: string, data: Partial<Customer>): Promise<Customer> {
+    return apiClient.put<Customer>(`/customers/${id}`, data);
   },
 
   /**
-   * Delete (archive) a customer
+   * Get customer display name
    */
-  async deleteCustomer(id: string): Promise<void> {
-    await apiClient.delete(`/customers/${id}`);
-  },
-
-  /**
-   * Search customers by name, email, or phone
-   */
-  async searchCustomers(query: string): Promise<Customer[]> {
-    const response = await apiClient.get<{ customers: Customer[] }>(
-      `/customers/search?q=${encodeURIComponent(query)}`
-    );
-    return response.customers;
-  },
-
-  /**
-   * Add an address to a customer
-   */
-  async addAddress(customerId: string, address: Omit<CustomerAddress, 'id' | 'customerId'>): Promise<CustomerAddress> {
-    const response = await apiClient.post<{ address: CustomerAddress }>(
-      `/customers/${customerId}/addresses`,
-      address
-    );
-    return response.address;
-  },
-
-  /**
-   * Update a customer address
-   */
-  async updateAddress(
-    customerId: string, 
-    addressId: string, 
-    address: Partial<CustomerAddress>
-  ): Promise<CustomerAddress> {
-    const response = await apiClient.put<{ address: CustomerAddress }>(
-      `/customers/${customerId}/addresses/${addressId}`,
-      address
-    );
-    return response.address;
-  },
-
-  /**
-   * Delete a customer address
-   */
-  async deleteAddress(customerId: string, addressId: string): Promise<void> {
-    await apiClient.delete(`/customers/${customerId}/addresses/${addressId}`);
-  },
-
-  /**
-   * Get customer's job history
-   */
-  async getCustomerJobs(customerId: string): Promise<any[]> {
-    const response = await apiClient.get<{ jobs: any[] }>(`/customers/${customerId}/jobs`);
-    return response.jobs;
-  },
-
-  /**
-   * Get customer's invoices
-   */
-  async getCustomerInvoices(customerId: string): Promise<any[]> {
-    const response = await apiClient.get<{ invoices: any[] }>(`/customers/${customerId}/invoices`);
-    return response.invoices;
+  getDisplayName(customer: Customer): string {
+    if (customer.companyName) return customer.companyName;
+    return `${customer.firstName || ''} ${customer.lastName || ''}`.trim() || 'Unknown';
   },
 };
-
