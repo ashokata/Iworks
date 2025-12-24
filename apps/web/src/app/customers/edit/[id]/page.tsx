@@ -21,17 +21,18 @@ import {
   TrashIcon
 } from '@heroicons/react/24/outline';
 
-type AddressType = 'Primary' | 'Billing' | 'Service';
+type AddressType = 'Primary' | 'Billing';
 
 // Map database address type to frontend address type
-const mapDbTypeToAddressType = (dbType: string | undefined): AddressType => {
+// Note: SERVICE addresses are filtered out and not shown in customer pages
+const mapDbTypeToAddressType = (dbType: string | undefined): AddressType | null => {
   if (!dbType) return 'Primary';
-  const typeMap: Record<string, AddressType> = {
+  const typeMap: Record<string, AddressType | null> = {
     'PRIMARY': 'Primary',
-    'SERVICE': 'Service',
+    'SERVICE': null, // Filter out SERVICE addresses from customer pages
     'BILLING': 'Billing',
   };
-  return typeMap[dbType] || 'Primary';
+  return typeMap[dbType] !== undefined ? typeMap[dbType] : 'Primary';
 };
 
 type FormCustomerAddress = {
@@ -63,14 +64,14 @@ const generateUUID = (): string => {
 type FormData = {
   firstName: string;
   lastName: string;
-  type: 'RESIDENTIAL' | 'COMMERCIAL' | 'CONTRACTOR';
+  type?: 'RESIDENTIAL' | 'COMMERCIAL' | 'CONTRACTOR';
   email: string;
   mobilePhone: string;
   homePhone: string;
   workPhone: string;
   companyName: string;
   jobTitle: string;
-  preferredContactMethod: 'SMS' | 'EMAIL' | 'VOICE' | 'PUSH' | 'IN_APP';
+  preferredContactMethod?: 'SMS' | 'EMAIL' | 'VOICE' | 'PUSH' | 'IN_APP';
   notificationsEnabled: boolean;
   isContractor: boolean;
   notes: string;
@@ -88,14 +89,14 @@ export default function PetCustomerEditPage() {
   const [formData, setFormData] = useState<FormData>({
     firstName: '',
     lastName: '',
-    type: 'RESIDENTIAL',
+    type: undefined,
     email: '',
     mobilePhone: '',
     homePhone: '',
     workPhone: '',
     companyName: '',
     jobTitle: '',
-    preferredContactMethod: 'SMS',
+    preferredContactMethod: undefined,
     notificationsEnabled: false,
     isContractor: false,
     notes: '',
@@ -190,23 +191,6 @@ export default function PetCustomerEditPage() {
     return () => clearTimeout(timeoutId);
   }, [formData.email, originalEmail]);
 
-  // Validate mobile phone when preferred contact method changes
-  useEffect(() => {
-    if ((formData.preferredContactMethod === 'SMS' || formData.preferredContactMethod === 'VOICE') && !formData.mobilePhone.trim()) {
-      setErrors(prev => ({ ...prev, mobilePhone: 'Mobile number is required for SMS or Phone contact' }));
-    } else {
-      // Clear mobile error if contact method changed to EMAIL or mobile is filled
-      setErrors(prev => {
-        if (prev.mobilePhone) {
-          const newErrors = { ...prev };
-          delete newErrors.mobilePhone;
-          return newErrors;
-        }
-        return prev;
-      });
-    }
-  }, [formData.preferredContactMethod, formData.mobilePhone]);
-
   // Fetch customer data - always refetch to get latest addresses
   const { data: customer, isLoading, isError, error, refetch, dataUpdatedAt, isFetching } = useQuery({
     queryKey: ['customer', customerId],
@@ -226,29 +210,35 @@ export default function PetCustomerEditPage() {
       setFormData({
         firstName: customer.firstName || '',
         lastName: customer.lastName || '',
-        type: (customer.type?.toUpperCase() || 'RESIDENTIAL') as 'RESIDENTIAL' | 'COMMERCIAL' | 'CONTRACTOR',
+        type: customer.type?.toUpperCase() as 'RESIDENTIAL' | 'COMMERCIAL' | 'CONTRACTOR' | undefined,
         email: customer.email || '',
         mobilePhone: customer.mobilePhone || '',
         homePhone: customer.homePhone || '',
         workPhone: customer.workPhone || '',
         companyName: customer.companyName || '',
         jobTitle: (customer.customFields as any)?.jobTitle || '',
-        preferredContactMethod: (customer.preferredContactMethod || 'SMS') as 'SMS' | 'EMAIL' | 'VOICE' | 'PUSH' | 'IN_APP',
+        preferredContactMethod: customer.preferredContactMethod as 'SMS' | 'EMAIL' | 'VOICE' | 'PUSH' | 'IN_APP' | undefined,
         notificationsEnabled: customer.notificationsEnabled ?? false,
         isContractor: (customer.customFields as any)?.isContractor ?? false,
         notes: customer.notes || '',
-        addresses: (customer.addresses || []).map((addr: any) => ({
-          id: addr.id,
-          addressType: addr.addressType || mapDbTypeToAddressType(addr.type) || 'Primary',
-          street: addr.street || '',
-          street2: addr.streetLine2 || addr.street2 || '',
-          city: addr.city || '',
-          state: addr.state || '',
-          zipCode: addr.zipCode || addr.zip || '',
-          county: addr.county || '',
-          country: addr.country || 'US',
-          isNew: false,
-        })),
+        addresses: (customer.addresses || [])
+          .filter((addr: any) => {
+            // Filter out SERVICE addresses - they should only appear in service request pages
+            const dbType = addr.type?.toUpperCase();
+            return dbType !== 'SERVICE';
+          })
+          .map((addr: any) => ({
+            id: addr.id,
+            addressType: addr.addressType || mapDbTypeToAddressType(addr.type) || 'Primary',
+            street: addr.street || '',
+            street2: addr.streetLine2 || addr.street2 || '',
+            city: addr.city || '',
+            state: addr.state || '',
+            zipCode: addr.zipCode || addr.zip || '',
+            county: addr.county || '',
+            country: addr.country || 'US',
+            isNew: false,
+          })),
         tags: (customer.tags || []).map((tag: any) => typeof tag === 'string' ? tag : tag.name || ''),
       });
     }
@@ -309,8 +299,8 @@ export default function PetCustomerEditPage() {
       defaultType = 'Primary';
     } else if (!existingTypes.includes('Billing')) {
       defaultType = 'Billing';
-    } else if (!existingTypes.includes('Service')) {
-      defaultType = 'Service';
+    } else if (!existingTypes.includes('Billing')) {
+      defaultType = 'Billing';
     }
     
     setFormData(prev => ({
@@ -391,7 +381,7 @@ export default function PetCustomerEditPage() {
       
       if (hasPrimary) {
         setToast({
-          message: 'Only one primary address is allowed. The previous primary address will be changed to Service.',
+          message: 'Only one primary address is allowed. The previous primary address will be changed to Billing.',
           type: 'success'
         });
       }
@@ -407,10 +397,10 @@ export default function PetCustomerEditPage() {
             addressType: newType
           };
         } else if (newType === 'Primary' && addr.addressType === 'Primary') {
-          // If setting a new primary, change existing primary to Service
+          // If setting a new primary, change existing primary to Billing
           return {
             ...addr,
-            addressType: 'Service'
+            addressType: 'Billing'
           };
         }
         return addr;
@@ -436,11 +426,21 @@ export default function PetCustomerEditPage() {
       newErrors.lastName = 'Last name must be at least 3 characters';
     }
     
+    // Customer type validation
+    if (!formData.type) {
+      newErrors.type = 'Customer type is required';
+    }
+    
     // Email validation
     if (!formData.email.trim()) {
       newErrors.email = 'Email address is required';
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = 'Invalid email format';
+    }
+    
+    // Preferred contact method validation
+    if (!formData.preferredContactMethod) {
+      newErrors.preferredContactMethod = 'Preferred contact method is required';
     }
     
     // Mobile phone validation (required if preferred contact method is SMS or VOICE)
@@ -1021,8 +1021,11 @@ export default function PetCustomerEditPage() {
                 
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wider">
-                    Customer Type
+                    Customer Type <span className="text-red-500">*</span>
                   </label>
+                  {errors.type && (
+                    <p className="text-sm text-red-600 mb-2">{errors.type}</p>
+                  )}
                   <div className="grid grid-cols-3 gap-3">
                     <button
                       type="button"
@@ -1112,8 +1115,11 @@ export default function PetCustomerEditPage() {
               <div className="p-6 space-y-5">
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wider">
-                    Preferred Contact Method
+                    Preferred Contact Method <span className="text-red-500">*</span>
                   </label>
+                  {errors.preferredContactMethod && (
+                    <p className="text-sm text-red-600 mb-2">{errors.preferredContactMethod}</p>
+                  )}
                   <div className="grid grid-cols-3 gap-3">
                     <button
                       type="button"
@@ -1336,7 +1342,7 @@ export default function PetCustomerEditPage() {
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                     </svg>
                     <div className="text-sm text-blue-700">
-                      <span className="font-semibold">Required:</span> Every customer must have exactly one primary address. If you select a new primary address, the previous one will automatically be changed to a Service address.
+                      <span className="font-semibold">Required:</span> Every customer must have exactly one primary address. If you select a new primary address, the previous one will automatically be changed to a Billing address.
                     </div>
                   </div>
                 )}
@@ -1369,7 +1375,6 @@ export default function PetCustomerEditPage() {
                               >
                                 <option value="Primary">📍 Primary Address</option>
                                 <option value="Billing">💳 Billing Address</option>
-                                <option value="Service">🔧 Service Address</option>
                               </select>
                               <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                                 <svg className="h-5 w-5 text-orange-500" viewBox="0 0 20 20" fill="currentColor">

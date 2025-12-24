@@ -1,5 +1,16 @@
 // Mock users for testing
 export const MOCK_USERS = [
+  // FieldSmartPro Local Development
+  {
+    id: 'admin-user',
+    tenantId: 'local-tenant',
+    email: 'admin@fieldsmartpro.local',
+    username: 'admin@fieldsmartpro.local',
+    password: 'demo-hash',
+    name: 'Admin User',
+    role: 'admin',
+  },
+  
   // InField Works users
   {
     id: 'user1',

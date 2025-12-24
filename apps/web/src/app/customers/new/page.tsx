@@ -20,7 +20,7 @@ import {
   TrashIcon
 } from '@heroicons/react/24/outline';
 
-type AddressType = 'Primary' | 'Billing' | 'Service';
+type AddressType = 'Primary' | 'Billing';
 
 type FormCustomerAddress = {
   id: string;
@@ -50,14 +50,14 @@ const generateUUID = (): string => {
 type FormData = {
   firstName: string;
   lastName: string;
-  type: 'RESIDENTIAL' | 'COMMERCIAL' | 'CONTRACTOR';
+  type?: 'RESIDENTIAL' | 'COMMERCIAL' | 'CONTRACTOR';
   email: string;
   mobilePhone: string;
   homePhone: string;
   workPhone: string;
   companyName: string;
   jobTitle: string;
-  preferredContactMethod: 'SMS' | 'EMAIL' | 'VOICE' | 'PUSH' | 'IN_APP';
+  preferredContactMethod?: 'SMS' | 'EMAIL' | 'VOICE' | 'PUSH' | 'IN_APP';
   notificationsEnabled: boolean;
   isContractor: boolean;
   notes: string;
@@ -72,14 +72,14 @@ export default function AddPetCustomerPage() {
   const [formData, setFormData] = useState<FormData>({
     firstName: '',
     lastName: '',
-    type: 'RESIDENTIAL',
+    type: undefined,
     email: '',
     mobilePhone: '',
     homePhone: '',
     workPhone: '',
     companyName: '',
     jobTitle: '',
-    preferredContactMethod: 'SMS',
+    preferredContactMethod: undefined,
     notificationsEnabled: true,
     isContractor: false,
     notes: '',
@@ -174,23 +174,6 @@ export default function AddPetCustomerPage() {
     return () => clearTimeout(timeoutId);
   }, [formData.email]);
 
-  // Validate mobile phone when preferred contact method changes
-  useEffect(() => {
-    if ((formData.preferredContactMethod === 'SMS' || formData.preferredContactMethod === 'VOICE') && !formData.mobilePhone.trim()) {
-      setErrors(prev => ({ ...prev, mobilePhone: 'Mobile number is required for SMS or Phone contact' }));
-    } else {
-      // Clear mobile error if contact method changed to EMAIL or mobile is filled
-      setErrors(prev => {
-        if (prev.mobilePhone) {
-          const newErrors = { ...prev };
-          delete newErrors.mobilePhone;
-          return newErrors;
-        }
-        return prev;
-      });
-    }
-  }, [formData.preferredContactMethod, formData.mobilePhone]);
-
   // Handle form input changes
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -242,7 +225,7 @@ export default function AddPetCustomerPage() {
       ...prev,
       addresses: [...prev.addresses, {
         id: generateUUID(),
-        addressType: 'Service',
+        addressType: 'Billing',
         street: '',
         street2: '',
         city: '',
@@ -313,7 +296,7 @@ export default function AddPetCustomerPage() {
       
       if (hasPrimary) {
         setToast({
-          message: 'Only one primary address is allowed. The previous primary address will be changed to Service.',
+          message: 'Only one primary address is allowed. The previous primary address will be changed to Billing.',
           type: 'error'
         });
       }
@@ -330,7 +313,7 @@ export default function AddPetCustomerPage() {
         } else if (newType === 'Primary' && addr.addressType === 'Primary') {
           return {
             ...addr,
-            addressType: 'Service'
+            addressType: 'Billing'
           };
         }
         return addr;
@@ -356,11 +339,21 @@ export default function AddPetCustomerPage() {
       newErrors.lastName = 'Last name must be at least 3 characters';
     }
     
+    // Customer type validation
+    if (!formData.type) {
+      newErrors.type = 'Customer type is required';
+    }
+    
     // Email validation
     if (!formData.email.trim()) {
       newErrors.email = 'Email address is required';
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = 'Invalid email format';
+    }
+    
+    // Preferred contact method validation
+    if (!formData.preferredContactMethod) {
+      newErrors.preferredContactMethod = 'Preferred contact method is required';
     }
     
     // Mobile phone validation (required if preferred contact method is SMS or VOICE)
@@ -471,7 +464,7 @@ export default function AddPetCustomerPage() {
         isContractor: formData.isContractor,
         notificationsEnabled: formData.notificationsEnabled,
         addresses: formData.addresses.map(addr => ({
-          type: addr.addressType || 'SERVICE',
+          type: addr.addressType || 'BILLING',
           addressType: addr.addressType,
           street: addr.street,
           streetLine2: addr.street2,
@@ -828,8 +821,11 @@ export default function AddPetCustomerPage() {
                 
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wider">
-                    Customer Type
+                    Customer Type <span className="text-red-500">*</span>
                   </label>
+                  {errors.type && (
+                    <p className="text-sm text-red-600 mb-2">{errors.type}</p>
+                  )}
                   <div className="grid grid-cols-3 gap-3">
                     <button
                       type="button"
@@ -919,8 +915,11 @@ export default function AddPetCustomerPage() {
               <div className="p-6 space-y-5">
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wider">
-                    Preferred Contact Method
+                    Preferred Contact Method <span className="text-red-500">*</span>
                   </label>
+                  {errors.preferredContactMethod && (
+                    <p className="text-sm text-red-600 mb-2">{errors.preferredContactMethod}</p>
+                  )}
                   <div className="grid grid-cols-3 gap-3">
                     <button
                       type="button"
@@ -1143,7 +1142,7 @@ export default function AddPetCustomerPage() {
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                     </svg>
                     <div className="text-sm text-blue-700">
-                      <span className="font-semibold">Required:</span> Every customer must have exactly one primary address. If you select a new primary address, the previous one will automatically be changed to a Service address.
+                      <span className="font-semibold">Required:</span> Every customer must have exactly one primary address. If you select a new primary address, the previous one will automatically be changed to a Billing address.
                     </div>
                   </div>
                 )}
@@ -1176,7 +1175,6 @@ export default function AddPetCustomerPage() {
                               >
                                 <option value="Primary">📍 Primary Address</option>
                                 <option value="Billing">💳 Billing Address</option>
-                                <option value="Service">🔧 Service Address</option>
                               </select>
                               <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                                 <svg className="h-5 w-5 text-orange-500" viewBox="0 0 20 20" fill="currentColor">
