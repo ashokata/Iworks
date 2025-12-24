@@ -22,6 +22,7 @@ export interface ServiceRequest {
   voiceCallId: string | null;
   createdAt: string;
   updatedAt: string;
+  isServiceAddressSameAsPrimary?: boolean;
   customer: {
     id: string;
     customerNumber: string;
@@ -67,6 +68,7 @@ export interface CreateServiceRequestData {
   serviceAddressId?: string;
   assignedToId?: string;
   notes?: string;
+  isServiceAddressSameAsPrimary?: boolean;
 }
 
 export interface ServiceRequestsResponse {

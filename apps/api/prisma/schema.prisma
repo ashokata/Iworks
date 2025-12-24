@@ -2249,6 +2249,7 @@ model ServiceRequest {
   // Address for service
   serviceAddressId String?
   serviceAddress   Address? @relation(fields: [serviceAddressId], references: [id])
+  isServiceAddressSameAsPrimary Boolean @default(false)
 
   notes String? @db.Text
 

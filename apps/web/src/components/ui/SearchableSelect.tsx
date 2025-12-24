@@ -15,6 +15,7 @@ interface SearchableSelectProps {
   placeholder?: string;
   className?: string;
   label?: string;
+  disabled?: boolean;
 }
 
 export function SearchableSelect({
@@ -23,7 +24,8 @@ export function SearchableSelect({
   onChange,
   placeholder = 'Select...',
   className = '',
-  label
+  label,
+  disabled = false
 }: SearchableSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -83,8 +85,11 @@ export function SearchableSelect({
       <button
         ref={buttonRef}
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className={`w-full text-left appearance-none border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-gray-400 bg-white cursor-pointer text-gray-900 flex items-center justify-between ${className}`}
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        disabled={disabled}
+        className={`w-full text-left appearance-none border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-gray-400 bg-white cursor-pointer text-gray-900 flex items-center justify-between ${
+          disabled ? 'opacity-50 cursor-not-allowed bg-gray-50' : ''
+        } ${className}`}
       >
         <span className={selectedOption ? 'text-gray-900' : 'text-gray-500'}>
           {selectedOption ? selectedOption.label : placeholder}

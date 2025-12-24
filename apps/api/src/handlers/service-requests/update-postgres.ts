@@ -40,6 +40,11 @@ export const handler = async (
     }
 
     const body = JSON.parse(event.body);
+    console.log('[UpdateServiceRequest] ===== RECEIVED UPDATE =====');
+    console.log('[UpdateServiceRequest] Full body:', JSON.stringify(body, null, 2));
+    console.log('[UpdateServiceRequest] isServiceAddressSameAsPrimary:', body.isServiceAddressSameAsPrimary);
+    console.log('[UpdateServiceRequest] serviceAddressId:', body.serviceAddressId);
+    console.log('[UpdateServiceRequest] ================================');
 
     // Verify service request exists and belongs to tenant
     const existing = await prisma.serviceRequest.findFirst({
@@ -58,6 +63,7 @@ export const handler = async (
 
     // Map CRITICAL to EMERGENCY if provided (for backwards compatibility)
     const updateData: any = {};
+    if (body.customerId !== undefined) updateData.customerId = body.customerId;
     if (body.title !== undefined) updateData.title = body.title;
     if (body.description !== undefined) updateData.description = body.description;
     if (body.problemType !== undefined) updateData.problemType = body.problemType;
@@ -78,6 +84,13 @@ export const handler = async (
       updateData.serviceAddressId = body.serviceAddressId || null;
     }
     if (body.notes !== undefined) updateData.notes = body.notes || null;
+    if (body.isServiceAddressSameAsPrimary !== undefined) {
+      updateData.isServiceAddressSameAsPrimary = body.isServiceAddressSameAsPrimary;
+    }
+
+    console.log('[UpdateServiceRequest] ===== UPDATE DATA =====');
+    console.log('[UpdateServiceRequest] updateData:', JSON.stringify(updateData, null, 2));
+    console.log('[UpdateServiceRequest] ================================');
 
     // Update service request
     const serviceRequest = await prisma.serviceRequest.update({

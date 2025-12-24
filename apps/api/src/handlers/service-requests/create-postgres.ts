@@ -43,6 +43,7 @@ export const handler = async (
       serviceAddressId,
       assignedToId,
       notes,
+      isServiceAddressSameAsPrimary,
     } = body;
 
     // Validate required fields
@@ -104,6 +105,7 @@ export const handler = async (
         serviceAddressId: serviceAddressId || null,
         assignedToId: assignedToId || null,
         notes: notes || null,
+        isServiceAddressSameAsPrimary: isServiceAddressSameAsPrimary || false,
       },
       include: {
         customer: {

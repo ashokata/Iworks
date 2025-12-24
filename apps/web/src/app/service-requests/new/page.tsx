@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { serviceRequestService } from '@/services/serviceRequestService';
 import { customerService, Customer } from '@/services/customerService';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { 
   DocumentTextIcon,
   UserCircleIcon,
@@ -27,11 +27,13 @@ type FormData = {
   serviceAddressId: string;
   assignedToId: string;
   notes: string;
+  isServiceAddressSameAsPrimary: boolean;
 };
 
 export default function NewServiceRequestPage() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const router = useRouter();
+  const queryClient = useQueryClient();
   
   const [formData, setFormData] = useState<FormData>({
     customerId: '',
@@ -43,6 +45,7 @@ export default function NewServiceRequestPage() {
     serviceAddressId: '',
     assignedToId: '',
     notes: '',
+    isServiceAddressSameAsPrimary: false,
   });
 
   const [isSaving, setIsSaving] = useState(false);
@@ -66,6 +69,7 @@ export default function NewServiceRequestPage() {
     zip: string;
     type: 'SERVICE';
   }>>([]);
+  const [useSameAsPrimary, setUseSameAsPrimary] = useState(false);
 
   // Fetch customers for selection
   const { data: customers, isLoading: isLoadingCustomers } = useQuery({
@@ -96,8 +100,93 @@ export default function NewServiceRequestPage() {
       setSelectedCustomer(customer || null);
     } else {
       setSelectedCustomer(null);
+      // Reset checkbox when customer is unselected
+      setUseSameAsPrimary(false);
     }
   }, [formData.customerId, customers]);
+
+  // Handle useSameAsPrimary checkbox change for immediate UI feedback
+  useEffect(() => {
+    if (useSameAsPrimary && selectedCustomer) {
+      // Find primary address
+      const addresses = (selectedCustomer?.addresses as any)?.data || selectedCustomer?.addresses || [];
+      const primaryAddress = addresses.find((addr: any) => addr.type?.toUpperCase() === 'PRIMARY');
+      
+      if (primaryAddress) {
+        console.log('[UseSameAsPrimary] Primary address found:', primaryAddress);
+        
+        // Check ALL customer addresses for existing SERVICE address with same details
+        const allCustomerAddresses = (selectedCustomer?.addresses as any)?.data || selectedCustomer?.addresses || [];
+        console.log('[UseSameAsPrimary] Checking against all addresses:', allCustomerAddresses.length);
+        console.log('[UseSameAsPrimary] All addresses:', allCustomerAddresses);
+        
+        // Normalize primary address for comparison
+        const normalizedPrimary = {
+          street: (primaryAddress.street || '').trim().toLowerCase(),
+          city: (primaryAddress.city || '').trim().toLowerCase(),
+          state: (primaryAddress.state || '').trim().toLowerCase(),
+          zip: (primaryAddress.zip || '').trim()
+        };
+        
+        const existingServiceAddress = allCustomerAddresses.find((addr: any) => {
+          if (addr.type?.toUpperCase() !== 'SERVICE') {
+            return false;
+          }
+          
+          // Normalize comparison address
+          const normalizedAddr = {
+            street: (addr.street || '').trim().toLowerCase(),
+            city: (addr.city || '').trim().toLowerCase(),
+            state: (addr.state || '').trim().toLowerCase(),
+            zip: (addr.zip || '').trim()
+          };
+          
+          const matches = normalizedAddr.street === normalizedPrimary.street &&
+            normalizedAddr.city === normalizedPrimary.city &&
+            normalizedAddr.state === normalizedPrimary.state &&
+            normalizedAddr.zip === normalizedPrimary.zip;
+          
+          if (matches) {
+            console.log('[UseSameAsPrimary] ✓ Found existing SERVICE address:', addr);
+          }
+          return matches;
+        });
+
+        if (existingServiceAddress) {
+          // Use existing SERVICE address - NO new address created
+          console.log('[UseSameAsPrimary] ✓✓ Using existing SERVICE address ID:', existingServiceAddress.id);
+          console.log('[UseSameAsPrimary] NOT creating any new address - reusing existing');
+          setFormData(prev => ({ ...prev, serviceAddressId: existingServiceAddress.id }));
+          // IMPORTANT: Don't add to pending addresses since it already exists in database
+        } else {
+          // No matching SERVICE address found - create a pending one
+          console.log('[UseSameAsPrimary] ✗ No existing SERVICE address found, creating pending address');
+          const newServiceAddress = {
+            id: `pending-primary-${Date.now()}`,
+            street: primaryAddress.street,
+            city: primaryAddress.city,
+            state: primaryAddress.state,
+            zip: primaryAddress.zip,
+            type: 'SERVICE' as const
+          };
+          setPendingAddresses(prev => {
+            // Remove any existing pending-primary addresses to avoid duplicates
+            const filtered = prev.filter(addr => !addr.id.startsWith('pending-primary-'));
+            return [...filtered, newServiceAddress];
+          });
+          setFormData(prev => ({ ...prev, serviceAddressId: newServiceAddress.id }));
+          console.log('[UseSameAsPrimary] Created pending SERVICE address:', newServiceAddress);
+        }
+      } else {
+        console.log('[UseSameAsPrimary] No primary address found for customer');
+      }
+    } else if (!useSameAsPrimary) {
+      // Clear service address and remove pending-primary addresses when unchecked
+      console.log('[UseSameAsPrimary] Checkbox unchecked, clearing addresses');
+      setPendingAddresses(prev => prev.filter(addr => !addr.id.startsWith('pending-primary-')));
+      setFormData(prev => ({ ...prev, serviceAddressId: '', isServiceAddressSameAsPrimary: false }));
+    }
+  }, [useSameAsPrimary, selectedCustomer]);
 
   // Get customer addresses (only SERVICE type) + pending addresses
   const customerAddresses = [
@@ -208,23 +297,38 @@ export default function NewServiceRequestPage() {
     try {
       let finalServiceAddressId = formData.serviceAddressId;
       
-      // Save any pending addresses first
+      console.log('[ServiceRequest] Starting submission...');
+      console.log('[ServiceRequest] formData:', formData);
+      console.log('[ServiceRequest] formData.isServiceAddressSameAsPrimary:', formData.isServiceAddressSameAsPrimary);
+      console.log('[ServiceRequest] useSameAsPrimary state:', useSameAsPrimary);
+      console.log('[ServiceRequest] Pending addresses count:', pendingAddresses.length);
+      console.log('[ServiceRequest] Pending addresses:', pendingAddresses);
+      console.log('[ServiceRequest] Current serviceAddressId:', formData.serviceAddressId);
+      
+      // Save any pending addresses first (includes pending-primary addresses from checkbox)
       if (pendingAddresses.length > 0 && selectedCustomer) {
+        console.log('[ServiceRequest] Saving pending addresses for customer:', selectedCustomer.id);
         for (const pendingAddr of pendingAddresses) {
           const { id, ...addressData } = pendingAddr;
+          console.log('[ServiceRequest] Saving address:', addressData);
           const createdAddress = await customerService.addAddress(selectedCustomer.id, addressData);
+          console.log('[ServiceRequest] Address created with ID:', createdAddress.id);
           
           // If this was the selected address, update the ID to the real one
           if (finalServiceAddressId === id) {
+            console.log('[ServiceRequest] Updating finalServiceAddressId from', id, 'to', createdAddress.id);
             finalServiceAddressId = createdAddress.id;
           }
         }
+        
+        // Invalidate customers cache so next time we have fresh data
+        console.log('[ServiceRequest] Invalidating customers cache');
+        await queryClient.invalidateQueries({ queryKey: ['customers'] });
+      } else {
+        console.log('[ServiceRequest] No pending addresses to save or no customer selected');
       }
       
-      // Don't send pending IDs to backend - only send real IDs or null
-      const serviceAddressIdToSend = finalServiceAddressId?.startsWith('pending-') 
-        ? null 
-        : finalServiceAddressId;
+      console.log('[ServiceRequest] Final serviceAddressId after processing:', finalServiceAddressId);
       
       const serviceRequestData = {
         customerId: formData.customerId,
@@ -234,7 +338,8 @@ export default function NewServiceRequestPage() {
         urgency: formData.urgency,
         status: formData.status,
         createdSource: 'WEB' as const,
-        ...(serviceAddressIdToSend && { serviceAddressId: serviceAddressIdToSend }),
+        isServiceAddressSameAsPrimary: formData.isServiceAddressSameAsPrimary,
+        ...(finalServiceAddressId && { serviceAddressId: finalServiceAddressId }),
         ...(formData.assignedToId && { assignedToId: formData.assignedToId }),
         ...(formData.notes && { notes: formData.notes }),
       };
@@ -337,30 +442,6 @@ export default function NewServiceRequestPage() {
             </div>
           </div>
           <div className="flex items-center space-x-4">
-            <div className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl border shadow-sm ${
-              formData.status === 'COMPLETED' ? 'bg-green-50 border-green-200' :
-              formData.status === 'IN_PROGRESS' ? 'bg-blue-50 border-blue-200' :
-              formData.status === 'CANCELLED' ? 'bg-red-50 border-red-200' :
-              formData.status === 'ASSIGNED' ? 'bg-indigo-50 border-indigo-200' :
-              'bg-yellow-50 border-yellow-200'
-            }`}>
-              <div className={`h-2 w-2 rounded-full ${
-                formData.status === 'COMPLETED' ? 'bg-green-500' :
-                formData.status === 'IN_PROGRESS' ? 'bg-blue-500' :
-                formData.status === 'CANCELLED' ? 'bg-red-500' :
-                formData.status === 'ASSIGNED' ? 'bg-indigo-500' :
-                'bg-yellow-500'
-              }`}></div>
-              <span className={`text-sm font-semibold ${
-                formData.status === 'COMPLETED' ? 'text-green-700' :
-                formData.status === 'IN_PROGRESS' ? 'text-blue-700' :
-                formData.status === 'CANCELLED' ? 'text-red-700' :
-                formData.status === 'ASSIGNED' ? 'text-indigo-700' :
-                'text-yellow-700'
-              }`}>
-                {formData.status.replace('_', ' ')}
-              </span>
-            </div>
             {hasUnsavedChanges && (
               <div className="flex items-center space-x-2 px-4 py-2.5 bg-orange-50 border border-orange-300 rounded-xl shadow-sm">
                 <div className="h-2 w-2 rounded-full bg-orange-500 animate-pulse shadow-sm"></div>
@@ -671,6 +752,48 @@ export default function NewServiceRequestPage() {
                   </div>
                 </div>
 
+                {/* Same as Primary Address Checkbox */}
+                <div className="mb-4">
+                  <label className="flex items-center space-x-3 cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      checked={useSameAsPrimary}
+                      onChange={(e) => {
+                        setUseSameAsPrimary(e.target.checked);
+                        setFormData(prev => ({ ...prev, isServiceAddressSameAsPrimary: e.target.checked }));
+                      }}
+                      disabled={!selectedCustomer}
+                      className="h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    />
+                    <span className={`text-sm font-medium ${
+                      !selectedCustomer ? 'text-gray-400' : 'text-gray-700 group-hover:text-blue-600'
+                    } transition-colors`}>
+                      Is Service Address Same as Primary Address
+                    </span>
+                  </label>
+                  {!selectedCustomer && (
+                    <p className="text-xs text-gray-500 mt-1 ml-8">
+                      Select a customer first to enable this option
+                    </p>
+                  )}
+                  {useSameAsPrimary && selectedCustomer && (() => {
+                    const addresses = (selectedCustomer?.addresses as any)?.data || selectedCustomer?.addresses || [];
+                    const primaryAddress = addresses.find((addr: any) => addr.type?.toUpperCase() === 'PRIMARY');
+                    return primaryAddress ? (
+                      <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-xs font-semibold text-blue-700 mb-1">Using Primary Address:</p>
+                        <p className="text-sm text-gray-700">
+                          {primaryAddress.street}, {primaryAddress.city}, {primaryAddress.state} {primaryAddress.zip}
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-amber-600 mt-1 ml-8">
+                        No primary address found for this customer
+                      </p>
+                    );
+                  })()}
+                </div>
+
                 <div>
                   <label htmlFor="serviceAddressId" className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">
                     Service Address (Optional)
@@ -687,6 +810,7 @@ export default function NewServiceRequestPage() {
                       }] : [])
                     ]}
                     value={formData.serviceAddressId}
+                    disabled={!selectedCustomer || useSameAsPrimary}
                     onChange={(value) => {
                       if (value === '__add_new__') {
                         setShowAddressModal(true);
