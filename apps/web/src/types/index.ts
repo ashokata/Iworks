@@ -28,10 +28,11 @@ export interface TenantSettings {
 }
 
 /**
- * Job interface - aligned with OData schema
+ * @deprecated Use Job from database.types.ts instead
+ * Legacy Job interface - aligned with OData schema
  * Endpoint: /odata/iworks/v1/Jobs
  */
-export interface Job {
+export interface LegacyODataJob {
   id: number;                    // JobID (integer)
   tenantId: string;              // Multi-tenant isolation (via header)
   title: string;                 // JobName

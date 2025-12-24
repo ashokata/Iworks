@@ -101,7 +101,7 @@ export default function EnhancedJobDetailPage() {
         if (jobData.status === 'Completed') {
           try {
             const invoiceData = await invoiceService.getInvoiceForJob(jobData.id);
-            setInvoice(invoiceData);
+            setInvoice(invoiceData as any);
           } catch (invoiceErr) {
             // No invoice found or error fetching invoice
             console.log('No existing invoice found');
@@ -396,7 +396,7 @@ export default function EnhancedJobDetailPage() {
                         // Generate new invoice
                         const generatedInvoice = await invoiceService.generateFromJob(job.id);
                         if (generatedInvoice) {
-                          setInvoice(generatedInvoice);
+                          setInvoice(generatedInvoice as any);
                           setShowInvoice(true);
                         }
                       }

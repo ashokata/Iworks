@@ -53,13 +53,20 @@ export default function EditJobPage() {
         
         // Initialize form with job data
         setTitle(data.title);
-        const mappedStatus = data.status === 'In_Progress' ? 'In Progress' : data.status === 'Canceled' ? 'Cancelled' : data.status;
-        setStatus(mappedStatus as 'Scheduled' | 'In Progress' | 'Completed' | 'Cancelled');
-        setAssignedTo(data.assignedTo || '');
-        setDate(data.date || '');
+        // Map database status (uppercase) to form status (display format)
+        const statusMap: Record<string, string> = {
+          'SCHEDULED': 'Scheduled',
+          'IN_PROGRESS': 'In Progress',
+          'COMPLETED': 'Completed',
+          'CANCELLED': 'Cancelled',
+        };
+        setStatus((statusMap[data.status] || data.status) as 'Scheduled' | 'In Progress' | 'Completed' | 'Cancelled');
+        setAssignedTo(data.assignments?.[0]?.employee?.firstName || '');
+        setDate(data.scheduledStart || '');
         setDescription(data.description || '');
-        setLocation(data.location || '');
-        setPriority(data.priority || 'Low');
+        setLocation(data.address?.city || '');
+        const priorityMap: Record<string, string> = { 'LOW': 'Low', 'NORMAL': 'Medium', 'HIGH': 'High', 'EMERGENCY': 'Critical' };
+        setPriority((priorityMap[data.priority] || 'Low') as any);
         setEstimatedDuration(data.estimatedDuration || 1);
       } catch (err) {
         console.error('Error fetching job details:', err);
@@ -82,19 +89,30 @@ export default function EditJobPage() {
     try {
       setSaving(true);
       
-      const updatedJob: Job = {
+      // Map display status back to database status (uppercase)
+      const statusMap: Record<string, string> = {
+        'Scheduled': 'SCHEDULED',
+        'In Progress': 'IN_PROGRESS',
+        'Completed': 'COMPLETED',
+        'Cancelled': 'CANCELLED',
+      };
+      const priorityMap: Record<string, string> = {
+        'Low': 'LOW',
+        'Medium': 'NORMAL',
+        'High': 'HIGH',
+        'Critical': 'EMERGENCY',
+      };
+      
+      const updatedJob = {
         ...job,
         title,
-        status: status === 'In Progress' ? 'In_Progress' : status === 'Cancelled' ? 'Canceled' : status,
-        assignedTo,
-        date,
+        status: statusMap[status] || status,
         description,
-        location,
-        priority,
+        priority: priorityMap[priority] || priority,
         estimatedDuration,
       };
       
-      await apiClient.put<Job>(`/api/jobs/${jobId}`, updatedJob);
+      await apiClient.put(`/api/jobs/${jobId}`, updatedJob);
       router.push(`/jobs/${jobId}`);
     } catch (err) {
       console.error('Error updating job:', err);

@@ -42,48 +42,56 @@ const mockTechnicians: Technician[] = [
 
 export default function DispatchPage() {
   const [technicians, setTechnicians] = useState<Technician[]>(mockTechnicians);
-  const [jobs, setJobs] = useState<ScheduledJob[]>([]);
-  const [selectedJob, setSelectedJob] = useState<ScheduledJob | null>(null);
+  const [jobs, setJobs] = useState<any[]>([]);
+  const [selectedJob, setSelectedJob] = useState<any | null>(null);
   const [recommendations, setRecommendations] = useState<DispatchRecommendation[]>([]);
   const [isAutoDispatching, setIsAutoDispatching] = useState(false);
 
   // Mock jobs
   useEffect(() => {
-    const mockJobs: ScheduledJob[] = [
+    const mockJobs = [
       {
-        id: 1,
+        id: 'job-1',
         tenantId: 'tenant1',
+        jobNumber: 'JOB-001',
+        customerId: 'cust-1',
+        addressId: 'addr-1',
         title: 'AC Repair - Urgent',
         description: 'Air conditioning not working, customer reports high temperature',
-        status: 'Scheduled',
-        priority: 'Critical',
-        date: new Date().toISOString(),
-        location: '456 Broadway, New York, NY',
+        status: 'SCHEDULED' as const,
+        priority: 'HIGH' as const,
+        source: 'MANUAL' as const,
+        estimatedDuration: 120,
+        isCallback: false,
         scheduledStart: new Date().toISOString(),
         scheduledEnd: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
-        dispatchStatus: 'pending',
+        dispatchStatus: 'pending' as const,
         isEmergency: true,
       },
       {
-        id: 2,
+        id: 'job-2',
         tenantId: 'tenant1',
+        jobNumber: 'JOB-002',
+        customerId: 'cust-2',
+        addressId: 'addr-2',
         title: 'Plumbing Inspection',
         description: 'Regular maintenance check',
-        status: 'Scheduled',
-        priority: 'Low',
-        date: new Date().toISOString(),
-        location: '789 5th Avenue, New York, NY',
+        status: 'SCHEDULED' as const,
+        priority: 'LOW' as const,
+        source: 'MANUAL' as const,
+        estimatedDuration: 120,
+        isCallback: false,
         scheduledStart: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
         scheduledEnd: new Date(Date.now() + 5 * 60 * 60 * 1000).toISOString(),
-        dispatchStatus: 'pending',
+        dispatchStatus: 'pending' as const,
         isEmergency: false,
       },
     ];
-    setJobs(mockJobs);
+    setJobs(mockJobs as any);
   }, []);
 
   // Auto-dispatch algorithm (simplified - would connect to Mendix backend)
-  const calculateRecommendations = (job: ScheduledJob): DispatchRecommendation[] => {
+  const calculateRecommendations = (job: any): DispatchRecommendation[] => {
     return technicians
       .map(tech => {
         let score = 100;
@@ -182,7 +190,7 @@ export default function DispatchPage() {
     setIsAutoDispatching(false);
   };
 
-  const handleManualAssign = (jobId: number, technicianId: string) => {
+  const handleManualAssign = (jobId: string, technicianId: string) => {
     setJobs(jobs.map(j =>
       j.id === jobId
         ? { ...j, technicianId, dispatchStatus: 'dispatched' as const }
@@ -376,7 +384,7 @@ export default function DispatchPage() {
                       </div>
 
                       <Button
-                        onClick={() => handleManualAssign(selectedJob.id as number, rec.technicianId)}
+                        onClick={() => handleManualAssign(selectedJob.id, rec.technicianId)}
                         size="sm"
                         className={`w-full ${
                           index === 0 ? 'bg-green-600 hover:bg-green-700' : ''

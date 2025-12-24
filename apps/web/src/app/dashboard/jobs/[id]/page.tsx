@@ -344,13 +344,13 @@ export default function JobDetailsPage() {
                     <dd className="mt-1">
                       <span
                         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          invoice.status === 'Paid'
+                          invoice.status === 'PAID'
                             ? 'bg-green-100 text-green-800'
-                            : invoice.status === 'Overdue'
+                            : invoice.status === 'OVERDUE'
                             ? 'bg-red-100 text-red-800'
-                            : invoice.status === 'Partial'
+                            : invoice.status === 'PARTIAL'
                             ? 'bg-yellow-100 text-yellow-800'
-                            : invoice.status === 'Cancelled'
+                            : invoice.status === 'VOID'
                             ? 'bg-gray-100 text-gray-800'
                             : 'bg-blue-100 text-blue-800'
                         }`}
@@ -376,7 +376,7 @@ export default function JobDetailsPage() {
                     View Invoice
                   </button>
                   
-                  {invoice.status !== 'Paid' && invoice.status !== 'Cancelled' && (
+                  {invoice.status !== 'PAID' && invoice.status !== 'VOID' && (
                     <button
                       type="button"
                       onClick={() => handleSendInvoice('email')}
