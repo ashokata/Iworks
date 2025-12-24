@@ -81,7 +81,7 @@ export default function SidebarLayout({
     { name: 'Dashboard', href: '/dashboard', icon: HomeIcon, current: pathname === '/dashboard' || pathname === '/' },
     { name: 'AI Chat', href: '/chat', icon: ChatBubbleLeftRightIcon, current: pathname === '/chat' },
     { name: 'Jobs', href: '/jobs', icon: BriefcaseIcon, current: pathname === '/jobs' || pathname.startsWith('/jobs/') },
-    { name: 'Schedule', href: '/schedule', icon: CalendarIcon, current: pathname === '/schedule' || pathname.startsWith('/schedule/') },
+    { name: 'Calendar', href: '/calendar', icon: CalendarIcon, current: pathname === '/calendar' || pathname.startsWith('/calendar/') },
     { name: 'Dispatch', href: '/dispatch', icon: TruckIcon, current: pathname === '/dispatch' },
     { name: 'Customers', href: '/customers', icon: UserGroupIcon, current: pathname === '/customers' || pathname.startsWith('/customers/') },
     { name: 'Service Request', href: '/service-requests', icon: DocumentTextIcon, current: pathname === '/service-requests' || pathname.startsWith('/service-requests/') },

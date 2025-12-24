@@ -4,6 +4,102 @@ All commits to this project are documented in this file.
 
 ---
 
+## 📦 Commit #31 - 2025-12-21 (IST)
+
+**Developer:** Veera Kuppili
+**Type:** Feature
+
+### 📝 Commit Message
+```
+feat: Implement comprehensive appointment calendar system with full CRUD operations
+
+Major Features:
+- Complete calendar UI with day, week, and month views
+- Full appointment management (create, read, update, delete)
+- Single-click to edit appointments, double-click grid to create new
+- Hover tooltips showing customer name and appointment time
+- Smart appointment sizing with white space optimization
+- Toast notifications for success/error feedback
+
+Backend Implementation:
+- RESTful API with 5 endpoints: POST, GET, GET/:id, PUT/:id, DELETE/:id
+- Prisma-based appointment handlers with tenant isolation
+- Foreign key validation for addressId and assignedToId
+- Comprehensive error handling and logging
+
+Frontend Implementation:
+- Three calendar view modes (day/week/month)
+- Appointment modal with all Prisma schema fields
+- Customer and employee dropdowns from database
+- Real-time appointment display on calendar grid
+- Appointment blocks show title and customer name
+- Blue-themed tooltips with customer and time info
+
+UI/UX Enhancements:
+- Reduced appointment block heights (50px single, 30px multiple)
+- Renamed "Schedule" to "Calendar" in navigation
+- Single-click interaction to open appointments
+- Smart tooltip positioning (above appointments)
+- Toast animations with slide-in-right effect
+
+Technical Details:
+- Backend: Express routes, Prisma ORM, PostgreSQL
+- Frontend: Next.js 15, React Query, Tailwind CSS
+- State Management: React Query for server state, useState for UI
+- Validation: Optional foreign keys only included if non-empty
+- Update Pattern: Checks selectedAppointment to branch create/update logic
+```
+
+### ✨ Changes
+
+#### Backend Files
+- **apps/api/src/index.ts** - Added appointment routes import
+- **apps/api/src/handlers/appointments/index.ts** (NEW) - Complete CRUD handlers (335 lines)
+  - createAppointment: Validates fields, handles optional foreign keys
+  - getAllAppointments: Returns appointments with customer/assignedTo relations
+  - getAppointmentById: Fetches single appointment
+  - updateAppointment: Partial update with spread operator
+  - deleteAppointment: Hard delete with tenant verification
+- **apps/api/src/routes/appointments.routes.ts** (NEW) - Express routes (38 lines)
+  - POST /appointments → createAppointment
+  - GET /appointments → getAllAppointments
+  - GET /appointments/:id → getAppointmentById
+  - PUT /appointments/:id → updateAppointment
+  - DELETE /appointments/:id → deleteAppointment
+
+#### Frontend Files
+- **apps/web/src/components/SidebarLayout.tsx** - Renamed "Schedule" to "Calendar"
+- **apps/web/tailwind.config.ts** - Added slide-in-right animation for toasts
+- **apps/web/src/app/calendar/page.tsx** (NEW) - Complete calendar UI (1097 lines)
+  - Three view modes: day/week/month with navigation
+  - Appointment modal with form validation
+  - handleSaveAppointment: Branches to create or update based on selectedAppointment
+  - handleAppointmentClick: Single-click loads appointment data
+  - handleGridClick: Double-click creates new appointment
+  - Appointment blocks: Wrapper div for tooltip, inner div for overflow control
+  - Tooltips: Blue theme, positioned above, shows customer + time
+- **apps/web/src/services/appointmentService.ts** (NEW) - API service layer (131 lines)
+  - createAppointment: POST /appointments
+  - updateAppointment: PUT /appointments/:id
+  - getAllAppointments: GET /appointments
+  - getAppointmentById: GET /appointments/:id
+  - deleteAppointment: DELETE /appointments/:id
+
+### 🐛 Bug Fixes
+- Fixed foreign key constraint violations by only including addressId/assignedToId when non-empty
+- Fixed update functionality by checking selectedAppointment state
+- Fixed tooltip visibility by repositioning from right to top
+- Fixed text overflow with two-div structure (wrapper + inner)
+
+### 🎨 UI Improvements
+- Reduced appointment height for better white space management
+- Single-click to open appointments (more intuitive)
+- Blue-themed tooltips matching application design
+- Customer name always visible on appointments
+- Smart appointment sizing based on number of appointments in slot
+
+---
+
 ## 📦 Commit #30 - 2025-12-24 (IST)
 
 **Developer:** Veera Kuppili
