@@ -1,11 +1,11 @@
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl, StyleSheet, useColorScheme, Dimensions, Pressable, ActivityIndicator } from 'react-native';
 import { useState, useCallback, useEffect } from 'react';
-import { format } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, isToday, addMonths, subMonths, startOfWeek, endOfWeek } from 'date-fns';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeInRight, FadeIn } from 'react-native-reanimated';
 import { router } from 'expo-router';
 import { jobService, Job as ApiJob } from '../../services/api/jobService';
 import { useAuthStore } from '../../stores/authStore';
@@ -70,6 +70,8 @@ export default function TodayScreen() {
   const [error, setError] = useState<string | null>(null);
   const [isClockedIn, setIsClockedIn] = useState(false);
   const [clockedTime, setClockedTime] = useState('0h 0m');
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [currentMonth, setCurrentMonth] = useState(new Date());
   const { user } = useAuthStore();
 
   const fetchJobs = useCallback(async () => {
@@ -145,6 +147,9 @@ export default function TodayScreen() {
             <View style={styles.headerLeft}>
               <Text style={styles.greeting}>Good {getTimeOfDay()}</Text>
               <Text style={styles.userName}>{user?.firstName || 'Field Tech'}</Text>
+              {user?.tenant && (
+                <Text style={styles.tenantName}>{user.tenant.name}</Text>
+              )}
             </View>
             <TouchableOpacity style={styles.notificationBtn}>
               <Ionicons name="notifications-outline" size={24} color="white" />
@@ -230,62 +235,129 @@ export default function TodayScreen() {
         {/* Quick Actions */}
         <Animated.View entering={FadeInRight.delay(300).springify()}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
-          <ScrollView 
-            horizontal 
+          <ScrollView
+            horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.quickActionsContainer}
           >
-            <QuickActionButton 
-              icon="add-circle" 
-              label="New Job" 
+            <QuickActionButton
+              icon="add-circle"
+              label="New Job"
               color="#6366f1"
               isDark={isDark}
             />
-            <QuickActionButton 
-              icon="document-text" 
-              label="Estimate" 
+            <QuickActionButton
+              icon="document-text"
+              label="Estimate"
               color="#8b5cf6"
               isDark={isDark}
             />
-            <QuickActionButton 
-              icon="receipt" 
-              label="Invoice" 
+            <QuickActionButton
+              icon="receipt"
+              label="Invoice"
               color="#10b981"
               isDark={isDark}
             />
-            <QuickActionButton 
-              icon="camera" 
-              label="Photo" 
+            <QuickActionButton
+              icon="camera"
+              label="Photo"
               color="#f59e0b"
               isDark={isDark}
             />
-            <QuickActionButton 
-              icon="navigate" 
-              label="Navigate" 
+            <QuickActionButton
+              icon="navigate"
+              label="Navigate"
               color="#3b82f6"
               isDark={isDark}
             />
           </ScrollView>
         </Animated.View>
 
+        {/* Calendar */}
+        <Animated.View entering={FadeIn.delay(350).springify()}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+            <Text style={styles.sectionTitle}>Calendar</Text>
+            <TouchableOpacity
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setCurrentMonth(new Date());
+                setSelectedDate(new Date());
+              }}
+            >
+              <Text style={{ fontSize: 13, fontWeight: '600', color: '#6366f1' }}>Today</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={[styles.calendarCard, { backgroundColor: isDark ? '#1e293b' : '#ffffff' }]}>
+            {/* Month Header */}
+            <View style={styles.calendarHeader}>
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setCurrentMonth(subMonths(currentMonth, 1));
+                }}
+                style={styles.calendarNavBtn}
+              >
+                <Ionicons name="chevron-back" size={20} color="#6366f1" />
+              </TouchableOpacity>
+              <Text style={styles.calendarMonthText}>
+                {format(currentMonth, 'MMMM yyyy')}
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setCurrentMonth(addMonths(currentMonth, 1));
+                }}
+                style={styles.calendarNavBtn}
+              >
+                <Ionicons name="chevron-forward" size={20} color="#6366f1" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Week Days */}
+            <View style={styles.weekDaysRow}>
+              {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((day) => (
+                <Text key={day} style={styles.weekDayText}>{day}</Text>
+              ))}
+            </View>
+
+            {/* Calendar Days */}
+            <CalendarGrid
+              currentMonth={currentMonth}
+              selectedDate={selectedDate}
+              onSelectDate={(date) => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setSelectedDate(date);
+              }}
+              jobs={jobs}
+              isDark={isDark}
+            />
+          </View>
+        </Animated.View>
+
         {/* Today's Jobs */}
-        <Text style={styles.sectionTitle}>Today's Schedule</Text>
+        <Text style={styles.sectionTitle}>
+          {isSameDay(selectedDate, new Date()) ? "Today's Schedule" : format(selectedDate, 'EEEE, MMM d')}
+        </Text>
         
-        {jobs.length === 0 ? (
+        {jobs.filter(job => isSameDay(new Date(job.date), selectedDate)).length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="calendar-outline" size={48} color="#9ca3af" />
             <Text style={styles.emptyTitle}>No jobs scheduled</Text>
-            <Text style={styles.emptySubtitle}>Enjoy your day off!</Text>
+            <Text style={styles.emptySubtitle}>
+              {isSameDay(selectedDate, new Date()) ? 'Enjoy your day off!' : 'No appointments for this date'}
+            </Text>
           </View>
         ) : (
-          jobs.map((job, index) => (
-            <Animated.View 
-              key={job.id}
-              entering={FadeInDown.delay(400 + index * 100).springify()}
-            >
-              <JobCard job={job} isDark={isDark} />
-            </Animated.View>
-          ))
+          jobs
+            .filter(job => isSameDay(new Date(job.date), selectedDate))
+            .map((job, index) => (
+              <Animated.View
+                key={job.id}
+                entering={FadeInDown.delay(400 + index * 100).springify()}
+              >
+                <JobCard job={job} isDark={isDark} />
+              </Animated.View>
+            ))
         )}
 
         {/* Bottom padding for tab bar */}
@@ -338,6 +410,110 @@ function QuickActionButton({ icon, label, color, isDark }: {
         {label}
       </Text>
     </TouchableOpacity>
+  );
+}
+
+// Calendar Grid Component
+function CalendarGrid({
+  currentMonth,
+  selectedDate,
+  onSelectDate,
+  jobs,
+  isDark,
+}: {
+  currentMonth: Date;
+  selectedDate: Date;
+  onSelectDate: (date: Date) => void;
+  jobs: DisplayJob[];
+  isDark: boolean;
+}) {
+  const monthStart = startOfMonth(currentMonth);
+  const monthEnd = endOfMonth(currentMonth);
+  const startDate = startOfWeek(monthStart);
+  const endDate = endOfWeek(monthEnd);
+
+  const days = eachDayOfInterval({ start: startDate, end: endDate });
+
+  // Group jobs by date
+  const jobsByDate = jobs.reduce((acc, job) => {
+    const dateKey = format(new Date(job.date), 'yyyy-MM-dd');
+    if (!acc[dateKey]) acc[dateKey] = [];
+    acc[dateKey].push(job);
+    return acc;
+  }, {} as Record<string, DisplayJob[]>);
+
+  const rows: Date[][] = [];
+  let currentRow: Date[] = [];
+
+  days.forEach((day, index) => {
+    currentRow.push(day);
+    if ((index + 1) % 7 === 0) {
+      rows.push(currentRow);
+      currentRow = [];
+    }
+  });
+
+  return (
+    <View style={{ marginTop: 8 }}>
+      {rows.map((row, rowIndex) => (
+        <View key={rowIndex} style={{ flexDirection: 'row', justifyContent: 'space-around', marginBottom: 4 }}>
+          {row.map((day) => {
+            const dateKey = format(day, 'yyyy-MM-dd');
+            const hasJobs = jobsByDate[dateKey]?.length > 0;
+            const isSelected = isSameDay(day, selectedDate);
+            const isCurrentMonth = isSameMonth(day, currentMonth);
+            const isTodayDate = isToday(day);
+
+            return (
+              <TouchableOpacity
+                key={day.toISOString()}
+                onPress={() => onSelectDate(day)}
+                style={{
+                  width: 40,
+                  height: 40,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: 20,
+                  backgroundColor: isSelected
+                    ? '#6366f1'
+                    : isTodayDate
+                    ? isDark ? '#312e81' : '#e0e7ff'
+                    : 'transparent',
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontWeight: isSelected || isTodayDate ? '700' : '400',
+                    color: isSelected
+                      ? 'white'
+                      : isTodayDate
+                      ? '#6366f1'
+                      : !isCurrentMonth
+                      ? '#9ca3af'
+                      : isDark ? '#f1f5f9' : '#1e293b',
+                  }}
+                >
+                  {format(day, 'd')}
+                </Text>
+                {hasJobs && !isSelected && (
+                  <View
+                    style={{
+                      position: 'absolute',
+                      bottom: 4,
+                      width: 4,
+                      height: 4,
+                      borderRadius: 2,
+                      backgroundColor: isTodayDate ? '#6366f1' : '#10b981',
+                    }}
+                  />
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      ))}
+    </View>
   );
 }
 
@@ -590,6 +766,11 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     color: 'white',
     fontSize: 24,
     fontWeight: '700',
+    marginTop: 2,
+  },
+  tenantName: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 12,
     marginTop: 2,
   },
   notificationBtn: {
@@ -849,5 +1030,49 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     color: 'white',
     fontWeight: '600',
     fontSize: 14,
+  },
+  calendarCard: {
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+    marginBottom: 8,
+  },
+  calendarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  calendarNavBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: isDark ? '#312e81' : '#e0e7ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  calendarMonthText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: isDark ? '#f1f5f9' : '#1e293b',
+  },
+  weekDaysRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 8,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: isDark ? '#334155' : '#e2e8f0',
+  },
+  weekDayText: {
+    width: 40,
+    textAlign: 'center',
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#94a3b8',
   },
 });

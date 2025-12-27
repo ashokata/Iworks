@@ -5,6 +5,7 @@ import { API_CONFIG, APP_CONFIG } from '../../constants/config';
 // Storage keys
 const AUTH_TOKEN_KEY = 'auth_token';
 const REFRESH_TOKEN_KEY = 'refresh_token';
+const TENANT_ID_KEY = 'tenant_id';
 
 /**
  * API Client for FieldSmartPro Mobile App
@@ -28,15 +29,28 @@ class ApiClient {
   }
 
   private setupInterceptors() {
-    // Request interceptor - add auth token
+    // Request interceptor - add auth token and tenant ID
     this.client.interceptors.request.use(
       async (config) => {
         // Don't add tenant ID header for login/auth endpoints
         const isAuthEndpoint = config.url?.includes('/auth/login') || config.url?.includes('/auth/register');
-        
+
         if (!isAuthEndpoint) {
-          // Add tenant ID header for non-auth endpoints
-          config.headers['x-tenant-id'] = APP_CONFIG.DEFAULT_TENANT_ID;
+          // Get tenant ID from storage (from login response)
+          try {
+            const tenantId = await SecureStore.getItemAsync(TENANT_ID_KEY);
+            if (tenantId) {
+              config.headers['x-tenant-id'] = tenantId;
+              console.log(`[API Client] Using tenant ID: ${tenantId}`);
+            } else {
+              // Fallback to default tenant ID if not set
+              config.headers['x-tenant-id'] = APP_CONFIG.DEFAULT_TENANT_ID;
+              console.warn('[API Client] Using default tenant ID - user may not be logged in');
+            }
+          } catch (error) {
+            console.warn('[API Client] Error reading tenant ID:', error);
+            config.headers['x-tenant-id'] = APP_CONFIG.DEFAULT_TENANT_ID;
+          }
         }
 
         // Add auth token if available
@@ -150,13 +164,22 @@ class ApiClient {
   private async clearTokens(): Promise<void> {
     await SecureStore.deleteItemAsync(AUTH_TOKEN_KEY);
     await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
+    await SecureStore.deleteItemAsync(TENANT_ID_KEY);
   }
 
   // Public methods
 
-  async setTokens(accessToken: string, refreshToken: string): Promise<void> {
+  async setTokens(accessToken: string, refreshToken: string, tenantId?: string): Promise<void> {
     await SecureStore.setItemAsync(AUTH_TOKEN_KEY, accessToken);
     await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, refreshToken);
+    if (tenantId) {
+      await SecureStore.setItemAsync(TENANT_ID_KEY, tenantId);
+      console.log('[API Client] Stored tenant ID:', tenantId);
+    }
+  }
+
+  async getTenantId(): Promise<string | null> {
+    return SecureStore.getItemAsync(TENANT_ID_KEY);
   }
 
   async getToken(): Promise<string | null> {

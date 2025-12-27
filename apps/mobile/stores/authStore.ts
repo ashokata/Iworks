@@ -5,6 +5,13 @@ import { authService } from '../services/api';
 // Storage keys
 const USER_KEY = 'user_data';
 
+export interface Tenant {
+  id: string;
+  name: string;
+  slug: string;
+  status: string;
+}
+
 export interface User {
   id: string;
   email: string;
@@ -12,6 +19,7 @@ export interface User {
   lastName: string;
   role: string;
   tenantId: string;
+  tenant?: Tenant;
   avatarUrl?: string;
 }
 
@@ -41,19 +49,29 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // Make login API call
       const response = await authService.login({ email, password });
 
+      console.log('[Auth Store] Processing login response for tenant:', response.user.tenant?.name);
+
       // Map API response to User interface
       const nameParts = response.user.name?.split(' ') || [];
       const user: User = {
         id: response.user.id,
         email: response.user.email,
-        firstName: nameParts[0] || '',
-        lastName: nameParts.slice(1).join(' ') || '',
+        firstName: response.user.firstName || nameParts[0] || '',
+        lastName: response.user.lastName || nameParts.slice(1).join(' ') || '',
         role: response.user.role,
         tenantId: response.user.tenantId,
+        tenant: response.user.tenant,
       };
 
-      // Store user data
+      // Store user data with tenant information
       await SecureStore.setItemAsync(USER_KEY, JSON.stringify(user));
+
+      console.log('[Auth Store] Login successful:', {
+        userId: user.id,
+        email: user.email,
+        tenantId: user.tenantId,
+        tenantName: user.tenant?.name,
+      });
 
       set({
         user,
@@ -68,10 +86,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         status: error.response?.status,
         url: error.config?.url,
       });
-      
-      const errorMessage = error.response?.data?.error || 
-                          error.response?.data?.message || 
-                          error.message || 
+
+      const errorMessage = error.response?.data?.error ||
+                          error.response?.data?.message ||
+                          error.message ||
                           'Login failed. Please check your credentials.';
       set({
         isLoading: false,
