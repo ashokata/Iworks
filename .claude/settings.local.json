@@ -15,7 +15,12 @@
       "Bash(xargs:*)",
       "Bash(npm install:*)",
       "Bash(npx expo install:*)",
-      "Bash(npm start)"
+      "Bash(npm start)",
+      "Bash(npx prisma studio)",
+      "Bash(npx prisma migrate:*)",
+      "Bash(npx prisma db push:*)",
+      "Bash(PGPASSWORD=postgres psql:*)",
+      "Bash(npx tsx:*)"
     ]
   }
 }

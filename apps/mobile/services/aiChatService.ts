@@ -1,9 +1,10 @@
 /**
  * AI Chat Service for Mobile
- * Handles communication with the LLM API (AWS Bedrock via Lambda)
+ * LLM-powered conversational AI using AWS Bedrock via /llm-chat endpoint
+ * Handles customer and job operations through natural language
  */
 
-import { API_CONFIG, APP_CONFIG } from '../constants/config';
+import { apiClient } from './api/client';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -14,9 +15,20 @@ interface ChatResponse {
   reply: string;
   conversationId?: string;
   metadata?: {
+    action?: string;
     tool?: string;
-    result?: any;
+    toolResult?: any;
+    data?: any;
+    success?: boolean;
+    model?: string;
+    tokensUsed?: any;
+    latencyMs?: number;
   };
+  suggestedActions?: Array<{
+    label: string;
+    action: string;
+    params?: Record<string, any>;
+  }>;
 }
 
 class AIChatService {
@@ -24,95 +36,94 @@ class AIChatService {
   private history: ChatMessage[] = [];
 
   /**
-   * Send a message to the AI and get a response
+   * Send a message to the AI and get a response via LLM endpoint
    */
   async sendMessage(message: string): Promise<ChatResponse> {
     try {
-      // Add user message to history
-      this.history.push({ role: 'user', content: message });
+      console.log('[AI Chat] Processing message via LLM:', message);
 
-      // Call the LLM endpoint
-      const response = await fetch(`${API_CONFIG.BASE_URL}/llm-chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-tenant-id': APP_CONFIG.DEFAULT_TENANT_ID,
-          'x-user-id': 'mobile-user',
+      // Add user message to history
+      const userMessage: ChatMessage = { role: 'user', content: message };
+      this.history.push(userMessage);
+
+      // Call the LLM chat endpoint
+      const response = await apiClient.post<any>('/llm-chat', {
+        query: message,
+        history: this.history.slice(0, -1), // Don't include the message we just added
+        context: {
+          platform: 'mobile',
+          conversationId: this.conversationId,
         },
-        body: JSON.stringify({
-          query: message,
-          userId: 'mobile-user',
-          tenantId: APP_CONFIG.DEFAULT_TENANT_ID,
-          history: this.history.slice(-10), // Keep last 10 messages for context
-          context: {},
-        }),
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('[AI Chat] Error:', response.status, errorText);
-        throw new Error(`API error: ${response.status}`);
+      console.log('[AI Chat] LLM response received:', {
+        hasReply: !!response.reply,
+        tool: response.metadata?.tool,
+        conversationId: response.conversationId,
+      });
+
+      // Update conversation ID
+      if (response.conversationId) {
+        this.conversationId = response.conversationId;
       }
 
-      const data = await response.json();
-      
       // Add assistant response to history
-      if (data.reply) {
-        this.history.push({ role: 'assistant', content: data.reply });
-      }
+      const assistantMessage: ChatMessage = {
+        role: 'assistant',
+        content: response.reply || response.message || 'I processed your request.',
+      };
+      this.history.push(assistantMessage);
 
-      // Store conversation ID
-      if (data.conversationId) {
-        this.conversationId = data.conversationId;
-      }
-
+      // Format the response
       return {
-        reply: data.reply || 'I received your message but had trouble generating a response.',
-        conversationId: data.conversationId,
-        metadata: data.metadata,
+        reply: response.reply || response.message || 'I processed your request.',
+        conversationId: response.conversationId || this.conversationId || undefined,
+        metadata: {
+          action: response.metadata?.tool,
+          tool: response.metadata?.tool,
+          toolResult: response.metadata?.toolResult,
+          data: response.data || response.metadata?.toolResult?.data,
+          success: response.metadata?.toolResult?.status === 'success',
+          model: response.metadata?.model,
+          tokensUsed: response.metadata?.tokens || response.metadata?.tokensUsed,
+          latencyMs: response.metadata?.latencyMs,
+        },
+        suggestedActions: response.suggestedActions,
       };
     } catch (error: any) {
-      console.error('[AI Chat Service] Error:', error);
-      
-      // Return fallback response
+      console.error('[AI Chat Service] Error:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+      });
+
+      // Handle specific error cases
+      let errorMessage = 'I encountered an error. Please try again.';
+
+      if (error.response?.status === 400) {
+        errorMessage = error.response?.data?.message || 'Invalid request. Please check your input.';
+      } else if (error.response?.status === 401) {
+        errorMessage = 'Please log in to continue using AIRA.';
+      } else if (error.response?.status === 500) {
+        errorMessage = error.response?.data?.message || 'Server error. Please try again in a moment.';
+      } else if (error.message?.includes('Network') || error.message?.includes('timeout')) {
+        errorMessage = 'Network error. Please check your connection and try again.';
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = `Error: ${error.message}`;
+      }
+
       return {
-        reply: this.generateFallbackResponse(message),
+        reply: errorMessage,
         conversationId: this.conversationId || undefined,
+        metadata: {
+          success: false,
+          action: 'error',
+          tool: 'error',
+        },
       };
     }
-  }
-
-  /**
-   * Generate a fallback response when the API is unavailable
-   */
-  private generateFallbackResponse(message: string): string {
-    const lowerMessage = message.toLowerCase();
-
-    if (lowerMessage.includes('create') && lowerMessage.includes('customer')) {
-      return "I'd love to help you create a customer! Please provide the customer's name, phone number, and email address. For example: 'Create customer John Smith, phone 555-1234, email john@example.com'";
-    }
-
-    if (lowerMessage.includes('create') && lowerMessage.includes('job')) {
-      return "I can help you create a job! Please provide the customer name, job type, and scheduled date. For example: 'Create a plumbing repair job for John Smith tomorrow at 2pm'";
-    }
-
-    if (lowerMessage.includes('update')) {
-      return "I can help you update records. What would you like to update? Please specify the customer, job, or invoice details.";
-    }
-
-    if (lowerMessage.includes('schedule') || lowerMessage.includes('appointment')) {
-      return "I can help with scheduling! Would you like to view your schedule, create a new appointment, or reschedule an existing one?";
-    }
-
-    if (lowerMessage.includes('customer')) {
-      return "I can help with customer management! You can ask me to create a new customer, find a customer, or update customer information.";
-    }
-
-    if (lowerMessage.includes('job')) {
-      return "I can help with jobs! You can ask me to create a new job, check job status, or update job details.";
-    }
-
-    return "I'm AIRA, your AI field service assistant. I can help you:\n\n• Create or update customers\n• Schedule and manage jobs\n• Check schedules and availability\n• Generate invoices\n\nHow can I assist you today?";
   }
 
   /**
@@ -121,6 +132,7 @@ class AIChatService {
   resetConversation(): void {
     this.conversationId = null;
     this.history = [];
+    console.log('[AI Chat] Conversation reset');
   }
 
   /**
@@ -129,8 +141,14 @@ class AIChatService {
   getHistory(): ChatMessage[] {
     return [...this.history];
   }
+
+  /**
+   * Get the current conversation ID
+   */
+  getConversationId(): string | null {
+    return this.conversationId;
+  }
 }
 
 export const aiChatService = new AIChatService();
 export type { ChatMessage, ChatResponse };
-

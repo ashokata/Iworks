@@ -169,19 +169,12 @@ export default function TabLayout() {
           title: '',
           tabBarIcon: ({ focused }) => null, // Custom button handles this
           tabBarButton: (props) => (
-            <AIRAButton 
-              onPress={() => props.onPress?.(undefined as any)} 
+            <AIRAButton
+              onPress={() => props.onPress?.(undefined as any)}
               focused={props.accessibilityState?.selected ?? false}
             />
           ),
-          headerStyle: {
-            backgroundColor: '#6366f1',
-          },
-          headerTintColor: '#ffffff',
-          headerTitle: 'AIRA',
-          headerTitleStyle: {
-            fontWeight: '700',
-          },
+          headerShown: false,
         }}
       />
 

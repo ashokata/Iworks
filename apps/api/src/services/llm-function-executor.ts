@@ -79,6 +79,9 @@ export class LLMFunctionExecutor {
         case 'updateCustomer':
           return await this.updateCustomer(args as any, tenantId);
 
+        case 'addAddress':
+          return await this.addAddress(args as any, tenantId);
+
         case 'createJob':
           return await this.createJob(args as any, tenantId, userId);
 
@@ -365,6 +368,56 @@ export class LLMFunctionExecutor {
       data: {
         ...this.formatCustomerResponse(updatedCustomer),
         message: `Customer ${updatedCustomer.firstName} ${updatedCustomer.lastName} updated successfully`,
+      },
+    };
+  }
+
+  /**
+   * Add an address to a customer
+   */
+  private async addAddress(
+    args: {
+      customerId: string;
+      type?: 'PRIMARY' | 'SERVICE' | 'BILLING';
+      street: string;
+      city: string;
+      state: string;
+      zip: string;
+      accessNotes?: string;
+    },
+    tenantId: string
+  ): Promise<FunctionResult> {
+    this.logger.info('Adding address to customer', { customerId: args.customerId });
+
+    const address = await customerPostgresService.addAddress(tenantId, args.customerId, {
+      type: args.type || 'SERVICE',
+      street: args.street,
+      city: args.city,
+      state: args.state,
+      zip: args.zip,
+      accessNotes: args.accessNotes,
+    });
+
+    if (!address) {
+      return {
+        status: 'error',
+        error: {
+          code: 'NOT_FOUND',
+          message: `Customer with ID ${args.customerId} not found`,
+        },
+      };
+    }
+
+    return {
+      status: 'success',
+      data: {
+        addressId: address.id,
+        type: address.type,
+        street: address.street,
+        city: address.city,
+        state: address.state,
+        zip: address.zip,
+        message: `Address added successfully to customer`,
       },
     };
   }

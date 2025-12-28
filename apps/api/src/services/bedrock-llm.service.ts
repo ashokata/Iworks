@@ -55,29 +55,35 @@ export interface FunctionDefinition {
 const FUNCTION_DEFINITIONS: FunctionDefinition[] = [
   {
     name: 'createCustomer',
-    description: 'Create a new customer in the system. Use this when the user wants to add a new customer with their contact information.',
+    description: 'Create a new customer in the system. Use this when the user wants to add a new customer with their contact information. IMPORTANT: Always try to capture the customer\'s address during creation, as it\'s required for creating jobs/work orders.',
     input_schema: {
       type: 'object',
       properties: {
-        firstName: { type: 'string', description: 'Customer first name (required)' },
-        lastName: { type: 'string', description: 'Customer last name (required)' },
+        firstName: { type: 'string', description: 'Customer first name (required for residential customers)' },
+        lastName: { type: 'string', description: 'Customer last name (required for residential customers)' },
+        companyName: { type: 'string', description: 'Company name (required for commercial customers)' },
         email: { type: 'string', description: 'Customer email address' },
         phone: { type: 'string', description: 'Customer phone number (required)' },
-        address: { type: 'string', description: 'Customer physical address' },
+        type: { type: 'string', enum: ['RESIDENTIAL', 'COMMERCIAL', 'CONTRACTOR'], description: 'Customer type (default: RESIDENTIAL)' },
+        street: { type: 'string', description: 'Street address (HIGHLY RECOMMENDED - required for creating jobs)' },
+        city: { type: 'string', description: 'City' },
+        state: { type: 'string', description: 'State (2-letter code like CA, NY)' },
+        zip: { type: 'string', description: 'ZIP/Postal code' },
+        notes: { type: 'string', description: 'Additional notes about the customer' },
       },
-      required: ['firstName', 'lastName', 'phone'],
+      required: ['phone'],
     },
   },
   {
     name: 'searchCustomer',
-    description: 'Search for existing customers by name, phone, email, or customer ID. Use this before creating a customer to avoid duplicates.',
+    description: 'Search for existing customers by name, phone, email, or customer ID. Use this before creating a customer to avoid duplicates. IMPORTANT: To search by name (first or last), use the "query" parameter. Use "email" only for exact email searches, and "phone" only for phone number searches.',
     input_schema: {
       type: 'object',
       properties: {
-        query: { type: 'string', description: 'Search query (name or partial match)' },
-        phone: { type: 'string', description: 'Search by phone number' },
-        email: { type: 'string', description: 'Search by email address' },
-        customerId: { type: 'string', description: 'Look up specific customer ID' },
+        query: { type: 'string', description: 'Search by customer name (first name, last name, or full name). Use this parameter for name-based searches.' },
+        phone: { type: 'string', description: 'Search by exact phone number match' },
+        email: { type: 'string', description: 'Search by exact email address match' },
+        customerId: { type: 'string', description: 'Look up specific customer by their ID' },
         limit: { type: 'number', description: 'Maximum number of results (default 10)' },
       },
       required: [],
@@ -85,28 +91,44 @@ const FUNCTION_DEFINITIONS: FunctionDefinition[] = [
   },
   {
     name: 'updateCustomer',
-    description: 'Update an existing customer\'s information.',
+    description: 'Update an existing customer\'s information. IMPORTANT: You must first search for the customer using searchCustomer to get their customerId, then use that customerId to update their information. Do not try to update without a valid customerId.',
     input_schema: {
       type: 'object',
       properties: {
-        customerId: { type: 'string', description: 'ID of the customer to update (required)' },
-        firstName: { type: 'string', description: 'New first name' },
-        lastName: { type: 'string', description: 'New last name' },
-        email: { type: 'string', description: 'New email address' },
-        phone: { type: 'string', description: 'New phone number' },
-        address: { type: 'string', description: 'New address' },
-        notes: { type: 'string', description: 'Additional notes' },
+        customerId: { type: 'string', description: 'ID of the customer to update (REQUIRED - get this from searchCustomer results)' },
+        firstName: { type: 'string', description: 'Updated first name' },
+        lastName: { type: 'string', description: 'Updated last name' },
+        email: { type: 'string', description: 'Updated email address' },
+        phone: { type: 'string', description: 'Updated phone number (mobile phone)' },
+        notes: { type: 'string', description: 'Additional notes about the customer' },
       },
       required: ['customerId'],
     },
   },
   {
-    name: 'createJob',
-    description: 'Create a new job/work order for a customer. Use this when scheduling work or service requests.',
+    name: 'addAddress',
+    description: 'Add a service address to an existing customer. Use this when a customer needs a job created but doesn\'t have an address yet, or when adding additional service locations.',
     input_schema: {
       type: 'object',
       properties: {
-        customerId: { type: 'string', description: 'ID of the customer this job is for (required)' },
+        customerId: { type: 'string', description: 'Customer UUID (REQUIRED - get from searchCustomer)' },
+        type: { type: 'string', enum: ['PRIMARY', 'SERVICE', 'BILLING'], description: 'Address type (default: SERVICE)' },
+        street: { type: 'string', description: 'Street address (REQUIRED)' },
+        city: { type: 'string', description: 'City (REQUIRED)' },
+        state: { type: 'string', description: 'State 2-letter code (REQUIRED)' },
+        zip: { type: 'string', description: 'ZIP/Postal code (REQUIRED)' },
+        accessNotes: { type: 'string', description: 'Special access instructions (gate codes, parking, etc.)' },
+      },
+      required: ['customerId', 'street', 'city', 'state', 'zip'],
+    },
+  },
+  {
+    name: 'createJob',
+    description: 'Create a new job/work order for a customer. Use this when scheduling work or service requests. IMPORTANT: First search for the customer to get their customerId (UUID), then use that customerId to create the job.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        customerId: { type: 'string', description: 'Customer UUID from searchCustomer results (REQUIRED - use the "customerId" field, NOT "customerNumber")' },
         jobType: { type: 'string', description: 'Type of job (e.g., HVAC repair, plumbing, electrical)' },
         problem: { type: 'string', description: 'Description of the problem or work needed' },
         scheduledDate: { type: 'string', description: 'When to schedule the job (ISO 8601 format)' },
@@ -168,6 +190,7 @@ function getSystemPrompt(tenantId: string): string {
 Your capabilities:
 - Create and search for customers
 - Create and manage jobs/work orders
+- Update customer and job information
 - Update invoices and payment status
 - Send notifications to customers
 - Answer questions about job status and customer information
@@ -180,6 +203,25 @@ Guidelines:
 - Format responses for mobile readability (short paragraphs, bullet points)
 - Include relevant IDs and next steps in your responses
 - When creating entities, confirm the created ID
+
+IMPORTANT - Multi-step operations:
+- To UPDATE a customer: First call searchCustomer to find them and get their customerId, then call updateCustomer with that customerId and the fields to update
+- To CREATE a job: Customer MUST have an address. If customer exists but has no address, use addAddress before createJob
+- To CREATE a customer: Always try to capture address during creation (street, city, state, zip) - it's needed for jobs
+- When searching by NAME, use the "query" parameter in searchCustomer
+- When searching by EMAIL, use the "email" parameter in searchCustomer
+- When searching by PHONE, use the "phone" parameter in searchCustomer
+
+Job Creation Workflow:
+1. Search for customer to get customerId
+2. Check if customer has an address (shown in search results)
+3. If NO address: Call addAddress first, THEN createJob
+4. If YES address: Call createJob directly
+
+CRITICAL - Customer IDs:
+- Search results return BOTH "customerId" (UUID like "b9510756-fc3c-4148-b24c-069e8cb43815") and "customerNumber" (like "CUST-000004")
+- ALWAYS use "customerId" (the UUID) when calling updateCustomer or createJob
+- NEVER use "customerNumber" for these operations - it will fail
 
 Tenant: ${tenantId}
 Current date: ${new Date().toISOString().split('T')[0]}`;
