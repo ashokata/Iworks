@@ -4,6 +4,42 @@ All commits to this project are documented in this file.
 
 ---
 
+## 📦 Commit #35 - 2025-12-29 11:45 PM (IST)
+
+**Developer:** Veera Kuppili
+**Type:** Bug Fix
+
+### 📝 Commit Message
+```
+fix(schema): Add EQUIPMENT and OTHER to LineItemType enum
+
+- Extended LineItemType enum with EQUIPMENT and OTHER values
+- Fixed Prisma validation error preventing estimate creation
+- Enhanced estimateService error logging for better debugging
+- Applied schema changes to database with `npx prisma db push`
+
+This resolves the "Invalid value for argument `type`" error that occurred
+when users tried to create estimates with EQUIPMENT or OTHER line items.
+```
+
+### ✨ Changes
+
+**Schema Updates:**
+- ✅ `apps/api/prisma/schema.prisma` - Added EQUIPMENT and OTHER to LineItemType enum
+
+**Frontend Services:**
+- ✅ `apps/web/src/services/estimateService.ts` - Enhanced error logging with full error text capture
+
+### 🐛 Bug Fixes
+- Fixed Prisma validation error: "Invalid value for argument `type`. Expected LineItemType"
+- Frontend dropdown allowed EQUIPMENT and OTHER types but database enum didn't support them
+- Added detailed error logging to capture full Prisma error messages for debugging
+- Database schema synchronized with frontend expectations
+
+### 📊 Files Changed: 2
+
+---
+
 ## 📦 Commit #34 - 2025-12-29 11:20 PM (IST)
 
 **Developer:** Veera Kuppili
