@@ -20,9 +20,9 @@ import {
   PhoneIcon,
   UserCircleIcon,
 } from '@heroicons/react/24/outline';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 
-export default function EmployeesPage() {
+function EmployeesContent() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -553,5 +553,13 @@ export default function EmployeesPage() {
         )}
       </main>
     </div>
+  );
+}
+
+export default function EmployeesPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading...</div>}>
+      <EmployeesContent />
+    </Suspense>
   );
 }

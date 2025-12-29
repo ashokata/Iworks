@@ -13,7 +13,7 @@ export default function InvoicesPage() {
   // Fetch all invoices
   const { data: invoices = [], isLoading, error, refetch } = useQuery({
     queryKey: ['invoices'],
-    queryFn: invoiceService.getAllInvoices,
+    queryFn: () => invoiceService.getAllInvoices(),
   });
   
   // Filter invoices based on status

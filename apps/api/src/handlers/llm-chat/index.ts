@@ -218,11 +218,15 @@ export const handler: APIGatewayProxyHandler = async (event): Promise<APIGateway
       { role: 'user', content: sanitizedQuery },
     ];
 
-    // Call Bedrock for function decision
-    const bedrockResponse = await bedrockLLMService.invokeForFunctionDecision(messages, tenantId);
+    // Tool call loop - allows multiple sequential tool calls
+    let bedrockResponse = await bedrockLLMService.invokeForFunctionDecision(messages, tenantId);
+    const toolCalls: Array<{ name: string; input: any; result: any }> = [];
+    const maxToolCalls = 5; // Prevent infinite loops
+    let toolCallCount = 0;
 
-    // Handle tool use (function call)
-    if (bedrockResponse.tool_use) {
+    // Keep calling tools until Claude doesn't request any more
+    while (bedrockResponse.tool_use && toolCallCount < maxToolCalls) {
+      toolCallCount++;
       const toolUse = bedrockResponse.tool_use;
 
       console.log('[LLM Chat] LLM requested function call', {
@@ -289,11 +293,44 @@ export const handler: APIGatewayProxyHandler = async (event): Promise<APIGateway
         };
       }
 
-      // Get final answer from Bedrock (summarize the result)
+      // Track this tool call
+      toolCalls.push({
+        name: toolUse.name,
+        input: toolUse.input,
+        result: functionResult,
+      });
+
+      // Add assistant's tool use and result to conversation for next iteration
+      messages.push({
+        role: 'assistant',
+        content: bedrockResponse.content || '',
+      });
+
+      messages.push({
+        role: 'user',
+        content: `Tool "${toolUse.name}" executed. Result: ${JSON.stringify(functionResult.data || functionResult.error)}. Based on the original request "${sanitizedQuery}", do you need to call another tool, or are you ready to respond to the user?`,
+      });
+
+      // Call Bedrock again to see if it wants to make another tool call
+      bedrockResponse = await bedrockLLMService.invokeForFunctionDecision(messages, tenantId);
+
+      console.log('[LLM Chat] Checking for next tool call', {
+        requestId,
+        previousTool: toolUse.name,
+        hasMoreTools: !!bedrockResponse.tool_use,
+        toolCallCount,
+      });
+    }
+
+    // After all tool calls, get final answer if any tools were called
+    if (toolCalls.length > 0) {
+      const lastToolCall = toolCalls[toolCalls.length - 1];
+
+      // Get final answer from Bedrock (summarize all the results)
       const finalResponse = await bedrockLLMService.invokeForFinalAnswer(
         sanitizedQuery,
-        toolUse.name,
-        functionResult,
+        lastToolCall.name,
+        lastToolCall.result,
         body.history || [],
         tenantId
       );
@@ -302,22 +339,25 @@ export const handler: APIGatewayProxyHandler = async (event): Promise<APIGateway
 
       const response: ChatResponse = {
         conversationId: requestId,
-        reply: finalResponse.content || functionResult.data?.message || 'Action completed successfully.',
+        reply: finalResponse.content || lastToolCall.result.data?.message || 'Action completed successfully.',
         metadata: {
-          tool: toolUse.name,
-          toolResult: functionResult,
+          tool: lastToolCall.name,
+          toolResult: lastToolCall.result,
+          allToolCalls: toolCalls,
+          toolCallCount: toolCalls.length,
           model: 'claude-3.5-sonnet',
           tokensUsed: bedrockResponse.usage,
           latencyMs: latency,
         },
-        suggestedActions: generateSuggestedActions(toolUse.name, functionResult),
+        suggestedActions: generateSuggestedActions(lastToolCall.name, lastToolCall.result),
         timestamp: new Date().toISOString(),
       };
 
-      console.log('[LLM Chat] Request completed with function call', {
+      console.log('[LLM Chat] Request completed with function calls', {
         requestId,
         latencyMs: latency,
-        tool: toolUse.name,
+        toolCallCount: toolCalls.length,
+        tools: toolCalls.map(t => t.name),
       });
 
       return {

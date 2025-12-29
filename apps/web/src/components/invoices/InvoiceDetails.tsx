@@ -1,8 +1,44 @@
 import React from 'react';
-import { Invoice } from '@/types/enhancedTypes';
+
+// Accept a flexible invoice type that works with both database and enhanced types
+interface InvoiceItem {
+  id: string;
+  description?: string;
+  name?: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+  taxable?: boolean;
+  isTaxable?: boolean;
+}
+
+interface FlexibleInvoice {
+  id: string;
+  jobId?: string;
+  customerId?: string;
+  tenantId?: string;
+  invoiceNumber?: string;
+  createdAt?: string;
+  issueDate?: string;
+  dueDate: string;
+  items?: InvoiceItem[];
+  lineItems?: InvoiceItem[];
+  subtotal: number;
+  taxRate?: number;
+  tax?: number;
+  taxAmount?: number;
+  total: number;
+  notes?: string;
+  status: string;
+  paidAmount?: number;
+  amountPaid?: number;
+  paidDate?: string;
+  paidAt?: string;
+  paymentMethod?: string;
+}
 
 interface InvoiceDetailsProps {
-  invoice: Invoice;
+  invoice: FlexibleInvoice;
   onClose: () => void;
   onSend?: (method: 'email' | 'sms' | 'mail') => void;
   onPrint?: () => void;
@@ -52,16 +88,16 @@ export default function InvoiceDetails({ invoice, onClose, onSend, onPrint }: In
           <div className="px-6 py-4">
             {/* Status banner */}
             <div className={`mb-6 px-4 py-2 rounded-md ${
-              invoice.status === 'Paid' ? 'bg-green-50 text-green-700 border border-green-200' :
-              invoice.status === 'Overdue' ? 'bg-red-50 text-red-700 border border-red-200' :
+              ['Paid', 'PAID'].includes(invoice.status) ? 'bg-green-50 text-green-700 border border-green-200' :
+              ['Overdue', 'OVERDUE'].includes(invoice.status) ? 'bg-red-50 text-red-700 border border-red-200' :
               'bg-blue-50 text-blue-700 border border-blue-200'
             }`}>
               <div className="flex items-center">
-                {invoice.status === 'Paid' ? (
+                {['Paid', 'PAID'].includes(invoice.status) ? (
                   <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                ) : invoice.status === 'Overdue' ? (
+                ) : ['Overdue', 'OVERDUE'].includes(invoice.status) ? (
                   <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
@@ -78,7 +114,7 @@ export default function InvoiceDetails({ invoice, onClose, onSend, onPrint }: In
             <div className="grid grid-cols-2 gap-6 mb-6">
               <div>
                 <h3 className="text-sm font-medium text-gray-500">Invoice Date</h3>
-                <p className="mt-1 text-sm text-gray-900">{formatDate(invoice.createdAt)}</p>
+                <p className="mt-1 text-sm text-gray-900">{formatDate(invoice.issueDate || invoice.createdAt || new Date().toISOString())}</p>
               </div>
               <div>
                 <h3 className="text-sm font-medium text-gray-500">Due Date</h3>
@@ -120,11 +156,11 @@ export default function InvoiceDetails({ invoice, onClose, onSend, onPrint }: In
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {invoice.items.map((item) => (
+                    {(invoice.items || invoice.lineItems || []).map((item) => (
                       <tr key={item.id}>
                         <td className="px-4 py-3 text-sm text-gray-900">
-                          {item.description}
-                          {item.taxable && <span className="ml-2 text-xs text-gray-500">(Taxable)</span>}
+                          {item.description || item.name || 'Item'}
+                          {(item.taxable || item.isTaxable) && <span className="ml-2 text-xs text-gray-500">(Taxable)</span>}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-900 text-right">
                           {item.quantity}
@@ -150,30 +186,30 @@ export default function InvoiceDetails({ invoice, onClose, onSend, onPrint }: In
                   <span className="text-gray-900">{formatCurrency(invoice.subtotal)}</span>
                 </div>
                 <div className="flex justify-between text-sm mb-2">
-                  <span className="font-medium text-gray-500">Tax ({(invoice.taxRate * 100).toFixed(2)}%)</span>
-                  <span className="text-gray-900">{formatCurrency(invoice.tax)}</span>
+                  <span className="font-medium text-gray-500">Tax ({((invoice.taxRate || 0) * 100).toFixed(2)}%)</span>
+                  <span className="text-gray-900">{formatCurrency(invoice.tax || invoice.taxAmount || 0)}</span>
                 </div>
                 <div className="flex justify-between text-base mt-4 border-t border-gray-200 pt-4">
                   <span className="font-bold text-gray-900">Total</span>
                   <span className="font-bold text-gray-900">{formatCurrency(invoice.total)}</span>
                 </div>
                 
-                {invoice.status === 'Paid' && (
+                {['Paid', 'PAID'].includes(invoice.status) && (
                   <div className="flex justify-between text-sm text-green-700 mt-2">
                     <span className="font-medium">Paid</span>
-                    <span>{formatCurrency(invoice.paidAmount || invoice.total)}</span>
+                    <span>{formatCurrency(invoice.paidAmount || invoice.amountPaid || invoice.total)}</span>
                   </div>
                 )}
                 
-                {invoice.status === 'Partial' && (
+                {['Partial', 'PARTIAL'].includes(invoice.status) && (
                   <>
                     <div className="flex justify-between text-sm text-green-700 mt-2">
                       <span className="font-medium">Paid</span>
-                      <span>{formatCurrency(invoice.paidAmount || 0)}</span>
+                      <span>{formatCurrency(invoice.paidAmount || invoice.amountPaid || 0)}</span>
                     </div>
                     <div className="flex justify-between text-sm text-red-700 mt-1">
                       <span className="font-medium">Balance Due</span>
-                      <span>{formatCurrency(invoice.total - (invoice.paidAmount || 0))}</span>
+                      <span>{formatCurrency(invoice.total - (invoice.paidAmount || invoice.amountPaid || 0))}</span>
                     </div>
                   </>
                 )}

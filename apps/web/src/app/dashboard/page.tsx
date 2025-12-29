@@ -50,7 +50,7 @@ export default function DashboardPage() {
 
   const { data: invoices = [] } = useQuery({
     queryKey: ['invoices'],
-    queryFn: invoiceService.getAllInvoices,
+    queryFn: () => invoiceService.getAllInvoices(),
     enabled: isAuthenticated,
     staleTime: 5 * 60 * 1000,
     refetchOnMount: 'always',
@@ -60,14 +60,14 @@ export default function DashboardPage() {
   const invoiceList = Array.isArray(invoices) ? invoices : [];
 
   const totalUnpaid = invoiceList
-    .filter(inv => inv.status === 'Unpaid' || inv.status === 'Overdue')
+    .filter(inv => ['DRAFT', 'SENT', 'VIEWED', 'OVERDUE'].includes(inv.status))
     .reduce((sum, inv) => sum + inv.total, 0);
 
   const totalPaid = invoiceList
-    .filter(inv => inv.status === 'Paid')
-    .reduce((sum, inv) => sum + (inv.paidAmount || inv.total), 0);
+    .filter(inv => inv.status === 'PAID')
+    .reduce((sum, inv) => sum + (inv.amountPaid || inv.total), 0);
 
-  const overdueInvoices = invoiceList.filter(inv => inv.status === 'Overdue').length;
+  const overdueInvoices = invoiceList.filter(inv => inv.status === 'OVERDUE').length;
 
   const formatCurrency = (amount: number): string => {
     return new Intl.NumberFormat('en-US', {
@@ -94,9 +94,9 @@ export default function DashboardPage() {
     );
   }
 
-  const completedJobs = jobs?.filter(j => j.status === 'Completed').length || 0;
-  const inProgressJobs = jobs?.filter(j => j.status === 'In Progress').length || 0;
-  const scheduledJobs = jobs?.filter(j => j.status === 'Scheduled').length || 0;
+  const completedJobs = jobs?.filter(j => j.status === 'COMPLETED').length || 0;
+  const inProgressJobs = jobs?.filter(j => j.status === 'IN_PROGRESS').length || 0;
+  const scheduledJobs = jobs?.filter(j => j.status === 'SCHEDULED').length || 0;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -429,13 +429,13 @@ export default function DashboardPage() {
                         )}
                       </div>
                       <div className="mt-1 text-sm text-gray-600">
-                        <span>Assigned to: {job.assignedTo}</span>
+                        <span>Assigned: {job.assignments?.[0]?.employee?.firstName || 'Unassigned'}</span>
                         <span className="mx-2">•</span>
-                        <span>Due: {formatDate(job.date)}</span>
-                        {job.location && (
+                        <span>Due: {job.scheduledStart ? formatDate(job.scheduledStart) : 'Not scheduled'}</span>
+                        {job.address && (
                           <>
                             <span className="mx-2">•</span>
-                            <span>{job.location}</span>
+                            <span>{job.address.city || 'Location TBD'}</span>
                           </>
                         )}
                       </div>

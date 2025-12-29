@@ -93,9 +93,9 @@ export default function CreateJobPage() {
   }, []);
 
   const createJobMutation = useMutation({
-    mutationFn: async (jobData: CreateJobRequest) => {
+    mutationFn: async (jobData: any) => {
       // Create the job first
-      const createdJob = await jobService.createJob(jobData);
+      const createdJob = await jobService.createJob(jobData as any);
       
       // Create pricing record if there are line items
       if (lineItems.length > 0 && subtotal > 0) {
@@ -119,7 +119,7 @@ export default function CreateJobPage() {
           };
           
           console.log('[Job Create] Frontend pricing data object:', JSON.stringify(pricingData, null, 2));
-          const pricing = await pricingService.createPricing(pricingData);
+          const pricing = await pricingService.createPricing(pricingData as any);
           console.log('[Job Create] Pricing created successfully:', pricing.id);
         } catch (pricingError: any) {
           console.error('[Job Create] Failed to create pricing:', pricingError);

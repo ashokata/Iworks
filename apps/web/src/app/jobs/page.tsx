@@ -193,13 +193,16 @@ export default function JobsPage() {
   console.log('[Jobs Page Debug] jobs:', jobs);
 
   // Filter jobs based on search query and filters
-  const filteredJobs = jobs?.filter(job => {
-    // Search filter
+  const filteredJobs = jobs?.filter((job: any) => {
+    // Search filter - use new property names with fallbacks
+    const location = job.address?.city || job.address?.fullAddress || '';
+    const assignedTo = job.assignments?.[0]?.employee?.firstName || '';
+    
     const matchesSearch = !searchQuery || 
       job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       job.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      job.location?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      job.assignedTo?.toLowerCase().includes(searchQuery.toLowerCase());
+      location.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      assignedTo.toLowerCase().includes(searchQuery.toLowerCase());
     
     // Filter by Job ID
     const matchesJobId = !filterJobId || job.id.toString().includes(filterJobId);
@@ -208,10 +211,10 @@ export default function JobsPage() {
     const matchesTitle = !filterTitle || job.title.toLowerCase().includes(filterTitle.toLowerCase());
     
     // Filter by Location
-    const matchesLocation = !filterLocation || (job.location && job.location.toLowerCase().includes(filterLocation.toLowerCase()));
+    const matchesLocation = !filterLocation || location.toLowerCase().includes(filterLocation.toLowerCase());
     
     // Filter by Assigned To
-    const matchesAssignedTo = !filterAssignedTo || (job.assignedTo && job.assignedTo.toLowerCase().includes(filterAssignedTo.toLowerCase()));
+    const matchesAssignedTo = !filterAssignedTo || assignedTo.toLowerCase().includes(filterAssignedTo.toLowerCase());
     
     // Status filter - supports multiple selections
     const matchesStatus = statusFilter.length === 0 || statusFilter.includes(job.status);
@@ -250,16 +253,16 @@ export default function JobsPage() {
           bValue = priorityOrder[b.priority as keyof typeof priorityOrder] || 0;
           break;
         case 'date':
-          aValue = a.date ? new Date(a.date).getTime() : 0;
-          bValue = b.date ? new Date(b.date).getTime() : 0;
+          aValue = a.scheduledStart ? new Date(a.scheduledStart).getTime() : 0;
+          bValue = b.scheduledStart ? new Date(b.scheduledStart).getTime() : 0;
           break;
         case 'location':
-          aValue = a.location?.toLowerCase() || '';
-          bValue = b.location?.toLowerCase() || '';
+          aValue = (a.address?.city || a.address?.fullAddress || '').toLowerCase();
+          bValue = (b.address?.city || b.address?.fullAddress || '').toLowerCase();
           break;
         case 'assignedTo':
-          aValue = a.assignedTo?.toLowerCase() || '';
-          bValue = b.assignedTo?.toLowerCase() || '';
+          aValue = (a.assignments?.[0]?.employee?.firstName || '').toLowerCase();
+          bValue = (b.assignments?.[0]?.employee?.firstName || '').toLowerCase();
           break;
         default:
           continue;

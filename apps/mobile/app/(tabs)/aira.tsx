@@ -10,20 +10,34 @@ import {
   StyleSheet,
   ActivityIndicator,
   useColorScheme,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import Animated, { 
+import Animated, {
   FadeIn,
   FadeInUp,
-  useAnimatedStyle, 
-  withRepeat, 
+  useAnimatedStyle,
+  withRepeat,
   withSequence,
   withTiming,
   useSharedValue,
 } from 'react-native-reanimated';
+import { useRouter } from 'expo-router';
+import { aiChatService, ChatMessage as AIChatMessage, ChatResponse } from '../../services/aiChatService';
+
+// Voice recognition - optional (requires native modules not in Expo Go)
+let ExpoSpeechRecognitionModule: any = null;
+let useSpeechRecognitionEvent: any = () => {};
+try {
+  const speechModule = require('expo-speech-recognition');
+  ExpoSpeechRecognitionModule = speechModule.ExpoSpeechRecognitionModule;
+  useSpeechRecognitionEvent = speechModule.useSpeechRecognitionEvent;
+} catch (e) {
+  console.log('[Voice] Speech recognition not available (requires dev build)');
+}
 
 interface DisplayMessage {
   id: string;
@@ -49,19 +63,41 @@ export default function AIRAScreen() {
     {
       id: '1',
       role: 'assistant',
-      content: "Hi! I'm AIRA, your AI-powered field service assistant. I can help you with customers, jobs, estimates, and more. What would you like to do?",
+      content: "👋 Hi! I'm AIRA, your AI assistant. I can help you create and manage customers through natural language.\n\nTry saying:\n• 'Create customer John Smith email john@example.com phone 5551234'\n• 'Find customer John'\n• 'Help'\n\nWhat would you like to do?",
       timestamp: new Date(),
-      suggestions: ['Create customer', 'Schedule job', 'View schedule'],
+      suggestions: ['Create customer', 'Find customer', 'Help'],
     },
   ]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const flatListRef = useRef<FlatList<DisplayMessage>>(null);
-  
+
   // Animation values
   const pulseScale = useSharedValue(1);
   const glowOpacity = useSharedValue(0.5);
+
+  // Handle speech recognition events (only if module available)
+  if (ExpoSpeechRecognitionModule && useSpeechRecognitionEvent) {
+    useSpeechRecognitionEvent('result', (event: any) => {
+      const transcript = event.results[0]?.transcript;
+      if (transcript) {
+        setInputText(transcript);
+      }
+    });
+
+    useSpeechRecognitionEvent('end', () => {
+      setIsListening(false);
+    });
+
+    useSpeechRecognitionEvent('error', (event: any) => {
+      console.error('[Voice] Recognition error:', event.error);
+      setIsListening(false);
+      if (event.error !== 'aborted') {
+        Alert.alert('Voice Error', 'Could not recognize speech. Please try again.');
+      }
+    });
+  }
 
   useEffect(() => {
     glowOpacity.value = withRepeat(
@@ -129,50 +165,105 @@ export default function AIRAScreen() {
     setIsLoading(true);
 
     try {
-      // Simulate AI response - replace with actual API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      const mockResponse = getMockResponse(messageText);
+      // Use AI Chat Service for all interactions
+      const response: ChatResponse = await aiChatService.sendMessage(messageText);
+
+      console.log('[AIRA Screen] Got response:', response);
+
+      // Handle successful customer creation/update
+      if (response.metadata?.success && response.metadata?.action?.includes('customer')) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+
+      // Convert suggestions from response metadata or generate helpful ones
+      const suggestions = response.metadata?.action === 'create_customer' && response.metadata?.success
+        ? ['Create another customer', 'View customers', 'Create job']
+        : response.metadata?.action === 'greeting'
+        ? ['Create customer', 'Find customer', 'Help']
+        : undefined;
 
       setMessages(prev =>
         prev.map(msg =>
           msg.isLoading
             ? {
                 ...msg,
-                content: mockResponse.content,
+                content: response.reply,
                 isLoading: false,
-                suggestions: mockResponse.suggestions,
+                suggestions,
               }
             : msg
         )
       );
 
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (error) {
-      console.error('Error:', error);
+      // Success haptic for successful actions
+      if (response.metadata?.success) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    } catch (error: any) {
+      console.error('AIRA Error:', error);
       setMessages(prev =>
         prev.map(msg =>
           msg.isLoading
             ? {
                 ...msg,
-                content: "I'm having trouble connecting. Please try again.",
+                content: `Sorry, I encountered an error: ${error.message || 'Please try again.'}`,
                 isLoading: false,
+                suggestions: ['Try again', 'Cancel'],
               }
             : msg
         )
       );
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleVoicePress = () => {
+  const handleVoicePress = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setIsListening(prev => !prev);
 
-    if (!isListening) {
-      // Show voice feedback
-      setTimeout(() => setIsListening(false), 5000);
+    // Check if voice recognition is available
+    if (!ExpoSpeechRecognitionModule) {
+      Alert.alert(
+        'Voice Input Not Available',
+        'Voice input requires a development build and is not available in Expo Go. For now, please type your message.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    if (isListening) {
+      // Stop listening
+      ExpoSpeechRecognitionModule.stop();
+      setIsListening(false);
+      return;
+    }
+
+    try {
+      // Request permissions
+      const { granted } = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+
+      if (!granted) {
+        Alert.alert(
+          'Permission Required',
+          'Please grant microphone permission to use voice input.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      // Start speech recognition
+      setIsListening(true);
+      ExpoSpeechRecognitionModule.start({
+        lang: 'en-US',
+        interimResults: true,
+        maxAlternatives: 1,
+        continuous: false,
+      });
+    } catch (error: any) {
+      console.error('[Voice] Error starting recognition:', error);
+      Alert.alert('Error', 'Failed to start voice recognition. Please try again.');
+      setIsListening(false);
     }
   };
 
@@ -289,27 +380,28 @@ export default function AIRAScreen() {
           <View style={styles.headerContent}>
             <View style={styles.headerLeft}>
               <View style={styles.airaLogo}>
-                <Ionicons name="sparkles" size={20} color="white" />
+                <Ionicons name="sparkles" size={14} color="white" />
               </View>
               <View>
                 <Text style={styles.headerTitle}>AIRA</Text>
                 <Text style={styles.headerSubtitle}>AI-Powered Assistant</Text>
               </View>
             </View>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.clearBtn}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                aiChatService.resetConversation(); // Reset conversation
                 setMessages([{
                   id: Date.now().toString(),
                   role: 'assistant',
-                  content: "Chat cleared! How can I help you?",
+                  content: "Chat cleared! I'm AIRA, ready to help. Type 'help' to see what I can do!",
                   timestamp: new Date(),
-                  suggestions: ['Create customer', 'Schedule job', 'View schedule'],
+                  suggestions: ['Create customer', 'Find customer', 'Help'],
                 }]);
               }}
             >
-              <Ionicons name="refresh" size={20} color="rgba(255,255,255,0.8)" />
+              <Ionicons name="refresh" size={16} color="rgba(255,255,255,0.8)" />
             </TouchableOpacity>
           </View>
 
@@ -321,7 +413,7 @@ export default function AIRAScreen() {
                 style={styles.quickPromptBtn}
                 onPress={() => handleQuickPrompt(prompt.prompt)}
               >
-                <Ionicons name={prompt.icon as any} size={18} color="white" />
+                <Ionicons name={prompt.icon as any} size={14} color="white" />
                 <Text style={styles.quickPromptLabel}>{prompt.label}</Text>
               </TouchableOpacity>
             ))}
@@ -359,7 +451,7 @@ export default function AIRAScreen() {
         )}
 
         {/* Input Area */}
-        <View style={[styles.inputContainer, { 
+        <View style={[styles.inputContainer, {
           backgroundColor: isDark ? '#1e293b' : '#ffffff',
           borderTopColor: isDark ? '#334155' : '#e2e8f0',
         }]}>
@@ -368,19 +460,29 @@ export default function AIRAScreen() {
               style={[styles.voiceBtn, isListening && styles.voiceBtnActive]}
               onPress={handleVoicePress}
             >
-              <Ionicons 
-                name={isListening ? 'mic' : 'mic-outline'} 
-                size={22} 
-                color={isListening ? 'white' : '#6366f1'} 
+              <Ionicons
+                name={isListening ? 'mic' : 'mic-outline'}
+                size={22}
+                color={isListening ? 'white' : '#6366f1'}
               />
             </TouchableOpacity>
           </Animated.View>
 
           <TextInput
-            style={[styles.textInput, { 
-              backgroundColor: isDark ? '#0f172a' : '#f1f5f9',
-              color: isDark ? '#f1f5f9' : '#1e293b',
-            }]}
+            style={{
+              flex: 1,
+              minHeight: 44,
+              maxHeight: 100,
+              borderRadius: 22,
+              paddingHorizontal: 16,
+              paddingVertical: 10,
+              fontSize: 16,
+              fontWeight: '400',
+              backgroundColor: isDark ? '#1e293b' : '#f8fafc',
+              color: isDark ? '#ffffff' : '#0f172a',
+              borderWidth: 1,
+              borderColor: isDark ? '#475569' : '#cbd5e1',
+            }}
             value={inputText}
             onChangeText={setInputText}
             placeholder="Ask AIRA anything..."
@@ -388,6 +490,9 @@ export default function AIRAScreen() {
             multiline
             maxLength={500}
             editable={!isLoading}
+            autoCorrect={true}
+            autoCapitalize="sentences"
+            keyboardAppearance={isDark ? 'dark' : 'light'}
           />
 
           <TouchableOpacity
@@ -408,8 +513,17 @@ export default function AIRAScreen() {
   );
 }
 
+// Response type for AIRA
+interface AIRAResponse {
+  content: string;
+  suggestions?: string[];
+  action?: 'customer_created' | 'customer_updated' | 'cancelled';
+  nextStep?: string;
+  customer?: any; // Customer object when created/updated
+}
+
 // Mock response generator - replace with actual AI service
-function getMockResponse(input: string): { content: string; suggestions?: string[] } {
+function getMockResponse(input: string): AIRAResponse {
   const lowerInput = input.toLowerCase();
   
   if (lowerInput.includes('customer') || lowerInput.includes('client')) {
@@ -444,14 +558,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingBottom: 16,
+    paddingBottom: 8,
   },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 12,
+    paddingTop: 2,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -459,26 +573,26 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   airaLogo: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 8,
     backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitle: {
     color: 'white',
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: '700',
   },
   headerSubtitle: {
     color: 'rgba(255,255,255,0.7)',
-    fontSize: 12,
+    fontSize: 10,
   },
   clearBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: 'rgba(255,255,255,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -486,22 +600,22 @@ const styles = StyleSheet.create({
   quickPrompts: {
     flexDirection: 'row',
     paddingHorizontal: 16,
-    marginTop: 16,
-    gap: 8,
+    marginTop: 6,
+    gap: 6,
   },
   quickPromptBtn: {
     flex: 1,
     flexDirection: 'column',
     alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.15)',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderRadius: 12,
-    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    borderRadius: 8,
+    gap: 3,
   },
   quickPromptLabel: {
     color: 'white',
-    fontSize: 10,
+    fontSize: 8,
     fontWeight: '600',
     textAlign: 'center',
   },
@@ -564,6 +678,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     fontSize: 15,
+    color: '#000000', // Force black text - will be overridden by inline style for dark mode
   },
   sendBtn: {
     width: 44,

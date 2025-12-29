@@ -190,6 +190,34 @@ app.get('/customers/check-email', async (req, res) => {
   }
 });
 
+// Create customer
+app.post('/customers', async (req, res) => {
+  try {
+    console.log('[API] POST /customers - Creating customer');
+    console.log('[API] Tenant ID:', req.headers['x-tenant-id']);
+    console.log('[API] Body:', JSON.stringify(req.body));
+
+    const event = {
+      httpMethod: 'POST',
+      headers: req.headers,
+      body: JSON.stringify(req.body),
+      queryStringParameters: null,
+      pathParameters: null,
+    };
+    const result = await createCustomerHandler(event as any);
+    const responseBody = JSON.parse(result.body);
+
+    console.log('[API] Customer creation result:', result.statusCode);
+
+    // Return just the customer object (mobile app expects customer directly)
+    res.status(result.statusCode).json(responseBody.customer || responseBody);
+  } catch (error: any) {
+    console.error('[API] Create customer error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// List customers
 app.get('/customers', async (req, res) => {
   try {
     const event = {

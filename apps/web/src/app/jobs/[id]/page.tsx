@@ -23,7 +23,7 @@ export default function JobDetailsPage() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const params = useParams();
-  const jobId = Number(params?.id);
+  const jobId = params?.id as string;
   const [isOnline, setIsOnline] = useState(true);
   const queryClient = useQueryClient();
 
@@ -57,14 +57,15 @@ export default function JobDetailsPage() {
 
   // Fetch job details - uses cache from jobs list if available
   // Prefer cache, fallback to API if not found
-  const { data: job, isLoading, isError, error, refetch, isFetching } = useQuery<Job>({
+  // Using any type due to legacy/new type differences that need migration
+  const { data: job, isLoading, isError, error, refetch, isFetching } = useQuery<any>({
     queryKey: ['job', jobId],
     queryFn: async () => {
-      const cachedJobs = queryClient.getQueryData<Job[]>(['jobs']);
+      const cachedJobs = queryClient.getQueryData<any[]>(['jobs']);
       if (cachedJobs) {
         const cachedJob = cachedJobs.find(j => j.id === jobId);
         if (cachedJob) {
-          (cachedJob as any)._source = 'cache';
+          cachedJob._source = 'cache';
           return cachedJob;
         }
       }
@@ -182,26 +183,16 @@ export default function JobDetailsPage() {
     }
   };
 
-  // Use pricing data directly from API response - no calculations
-  const subtotal = job.pricing?.subTotal ?? 0;
-  const discount = job.pricing?.discount ?? 0;
-  const taxRate = job.pricing?.taxRate ?? 0;
-  const taxAmount = job.pricing?.taxAmount ?? 0;
-  const total = job.pricing?.total ?? 0;
-  const county = job.pricing?.county ?? '';
+  // Use pricing data directly from Job properties
+  const subtotal = job.subtotal ?? 0;
+  const discount = job.discountAmount ?? 0;
+  const taxAmount = job.taxAmount ?? 0;
+  const total = job.total ?? 0;
 
   // Debug logging - show what data is available
   console.log('[Job Details] ========== PRICING DEBUG ==========');
-  console.log('[Job Details] Pricing data from API:', job.pricing);
   console.log('[Job Details] Line items from API:', job.lineItems);
-  console.log('[Job Details] Display values:', { subtotal, discount, taxRate, taxAmount, total, county });
-  
-  if (!job.pricing) {
-    console.warn('[Job Details] ⚠️ NO PRICING DATA FOUND - pricing field is undefined/null');
-  } else {
-    console.log('[Job Details] ✓ Pricing data exists');
-    console.log('[Job Details] Available pricing fields:', Object.keys(job.pricing));
-  }
+  console.log('[Job Details] Display values:', { subtotal, discount, taxAmount, total });
   
   if (!job.lineItems || job.lineItems.length === 0) {
     console.warn('[Job Details] ⚠️ NO LINE ITEMS FOUND');
@@ -241,12 +232,12 @@ export default function JobDetailsPage() {
               </span>
             )}
             <span className={`px-3 py-1 text-sm rounded-full ${
-              job.status === 'Scheduled' ? 'bg-blue-100 text-blue-800' :
-              job.status === 'In_Progress' ? 'bg-yellow-100 text-yellow-800' :
-              job.status === 'Completed' ? 'bg-green-100 text-green-800' :
+              job.status === 'SCHEDULED' ? 'bg-blue-100 text-blue-800' :
+              job.status === 'IN_PROGRESS' ? 'bg-yellow-100 text-yellow-800' :
+              job.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
               'bg-gray-100 text-gray-800'
             }`}>
-              {job.status === 'In_Progress' ? 'In Progress' : job.status === 'Canceled' ? 'Cancelled' : job.status}
+              {job.status.replace('_', ' ')}
             </span>
             <Button 
               onClick={() => router.push(`/jobs/${jobId}/edit`)}
@@ -266,10 +257,10 @@ export default function JobDetailsPage() {
             <div className="bg-gray-100 rounded-lg h-40 flex items-center justify-center mb-3 relative">
               <MapPinIcon className="h-12 w-12 text-gray-400" />
             </div>
-            {job.location && (
+            {job.address && (
               <div className="text-sm text-gray-700 px-3 py-2">
                 <MapPinIcon className="h-4 w-4 inline mr-2 text-gray-400" />
-                {job.location}
+                {job.address.fullAddress || `${job.address.city}, ${job.address.state}`}
               </div>
             )}
           </div>
@@ -326,7 +317,7 @@ export default function JobDetailsPage() {
               </div>
             </div>
             <div className="px-0 pt-2 text-sm text-gray-500">
-              {job.status === 'Completed' ? 'Enabled' : 'Disabled'}
+              {job.status === 'COMPLETED' ? 'Enabled' : 'Disabled'}
             </div>
           </div>
         </div>
@@ -344,19 +335,19 @@ export default function JobDetailsPage() {
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">Location</label>
                   <div className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-50 text-gray-700">
-                    {job.location || 'Not specified'}
+                    {job.address?.fullAddress || job.address?.city || 'Not specified'}
                   </div>
                 </div>
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">Scheduled Date</label>
                   <div className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-50 text-gray-700">
-                    {formatDateForDisplay(job.date)}
+                    {formatDateForDisplay(job.scheduledStart)}
                   </div>
                 </div>
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">Assigned To</label>
                   <div className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-50 text-gray-700">
-                    {job.assignedTo || 'Not assigned'}
+                    {job.assignments?.[0]?.employee?.firstName ? `${job.assignments[0].employee.firstName} ${job.assignments[0].employee.lastName || ''}`.trim() : 'Not assigned'}
                   </div>
                 </div>
               </div>
@@ -365,8 +356,7 @@ export default function JobDetailsPage() {
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">Status</label>
                   <div className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-50 text-gray-700">
-                    {job.status === 'In_Progress' ? 'In Progress' : 
-                     job.status === 'Canceled' ? 'Cancelled' : job.status}
+                    {job.status.replace('_', ' ')}
                   </div>
                 </div>
                 <div>
@@ -419,7 +409,7 @@ export default function JobDetailsPage() {
                   <h4 className="text-sm font-medium text-gray-700">Services</h4>
                 </div>
                 <div className="bg-white rounded border border-gray-200 p-3 text-sm text-gray-700">
-                  {(job as Job & { lineItems?: any[] })?.lineItems?.filter(item => item.itemType === 'Service').length ? (
+                  {job?.lineItems?.filter((item: any) => item.type === 'SERVICE' || item.itemType === 'Service').length ? (
                     <div className="overflow-x-auto">
                       <table className="min-w-full border-separate border-spacing-y-2">
                         <thead>
@@ -497,16 +487,10 @@ export default function JobDetailsPage() {
                 )}
                 <div className="flex justify-between text-sm items-center">
                   <div className="flex items-center space-x-2">
-                    <span className="text-gray-600">Tax {taxRate > 0 && `(${taxRate}%)`}</span>
+                    <span className="text-gray-600">Tax</span>
                   </div>
                   <span className="font-medium">${taxAmount.toFixed(2)}</span>
                 </div>
-                {county && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">County</span>
-                    <span className="font-medium">{county}</span>
-                  </div>
-                )}
                 <div className="flex justify-between text-lg font-semibold pt-2 border-t">
                   <span>Total</span>
                   <span>${total.toFixed(2)}</span>
