@@ -20,6 +20,7 @@ export interface ServiceRequest {
   status: 'NEW' | 'ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
   createdSource: 'WEB' | 'VOICE_AGENT' | 'API';
   voiceCallId: string | null;
+  estimateId: string | null;
   createdAt: string;
   updatedAt: string;
   isServiceAddressSameAsPrimary?: boolean;
@@ -67,6 +68,7 @@ export interface CreateServiceRequestData {
   createdSource: 'WEB' | 'VOICE_AGENT' | 'API';
   serviceAddressId?: string;
   assignedToId?: string;
+  estimateId?: string;
   notes?: string;
   isServiceAddressSameAsPrimary?: boolean;
 }

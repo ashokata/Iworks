@@ -83,6 +83,9 @@ export const handler = async (
     if (body.serviceAddressId !== undefined) {
       updateData.serviceAddressId = body.serviceAddressId || null;
     }
+    if (body.estimateId !== undefined) {
+      updateData.estimateId = body.estimateId || null;
+    }
     if (body.notes !== undefined) updateData.notes = body.notes || null;
     if (body.isServiceAddressSameAsPrimary !== undefined) {
       updateData.isServiceAddressSameAsPrimary = body.isServiceAddressSameAsPrimary;

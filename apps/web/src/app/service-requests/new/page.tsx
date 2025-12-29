@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { serviceRequestService } from '@/services/serviceRequestService';
 import { customerService, Customer } from '@/services/customerService';
+import { estimateService, Estimate } from '@/services/estimateService';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { 
   DocumentTextIcon,
@@ -15,6 +16,7 @@ import {
   CheckIcon,
   XMarkIcon,
   ExclamationTriangleIcon,
+  CurrencyDollarIcon,
 } from '@heroicons/react/24/outline';
 
 type FormData = {
@@ -26,6 +28,7 @@ type FormData = {
   status: 'NEW' | 'ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
   serviceAddressId: string;
   assignedToId: string;
+  estimateId: string;
   notes: string;
   isServiceAddressSameAsPrimary: boolean;
 };
@@ -44,6 +47,7 @@ export default function NewServiceRequestPage() {
     status: 'NEW',
     serviceAddressId: '',
     assignedToId: '',
+    estimateId: '',
     notes: '',
     isServiceAddressSameAsPrimary: false,
   });
@@ -54,6 +58,7 @@ export default function NewServiceRequestPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showAddressModal, setShowAddressModal] = useState(false);
+  const [showEstimateRedirect, setShowEstimateRedirect] = useState(false);
   const [newAddress, setNewAddress] = useState({
     street: '',
     city: '',
@@ -76,6 +81,21 @@ export default function NewServiceRequestPage() {
     queryKey: ['customers'],
     queryFn: () => customerService.getAllCustomers(),
     enabled: isAuthenticated,
+  });
+
+  // Fetch all estimates for selection
+  const { data: estimates, isLoading: isLoadingEstimates } = useQuery({
+    queryKey: ['estimates'],
+    queryFn: () => estimateService.list(),
+    enabled: isAuthenticated,
+  });
+
+  // Fetch estimate details when estimateId is provided
+  const { data: selectedEstimate, isLoading: isLoadingEstimate } = useQuery({
+    queryKey: ['estimate', formData.estimateId],
+    queryFn: () => estimateService.getById(formData.estimateId),
+    enabled: !!formData.estimateId && formData.estimateId.length > 0,
+    retry: false,
   });
 
   // Auto-dismiss toast after 5 seconds
@@ -341,6 +361,7 @@ export default function NewServiceRequestPage() {
         isServiceAddressSameAsPrimary: formData.isServiceAddressSameAsPrimary,
         ...(finalServiceAddressId && { serviceAddressId: finalServiceAddressId }),
         ...(formData.assignedToId && { assignedToId: formData.assignedToId }),
+        ...(formData.estimateId && { estimateId: formData.estimateId }),
         ...(formData.notes && { notes: formData.notes }),
       };
       
@@ -835,6 +856,140 @@ export default function NewServiceRequestPage() {
                     placeholder={selectedCustomer ? "-- Select service address --" : "Select a customer first"}
                   />
                 </div>
+
+                <div>
+                  <label htmlFor="estimateId" className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">
+                    Estimate (Optional)
+                  </label>
+                  <SearchableSelect
+                    options={[
+                      ...estimates?.map((estimate: any) => ({
+                        value: estimate.id,
+                        label: `${estimate.estimateNumber} - ${estimate.customer.firstName} ${estimate.customer.lastName} ($${Number(estimate.total).toFixed(2)}) - ${estimate.status}`
+                      })) || [],
+                      {
+                        value: '__add_new__',
+                        label: '+ Create New Estimate'
+                      }
+                    ]}
+                    value={formData.estimateId}
+                    onChange={(value) => {
+                      console.log('[Estimate Select] Selected value:', value);
+                      if (value === '__add_new__') {
+                        console.log('[Estimate Select] Showing modal');
+                        setShowEstimateRedirect(true);
+                        return;
+                      }
+                      const event = {
+                        target: {
+                          name: 'estimateId',
+                          value: value
+                        }
+                      } as React.ChangeEvent<HTMLSelectElement>;
+                      handleChange(event);
+                    }}
+                    placeholder="-- Select an estimate --"
+                  />
+                  <p className="text-xs text-gray-500 mt-1.5">
+                    Link this service request to an existing estimate
+                  </p>
+                  
+                  {/* Display Estimate Details */}
+                  {isLoadingEstimate && formData.estimateId && (
+                    <div className="mt-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-sm text-blue-600">Loading estimate details...</p>
+                    </div>
+                  )}
+                  
+                  {selectedEstimate && (
+                    <div className="mt-3 p-4 bg-green-50 border border-green-200 rounded-lg space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-xs font-bold text-green-700 uppercase tracking-wider mb-1">Estimate Found</p>
+                          <p className="text-sm font-semibold text-gray-800">{selectedEstimate.estimateNumber}</p>
+                          {selectedEstimate.title && (
+                            <p className="text-sm text-gray-700 mt-1">{selectedEstimate.title}</p>
+                          )}
+                        </div>
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                          selectedEstimate.status === 'APPROVED' ? 'bg-green-100 text-green-700' :
+                          selectedEstimate.status === 'SENT' ? 'bg-blue-100 text-blue-700' :
+                          selectedEstimate.status === 'VIEWED' ? 'bg-purple-100 text-purple-700' :
+                          selectedEstimate.status === 'DECLINED' ? 'bg-red-100 text-red-700' :
+                          selectedEstimate.status === 'EXPIRED' ? 'bg-gray-100 text-gray-700' :
+                          'bg-yellow-100 text-yellow-700'
+                        }`}>
+                          {selectedEstimate.status}
+                        </span>
+                      </div>
+                      
+                      {selectedEstimate.message && (
+                        <div className="pt-2 border-t border-green-200">
+                          <p className="text-xs font-semibold text-gray-700 mb-1">Message:</p>
+                          <p className="text-sm text-gray-600">{selectedEstimate.message}</p>
+                        </div>
+                      )}
+                      
+                      <div className="pt-2 border-t border-green-200">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-xs font-bold text-gray-700 uppercase tracking-wider">Options & Line Items</p>
+                          <div className="text-right">
+                            <p className="text-xs text-gray-500">Total</p>
+                            <p className="text-lg font-bold text-gray-800">${Number(selectedEstimate.total).toFixed(2)}</p>
+                          </div>
+                        </div>
+                        
+                        {selectedEstimate.options.map((option, optionIdx) => (
+                          <div key={option.id} className="mb-3 last:mb-0">
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <p className="text-sm font-semibold text-gray-800">{option.name}</p>
+                                  {option.isRecommended && (
+                                    <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-semibold rounded">
+                                      Recommended
+                                    </span>
+                                  )}
+                                </div>
+                                {option.description && (
+                                  <p className="text-xs text-gray-600 mt-0.5">{option.description}</p>
+                                )}
+                              </div>
+                              <p className="text-sm font-semibold text-gray-700 ml-4">${Number(option.total).toFixed(2)}</p>
+                            </div>
+                            
+                            {option.lineItems.length > 0 && (
+                              <div className="ml-4 space-y-1">
+                                {option.lineItems.map((item) => (
+                                  <div key={item.id} className="flex items-start justify-between text-xs">
+                                    <div className="flex-1">
+                                      <span className="text-gray-700">{item.name}</span>
+                                      {item.description && (
+                                        <span className="text-gray-500 ml-1">- {item.description}</span>
+                                      )}
+                                      <span className="text-gray-500 ml-2">
+                                        (Qty: {Number(item.quantity)} × ${Number(item.unitPrice).toFixed(2)})
+                                      </span>
+                                    </div>
+                                    <span className="text-gray-600 font-medium ml-2">
+                                      ${(Number(item.quantity) * Number(item.unitPrice)).toFixed(2)}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {formData.estimateId && !isLoadingEstimate && !selectedEstimate && (
+                    <div className="mt-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-sm text-red-600">Estimate not found. Please check the ID.</p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -950,6 +1105,57 @@ export default function NewServiceRequestPage() {
                 className="px-4 py-2 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
               >
                 Add Address
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Estimate Redirect Modal */}
+      {showEstimateRedirect && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
+              <h3 className="text-xl font-bold text-white">Create New Estimate</h3>
+            </div>
+            <div className="p-6">
+              <div className="flex items-start space-x-4 mb-6">
+                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+                  <CurrencyDollarIcon className="h-6 w-6 text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-gray-700 mb-2">
+                    Creating an estimate requires multiple steps including adding options and line items.
+                  </p>
+                  <p className="text-gray-600 text-sm">
+                    You'll be redirected to the estimates page to create a new estimate. After creating it, you can return here and select it from the dropdown.
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowEstimateRedirect(false)}
+                className="px-4 py-2 text-gray-700 hover:bg-gray-200 rounded-xl font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  // Save current form data to sessionStorage so it can be restored
+                  sessionStorage.setItem('pendingServiceRequest', JSON.stringify({
+                    formData,
+                    selectedCustomerId: selectedCustomer?.id,
+                    returnUrl: '/service-requests/new'
+                  }));
+                  router.push('/estimates/new');
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors"
+              >
+                Go to Estimates
               </button>
             </div>
           </div>

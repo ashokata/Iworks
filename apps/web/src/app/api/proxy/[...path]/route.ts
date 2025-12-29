@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const MENDIX_API_URL = process.env.MENDIX_API_URL || 'http://localhost:8090';
+const MENDIX_API_URL = process.env.MENDIX_API_URL || 'http://localhost:4000';
 
 async function proxyRequest(
   request: NextRequest,

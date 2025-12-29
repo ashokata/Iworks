@@ -43,6 +43,9 @@ import usersRoutes from './routes/users.routes';
 // Import Appointments routes
 import appointmentsRoutes from './routes/appointments.routes';
 
+// Import Estimates routes
+import estimatesRoutes from './routes/estimates.routes';
+
 const app = express();
 const PORT = process.env.PORT || 4000;
 
@@ -102,6 +105,9 @@ app.use(usersRoutes);
 
 // Register Appointments routes
 app.use(appointmentsRoutes);
+
+// Register Estimates routes
+app.use(estimatesRoutes);
 
 // Health check
 app.get('/health', async (req, res) => {

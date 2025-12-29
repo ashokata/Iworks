@@ -1591,6 +1591,7 @@ model Estimate {
   options EstimateOption[]
   jobs    Job[]
   appointments Appointment[]
+  serviceRequests ServiceRequest[]
 
   @@unique([tenantId, estimateNumber])
   @@index([tenantId])
@@ -2241,6 +2242,10 @@ model ServiceRequest {
   jobId       String?
   job         Job?      @relation(fields: [jobId], references: [id])
   convertedAt DateTime?
+
+  // Estimate (optional)
+  estimateId String?
+  estimate   Estimate? @relation(fields: [estimateId], references: [id])
 
   // Source tracking
   createdSource CustomerCreatedSource @default(WEB)

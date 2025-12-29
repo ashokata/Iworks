@@ -42,6 +42,7 @@ export const handler = async (
       createdSource = 'WEB',
       serviceAddressId,
       assignedToId,
+      estimateId,
       notes,
       isServiceAddressSameAsPrimary,
     } = body;
@@ -104,6 +105,7 @@ export const handler = async (
         createdSource,
         serviceAddressId: serviceAddressId || null,
         assignedToId: assignedToId || null,
+        estimateId: estimateId || null,
         notes: notes || null,
         isServiceAddressSameAsPrimary: isServiceAddressSameAsPrimary || false,
       },
