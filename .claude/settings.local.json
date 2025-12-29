@@ -20,7 +20,11 @@
       "Bash(npx prisma migrate:*)",
       "Bash(npx prisma db push:*)",
       "Bash(PGPASSWORD=postgres psql:*)",
-      "Bash(npx tsx:*)"
+      "Bash(npx tsx:*)",
+      "Bash(eas whoami:*)",
+      "WebFetch(domain:expo.dev)",
+      "Bash(npx expo prebuild:*)",
+      "Bash(eas build:*)"
     ]
   }
 }
