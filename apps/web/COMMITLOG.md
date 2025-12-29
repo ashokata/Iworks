@@ -4,6 +4,103 @@ All commits to this project are documented in this file.
 
 ---
 
+## 📦 Commit #34 - 2025-12-29 11:20 PM (IST)
+
+**Developer:** Veera Kuppili
+**Type:** Feature
+
+### 📝 Commit Message
+```
+feat: implement complete estimates CRUD functionality with full UI
+
+- Backend handlers:
+  * Add create, read, update, delete, and list estimate handlers
+  * Implement Prisma queries for estimates with nested options/line items
+  * Add validation for linked service requests and jobs before deletion
+  * Support status transitions (DRAFT → SENT → APPROVED/DECLINED)
+  * Handle automatic timestamps for status changes (sentAt, approvedAt, etc.)
+
+- API routes:
+  * Create /api/estimates routes with GET, POST, PUT, DELETE methods
+  * Add /api/estimates/:id/send, /approve, /decline convenience endpoints
+  * Implement Express middleware for Lambda handler integration
+
+- Frontend pages:
+  * Build estimates list page with table/card views and filtering
+  * Create new estimate form with customer/address selection
+  * Add estimate details page with options, line items, and status actions
+  * Implement edit estimate page with full form validation
+
+- Frontend services:
+  * Create estimateService with TypeScript interfaces
+  * Add methods for create, update, delete, send, approve, decline
+  * Implement enhanced error logging for debugging
+  * Support tenant-based API calls
+
+- Features:
+  * Multi-option estimates with recommended flags
+  * Line items with type, quantity, pricing, and taxable flags
+  * Discount support (percentage or fixed amount)
+  * Tax calculation per option and estimate total
+  * Address creation during estimate flow
+  * Duplicate validation for options and line items
+  * Real-time total calculations
+
+- Bug fixes:
+  * Fix Prisma deleteMany query (remove nested relation filters)
+  * Remove tenantId from EstimateLineItem creation (schema mismatch)
+  * Fix import syntax error in edit page (@tanstack/react-query)
+  * Remove duplicate edit button in details page
+  * Correct Decimal type handling for currency values
+```
+
+### ✨ Changes
+
+**Backend Handlers:**
+- ✅ `apps/api/src/handlers/estimates/create-postgres.ts` - Create estimate with options and line items
+- ✅ `apps/api/src/handlers/estimates/list-postgres.ts` - List all estimates for tenant
+- ✅ `apps/api/src/handlers/estimates/get-postgres.ts` - Get estimate by ID with full details
+- ✅ `apps/api/src/handlers/estimates/update-postgres.ts` - Update estimate with cascade operations
+- ✅ `apps/api/src/handlers/estimates/delete-postgres.ts` - Delete estimate with validation checks
+
+**API Routes:**
+- ✅ `apps/api/src/routes/estimates.routes.ts` - Complete REST API routes for estimates
+
+**Frontend Pages:**
+- ✅ `apps/web/src/app/estimates/page.tsx` - Estimates list with statistics, filtering, and pagination
+- ✅ `apps/web/src/app/estimates/new/page.tsx` - Create new estimate form with multi-option support
+- ✅ `apps/web/src/app/estimates/[id]/page.tsx` - Estimate details view with status actions
+- ✅ `apps/web/src/app/estimates/edit/[id]/page.tsx` - Edit estimate with full form validation
+
+**Frontend Services:**
+- ✅ `apps/web/src/services/estimateService.ts` - Complete estimate API client with TypeScript types
+
+### 🎯 Features Implemented
+- Full CRUD operations for estimates with nested options and line items
+- Multi-option estimates support (Option 1, Option 2, etc.)
+- Line item types: SERVICE, MATERIAL, LABOR, EQUIPMENT, OTHER
+- Discount support: NONE, PERCENTAGE, FIXED_AMOUNT
+- Tax calculation with taxable/non-taxable line items
+- Status workflow: DRAFT → SENT → VIEWED → APPROVED/DECLINED/EXPIRED
+- Automatic timestamp tracking for status transitions
+- Validation for linked service requests/jobs before deletion
+- Duplicate validation for option names and line item names
+- Real-time subtotal, discount, tax, and total calculations
+- Address creation during estimate flow (pending addresses)
+- Table and card view modes with search and filtering
+- Statistics dashboard (total, draft, sent, approved, declined, total value)
+
+### 🐛 Bug Fixes
+- Fixed Prisma deleteMany query by removing nested relation filters (option.estimateId)
+- Removed tenantId from EstimateLineItem creation (schema doesn't have this field)
+- Fixed import syntax error in edit page (@tanstack/react-query)
+- Removed duplicate edit button in details page
+- Corrected Decimal type handling for currency values with formatCurrency helper
+
+### 📊 Files Changed: 10
+
+---
+
 ## 📦 Commit #33 - 2025-12-24 (IST)
 
 **Developer:** Veera Kuppili
