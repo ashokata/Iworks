@@ -182,9 +182,11 @@ enum LineItemType {
   SERVICE
   MATERIAL
   LABOR
+  EQUIPMENT
   FEE
   DISCOUNT
   TAX
+  OTHER
 }
 
 enum ChecklistValueType {

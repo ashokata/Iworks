@@ -187,7 +187,7 @@ export const estimateService = {
     const url = `${API_CONFIG.BASE_URL}/api/estimates`;
     console.log('[EstimateService] Creating estimate with URL:', url);
     console.log('[EstimateService] API_CONFIG.BASE_URL:', API_CONFIG.BASE_URL);
-    console.log('[EstimateService] Data:', data);
+    console.log('[EstimateService] Data:', JSON.stringify(data, null, 2));
     
     const response = await fetch(url, {
       method: 'POST',
@@ -199,9 +199,21 @@ export const estimateService = {
       body: JSON.stringify(data),
     });
 
+    console.log('[EstimateService] Response status:', response.status, response.statusText);
+
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Failed to create estimate' }));
-      throw new Error(error.error || `Failed to create estimate: ${response.statusText}`);
+      const errorText = await response.text();
+      console.error('[EstimateService] Error response:', errorText);
+      
+      let errorMessage = 'Failed to create estimate';
+      try {
+        const errorJson = JSON.parse(errorText);
+        errorMessage = errorJson.error || errorJson.message || errorMessage;
+      } catch {
+        errorMessage = errorText || `${response.status} ${response.statusText}`;
+      }
+      
+      throw new Error(errorMessage);
     }
 
     const result = await response.json();
