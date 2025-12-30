@@ -63,6 +63,25 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     const customer = customers[0];
     console.log('[PG-Get] Customer found:', customer.id);
 
+    // Get linked addresses from addresses table
+    const addresses = await prisma.$queryRawUnsafe<any[]>(`
+      SELECT 
+        id, type, name, street, "streetLine2", city, state, zip, country,
+        "accessNotes", "gateCode", latitude, longitude, "createdAt", "updatedAt"
+      FROM addresses 
+      WHERE "customerId" = $1 AND "tenantId" = $2
+      ORDER BY 
+        CASE WHEN type = 'PRIMARY' THEN 0 
+             WHEN type = 'BILLING' THEN 1 
+             ELSE 2 END,
+        "createdAt" DESC
+    `, customerId, tenantId);
+
+    console.log('[PG-Get] Found', addresses?.length || 0, 'addresses for customer');
+
+    // Find primary address for backward compatibility
+    const primaryAddress = addresses?.find((a: any) => a.type === 'PRIMARY') || addresses?.[0];
+
     // Format response for frontend compatibility
     const response = {
       customer: {
@@ -77,12 +96,52 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         phone: customer.phone,
         mobilePhone: customer.phone,
         mobile_number: customer.phone,
-        address: customer.address ? {
+        // Legacy inline address (from customers table)
+        inlineAddress: customer.address ? {
           street: customer.address,
           city: customer.city,
           state: customer.state,
           zip: customer.zipCode,
         } : null,
+        // Primary address for backward compatibility
+        address: primaryAddress ? {
+          id: primaryAddress.id,
+          type: primaryAddress.type,
+          name: primaryAddress.name,
+          street: primaryAddress.street,
+          street2: primaryAddress.streetLine2,
+          streetLine2: primaryAddress.streetLine2,
+          city: primaryAddress.city,
+          state: primaryAddress.state,
+          zip: primaryAddress.zip,
+          country: primaryAddress.country,
+          accessNotes: primaryAddress.accessNotes,
+          gateCode: primaryAddress.gateCode,
+        } : (customer.address ? {
+          street: customer.address,
+          city: customer.city,
+          state: customer.state,
+          zip: customer.zipCode,
+        } : null),
+        // All addresses array
+        addresses: addresses?.map((addr: any) => ({
+          id: addr.id,
+          type: addr.type,
+          name: addr.name,
+          street: addr.street,
+          street2: addr.streetLine2,
+          streetLine2: addr.streetLine2,
+          city: addr.city,
+          state: addr.state,
+          zip: addr.zip,
+          country: addr.country,
+          accessNotes: addr.accessNotes,
+          gateCode: addr.gateCode,
+          latitude: addr.latitude,
+          longitude: addr.longitude,
+          createdAt: addr.createdAt,
+          updatedAt: addr.updatedAt,
+        })) || [],
         notes: customer.notes,
         tenantId: customer.tenantId,
         createdAt: customer.createdAt,

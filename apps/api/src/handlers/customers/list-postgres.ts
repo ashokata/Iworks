@@ -43,21 +43,32 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     let total: number;
 
     if (search) {
-      // Search customers
+      // Search customers with addresses
       const searchPattern = `%${search.toLowerCase()}%`;
       customers = await prisma.$queryRawUnsafe<any[]>(`
         SELECT 
-          id, "tenantId", "firstName", "lastName", email, phone, address, city, state, "zipCode", notes,
-          "createdAt", "updatedAt"
-        FROM customers 
-        WHERE "tenantId" = $1 
+          c.id, c."tenantId", c."firstName", c."lastName", c.email, c.phone, 
+          c.address as inline_address, c.city as inline_city, c.state as inline_state, c."zipCode" as inline_zip,
+          c.notes, c."createdAt", c."updatedAt",
+          a.id as addr_id, a.type as addr_type, a.street as addr_street, a."streetLine2" as addr_street2,
+          a.city as addr_city, a.state as addr_state, a.zip as addr_zip, a.country as addr_country
+        FROM customers c
+        LEFT JOIN (
+          SELECT DISTINCT ON ("customerId") *
+          FROM addresses
+          WHERE "tenantId" = $1
+          ORDER BY "customerId", 
+            CASE WHEN type = 'PRIMARY' THEN 0 WHEN type = 'BILLING' THEN 1 ELSE 2 END,
+            "createdAt" DESC
+        ) a ON c.id = a."customerId"
+        WHERE c."tenantId" = $1 
         AND (
-          LOWER("firstName") LIKE $2 
-          OR LOWER("lastName") LIKE $2 
-          OR LOWER(email) LIKE $2 
-          OR phone LIKE $2
+          LOWER(c."firstName") LIKE $2 
+          OR LOWER(c."lastName") LIKE $2 
+          OR LOWER(c.email) LIKE $2 
+          OR c.phone LIKE $2
         )
-        ORDER BY "createdAt" DESC
+        ORDER BY c."createdAt" DESC
         LIMIT $3 OFFSET $4
       `, tenantId, searchPattern, limit, offset);
 
@@ -73,14 +84,25 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       `, tenantId, searchPattern);
       total = parseInt(countResult[0]?.count || '0', 10);
     } else {
-      // List all customers
+      // List all customers with addresses
       customers = await prisma.$queryRawUnsafe<any[]>(`
         SELECT 
-          id, "tenantId", "firstName", "lastName", email, phone, address, city, state, "zipCode", notes,
-          "createdAt", "updatedAt"
-        FROM customers 
-        WHERE "tenantId" = $1 
-        ORDER BY "createdAt" DESC
+          c.id, c."tenantId", c."firstName", c."lastName", c.email, c.phone, 
+          c.address as inline_address, c.city as inline_city, c.state as inline_state, c."zipCode" as inline_zip,
+          c.notes, c."createdAt", c."updatedAt",
+          a.id as addr_id, a.type as addr_type, a.street as addr_street, a."streetLine2" as addr_street2,
+          a.city as addr_city, a.state as addr_state, a.zip as addr_zip, a.country as addr_country
+        FROM customers c
+        LEFT JOIN (
+          SELECT DISTINCT ON ("customerId") *
+          FROM addresses
+          WHERE "tenantId" = $1
+          ORDER BY "customerId", 
+            CASE WHEN type = 'PRIMARY' THEN 0 WHEN type = 'BILLING' THEN 1 ELSE 2 END,
+            "createdAt" DESC
+        ) a ON c.id = a."customerId"
+        WHERE c."tenantId" = $1 
+        ORDER BY c."createdAt" DESC
         LIMIT $2 OFFSET $3
       `, tenantId, limit, offset);
 
@@ -93,31 +115,47 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     console.log('[PG-List] Found customers:', customers.length);
 
     // Format response for frontend compatibility
-    const formattedCustomers = customers.map(customer => ({
-      id: customer.id,
-      customerId: customer.id,
-      firstName: customer.firstName,
-      lastName: customer.lastName,
-      first_name: customer.firstName,
-      last_name: customer.lastName,
-      display_name: `${customer.firstName || ''} ${customer.lastName || ''}`.trim() || 'Unknown',
-      email: customer.email,
-      phone: customer.phone,
-      mobilePhone: customer.phone,
-      mobile_number: customer.phone,
-      address: customer.address ? {
-        street: customer.address,
-        city: customer.city,
-        state: customer.state,
-        zip: customer.zipCode,
-      } : null,
-      notes: customer.notes,
-      tenantId: customer.tenantId,
-      createdAt: customer.createdAt,
-      created_at: customer.createdAt,
-      updatedAt: customer.updatedAt,
-      updated_at: customer.updatedAt,
-    }));
+    const formattedCustomers = customers.map(customer => {
+      // Prefer linked address over inline address
+      const hasLinkedAddress = customer.addr_id !== null;
+      const address = hasLinkedAddress ? {
+        id: customer.addr_id,
+        type: customer.addr_type,
+        street: customer.addr_street,
+        street2: customer.addr_street2,
+        streetLine2: customer.addr_street2,
+        city: customer.addr_city,
+        state: customer.addr_state,
+        zip: customer.addr_zip,
+        country: customer.addr_country,
+      } : (customer.inline_address ? {
+        street: customer.inline_address,
+        city: customer.inline_city,
+        state: customer.inline_state,
+        zip: customer.inline_zip,
+      } : null);
+
+      return {
+        id: customer.id,
+        customerId: customer.id,
+        firstName: customer.firstName,
+        lastName: customer.lastName,
+        first_name: customer.firstName,
+        last_name: customer.lastName,
+        display_name: `${customer.firstName || ''} ${customer.lastName || ''}`.trim() || 'Unknown',
+        email: customer.email,
+        phone: customer.phone,
+        mobilePhone: customer.phone,
+        mobile_number: customer.phone,
+        address,
+        notes: customer.notes,
+        tenantId: customer.tenantId,
+        createdAt: customer.createdAt,
+        created_at: customer.createdAt,
+        updatedAt: customer.updatedAt,
+        updated_at: customer.updatedAt,
+      };
+    });
 
     return {
       statusCode: 200,
