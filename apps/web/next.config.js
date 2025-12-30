@@ -7,8 +7,7 @@ const withPWA = require('next-pwa')({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',
-  // Disable image optimization for static export
+  // Disable image optimization for Amplify hosting
   images: {
     unoptimized: true,
   },
@@ -18,9 +17,8 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   env: {
-    NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || '/api-proxy',
+    NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || process.env.EXPO_PUBLIC_API_URL || 'https://epdlw6qkj7.execute-api.us-east-1.amazonaws.com/development',
   },
-  // Note: rewrites don't work with static export
 };
 
 module.exports = withPWA(nextConfig);
