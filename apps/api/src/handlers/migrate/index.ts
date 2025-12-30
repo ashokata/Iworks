@@ -1,12 +1,14 @@
 import { APIGatewayProxyHandler } from 'aws-lambda';
 import { PrismaClient } from '@prisma/client';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const prisma = new PrismaClient();
 
-// SQL to create all tables based on Prisma schema
-const createTablesSQL = `
--- Create tenants table
-CREATE TABLE IF NOT EXISTS tenants (
+// SQL statements in correct order
+const migrationStatements = [
+  // Create tenants table
+  `CREATE TABLE IF NOT EXISTS tenants (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     subdomain TEXT UNIQUE NOT NULL,
@@ -14,10 +16,10 @@ CREATE TABLE IF NOT EXISTS tenants (
     "isActive" BOOLEAN DEFAULT true NOT NULL,
     "createdAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP NOT NULL,
     "updatedAt" TIMESTAMP(3) NOT NULL
-);
+  )`,
 
--- Create users table
-CREATE TABLE IF NOT EXISTS users (
+  // Create users table
+  `CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     email TEXT UNIQUE NOT NULL,
     "passwordHash" TEXT NOT NULL,
@@ -29,13 +31,13 @@ CREATE TABLE IF NOT EXISTS users (
     "tenantId" TEXT NOT NULL REFERENCES tenants(id),
     "createdAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP NOT NULL,
     "updatedAt" TIMESTAMP(3) NOT NULL
-);
+  )`,
 
-CREATE INDEX IF NOT EXISTS "users_tenantId_idx" ON users("tenantId");
-CREATE INDEX IF NOT EXISTS "users_email_idx" ON users(email);
+  `CREATE INDEX IF NOT EXISTS "users_tenantId_idx" ON users("tenantId")`,
+  `CREATE INDEX IF NOT EXISTS "users_email_idx" ON users(email)`,
 
--- Create customers table
-CREATE TABLE IF NOT EXISTS customers (
+  // Create customers table
+  `CREATE TABLE IF NOT EXISTS customers (
     id TEXT PRIMARY KEY,
     "firstName" TEXT NOT NULL,
     "lastName" TEXT NOT NULL,
@@ -49,13 +51,13 @@ CREATE TABLE IF NOT EXISTS customers (
     "tenantId" TEXT NOT NULL REFERENCES tenants(id),
     "createdAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP NOT NULL,
     "updatedAt" TIMESTAMP(3) NOT NULL
-);
+  )`,
 
-CREATE INDEX IF NOT EXISTS "customers_tenantId_idx" ON customers("tenantId");
-CREATE INDEX IF NOT EXISTS "customers_email_idx" ON customers(email);
+  `CREATE INDEX IF NOT EXISTS "customers_tenantId_idx" ON customers("tenantId")`,
+  `CREATE INDEX IF NOT EXISTS "customers_email_idx" ON customers(email)`,
 
--- Create jobs table
-CREATE TABLE IF NOT EXISTS jobs (
+  // Create jobs table
+  `CREATE TABLE IF NOT EXISTS jobs (
     id TEXT PRIMARY KEY,
     "jobNumber" TEXT UNIQUE NOT NULL,
     title TEXT NOT NULL,
@@ -77,27 +79,27 @@ CREATE TABLE IF NOT EXISTS jobs (
     "tenantId" TEXT NOT NULL REFERENCES tenants(id),
     "createdAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP NOT NULL,
     "updatedAt" TIMESTAMP(3) NOT NULL
-);
+  )`,
 
-CREATE INDEX IF NOT EXISTS "jobs_tenantId_idx" ON jobs("tenantId");
-CREATE INDEX IF NOT EXISTS "jobs_customerId_idx" ON jobs("customerId");
-CREATE INDEX IF NOT EXISTS "jobs_assignedToId_idx" ON jobs("assignedToId");
-CREATE INDEX IF NOT EXISTS "jobs_status_idx" ON jobs(status);
-CREATE INDEX IF NOT EXISTS "jobs_scheduledDate_idx" ON jobs("scheduledDate");
+  `CREATE INDEX IF NOT EXISTS "jobs_tenantId_idx" ON jobs("tenantId")`,
+  `CREATE INDEX IF NOT EXISTS "jobs_customerId_idx" ON jobs("customerId")`,
+  `CREATE INDEX IF NOT EXISTS "jobs_assignedToId_idx" ON jobs("assignedToId")`,
+  `CREATE INDEX IF NOT EXISTS "jobs_status_idx" ON jobs(status)`,
+  `CREATE INDEX IF NOT EXISTS "jobs_scheduledDate_idx" ON jobs("scheduledDate")`,
 
--- Create job_notes table
-CREATE TABLE IF NOT EXISTS job_notes (
+  // Create job_notes table
+  `CREATE TABLE IF NOT EXISTS job_notes (
     id TEXT PRIMARY KEY,
     "jobId" TEXT NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
     note TEXT NOT NULL,
     "createdBy" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP NOT NULL
-);
+  )`,
 
-CREATE INDEX IF NOT EXISTS "job_notes_jobId_idx" ON job_notes("jobId");
+  `CREATE INDEX IF NOT EXISTS "job_notes_jobId_idx" ON job_notes("jobId")`,
 
--- Create invoices table
-CREATE TABLE IF NOT EXISTS invoices (
+  // Create invoices table
+  `CREATE TABLE IF NOT EXISTS invoices (
     id TEXT PRIMARY KEY,
     "invoiceNumber" TEXT UNIQUE NOT NULL,
     "jobId" TEXT NOT NULL REFERENCES jobs(id),
@@ -111,14 +113,14 @@ CREATE TABLE IF NOT EXISTS invoices (
     "tenantId" TEXT NOT NULL REFERENCES tenants(id),
     "createdAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP NOT NULL,
     "updatedAt" TIMESTAMP(3) NOT NULL
-);
+  )`,
 
-CREATE INDEX IF NOT EXISTS "invoices_tenantId_idx" ON invoices("tenantId");
-CREATE INDEX IF NOT EXISTS "invoices_jobId_idx" ON invoices("jobId");
-CREATE INDEX IF NOT EXISTS "invoices_status_idx" ON invoices(status);
+  `CREATE INDEX IF NOT EXISTS "invoices_tenantId_idx" ON invoices("tenantId")`,
+  `CREATE INDEX IF NOT EXISTS "invoices_jobId_idx" ON invoices("jobId")`,
+  `CREATE INDEX IF NOT EXISTS "invoices_status_idx" ON invoices(status)`,
 
--- Create invoice_items table
-CREATE TABLE IF NOT EXISTS invoice_items (
+  // Create invoice_items table
+  `CREATE TABLE IF NOT EXISTS invoice_items (
     id TEXT PRIMARY KEY,
     "invoiceId" TEXT NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
     description TEXT NOT NULL,
@@ -126,17 +128,21 @@ CREATE TABLE IF NOT EXISTS invoice_items (
     "unitPrice" DECIMAL(10,2) NOT NULL,
     total DECIMAL(10,2) NOT NULL,
     "sortOrder" INTEGER DEFAULT 0 NOT NULL
-);
+  )`,
 
-CREATE INDEX IF NOT EXISTS "invoice_items_invoiceId_idx" ON invoice_items("invoiceId");
-`;
+  `CREATE INDEX IF NOT EXISTS "invoice_items_invoiceId_idx" ON invoice_items("invoiceId")`
+];
 
 export const handler: APIGatewayProxyHandler = async (event) => {
   try {
     console.log('📦 Starting database migration...');
 
-    // Execute the SQL to create tables
-    await prisma.$executeRawUnsafe(createTablesSQL);
+    // Execute each statement individually
+    for (let i = 0; i < migrationStatements.length; i++) {
+      const statement = migrationStatements[i];
+      console.log(`Executing statement ${i + 1}/${migrationStatements.length}:`, statement.substring(0, 50) + '...');
+      await prisma.$executeRawUnsafe(statement);
+    }
 
     console.log('✅ Database schema created successfully');
 

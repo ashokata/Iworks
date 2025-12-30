@@ -6,12 +6,19 @@ import * as rds from 'aws-cdk-lib/aws-rds';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as iam from 'aws-cdk-lib/aws-iam';
+import * as amplify from 'aws-cdk-lib/aws-amplify';
 import { Construct } from 'constructs';
 import * as path from 'path';
 
+export interface FieldSmartProStackProps extends cdk.StackProps {
+  stage: string; // 'development' | 'production'
+}
+
 export class FieldSmartProStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+  constructor(scope: Construct, id: string, props: FieldSmartProStackProps) {
     super(scope, id, props);
+
+    const stage = props.stage;
 
     // VPC for RDS
     const vpc = new ec2.Vpc(this, 'FieldSmartProVPC', {
@@ -64,6 +71,7 @@ export class FieldSmartProStack extends cdk.Stack {
 
     // DynamoDB Tables (keep for AI conversations and caching)
     const conversationsTable = new dynamodb.Table(this, 'ConversationsTable', {
+      tableName: `fieldsmartpro-conversations-${stage}`,
       partitionKey: { name: 'conversationId', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       timeToLiveAttribute: 'ttl',
@@ -77,18 +85,16 @@ export class FieldSmartProStack extends cdk.Stack {
     });
 
     const cacheTable = new dynamodb.Table(this, 'CacheTable', {
+      tableName: `fieldsmartpro-cache-${stage}`,
       partitionKey: { name: 'cacheKey', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       timeToLiveAttribute: 'ttl',
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
-    // Construct DATABASE_URL for Prisma
-    const databaseUrl = `postgresql://${dbSecret.secretValueFromJson('username').unsafeUnwrap()}:${dbSecret.secretValueFromJson('password').unsafeUnwrap()}@${dbCluster.clusterEndpoint.hostname}:5432/fieldsmartpro?schema=public`;
-
     // Lambda environment for PostgreSQL functions
     const postgresLambdaEnv = {
-      DATABASE_URL: databaseUrl,
+      DATABASE_URL: `postgresql://${dbSecret.secretValueFromJson('username').unsafeUnwrap()}:${dbSecret.secretValueFromJson('password').unsafeUnwrap()}@${dbCluster.clusterEndpoint.hostname}:5432/fieldsmartpro?schema=public`,
       DYNAMODB_CONVERSATIONS_TABLE: conversationsTable.tableName,
       DYNAMODB_CACHE_TABLE: cacheTable.tableName,
       NODE_ENV: 'production',
@@ -102,8 +108,8 @@ export class FieldSmartProStack extends cdk.Stack {
       vpc,
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
       securityGroups: [lambdaSg],
-      timeout: cdk.Duration.seconds(30),
-      memorySize: 512, // More memory for Prisma
+      timeout: cdk.Duration.seconds(60), // Increased for Prisma cold start
+      memorySize: 1024, // More memory for better performance
     };
 
     // ============================================================================
@@ -214,6 +220,13 @@ export class FieldSmartProStack extends cdk.Stack {
       },
     });
 
+    // Grant database secret read permissions to all PostgreSQL Lambda functions
+    const postgresLambdas = [
+      createCustomerFn, listCustomersFn, getCustomerFn, updateCustomerFn,
+      createJobFn, seedFn, migrateFn, vapiWebhookFn, llmChatFn
+    ];
+    postgresLambdas.forEach(fn => dbSecret.grantRead(fn));
+
     // Grant Bedrock permissions
     const bedrockPolicy = new iam.PolicyStatement({
       actions: ['bedrock:InvokeModel', 'bedrock:InvokeModelWithResponseStream'],
@@ -232,8 +245,15 @@ export class FieldSmartProStack extends cdk.Stack {
     // ============================================================================
 
     const api = new apigateway.RestApi(this, 'FieldSmartProAPI', {
-      restApiName: 'FieldSmartPro API',
-      description: 'Field service management API - PostgreSQL Backend',
+      restApiName: `FieldSmartPro API (${stage})`,
+      description: `Field service management API - PostgreSQL Backend - ${stage}`,
+      deployOptions: {
+        stageName: stage,
+        tracingEnabled: true,
+        metricsEnabled: true,
+        loggingLevel: apigateway.MethodLoggingLevel.INFO,
+        dataTraceEnabled: stage === 'development',
+      },
       defaultCorsPreflightOptions: {
         allowOrigins: apigateway.Cors.ALL_ORIGINS,
         allowMethods: apigateway.Cors.ALL_METHODS,
@@ -281,27 +301,61 @@ export class FieldSmartProStack extends cdk.Stack {
     vapiTenantWebhook.addMethod('POST', new apigateway.LambdaIntegration(vapiWebhookFn));
 
     // ============================================================================
+    // WEB FRONTEND - AWS AMPLIFY HOSTING
+    // ============================================================================
+    // Amplify app is being set up manually through AWS Console
+    // Use the following configuration when setting up:
+    // Repository: https://github.com/ashokata/Iworks
+    // Branch: customers-dynamodb (for development)
+    // Build settings are in the build spec below
+
+    // ============================================================================
     // OUTPUTS
     // ============================================================================
 
+    new cdk.CfnOutput(this, 'Environment', {
+      value: stage,
+      description: 'Deployment environment',
+      exportName: `${id}-Environment`,
+    });
+
     new cdk.CfnOutput(this, 'ApiUrl', {
       value: api.url,
-      description: 'API Gateway endpoint',
+      description: 'API Gateway endpoint URL',
+      exportName: `${id}-ApiUrl`,
     });
 
     new cdk.CfnOutput(this, 'DatabaseEndpoint', {
       value: dbCluster.clusterEndpoint.hostname,
-      description: 'Aurora PostgreSQL endpoint',
+      description: 'Aurora PostgreSQL cluster endpoint',
+      exportName: `${id}-DatabaseEndpoint`,
     });
 
     new cdk.CfnOutput(this, 'DatabaseSecretArn', {
       value: dbSecret.secretArn,
-      description: 'Database credentials secret ARN',
+      description: 'Database credentials secret ARN (use AWS CLI to retrieve)',
+      exportName: `${id}-DatabaseSecretArn`,
+    });
+
+    new cdk.CfnOutput(this, 'DatabaseName', {
+      value: 'fieldsmartpro',
+      description: 'Database name',
     });
 
     new cdk.CfnOutput(this, 'VpcId', {
       value: vpc.vpcId,
       description: 'VPC ID',
+      exportName: `${id}-VpcId`,
+    });
+
+    new cdk.CfnOutput(this, 'ConversationsTableName', {
+      value: conversationsTable.tableName,
+      description: 'DynamoDB Conversations Table',
+    });
+
+    new cdk.CfnOutput(this, 'CacheTableName', {
+      value: cacheTable.tableName,
+      description: 'DynamoDB Cache Table',
     });
   }
 }

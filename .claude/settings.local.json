@@ -24,7 +24,15 @@
       "Bash(eas whoami:*)",
       "WebFetch(domain:expo.dev)",
       "Bash(npx expo prebuild:*)",
-      "Bash(eas build:*)"
+      "Bash(eas build:*)",
+      "Bash(aws secretsmanager get-secret-value:*)",
+      "Bash(npm run generate:*)",
+      "Bash(taskkill:*)",
+      "Bash(npm run build:dev:*)",
+      "Bash(npx prisma generate:*)",
+      "Bash(cdk deploy:*)",
+      "Bash(timeout 30 cmd:*)",
+      "Bash(npm run build:skip-check:*)"
     ]
   }
 }

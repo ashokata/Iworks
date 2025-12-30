@@ -5,9 +5,29 @@ import { FieldSmartProStack } from '../lib/fieldsmartpro-stack';
 
 const app = new cdk.App();
 
-new FieldSmartProStack(app, 'FieldSmartProStack', {
-  env: {
-    account: process.env.CDK_DEFAULT_ACCOUNT,
-    region: process.env.CDK_DEFAULT_REGION || 'us-east-1',
+const account = process.env.CDK_DEFAULT_ACCOUNT;
+const region = process.env.CDK_DEFAULT_REGION || 'us-east-1';
+
+// Development Environment
+new FieldSmartProStack(app, 'FieldSmartProStack-Development', {
+  env: { account, region },
+  stage: 'development',
+  description: 'FieldSmartPro Development/QA Environment',
+  tags: {
+    Environment: 'Development',
+    Project: 'FieldSmartPro',
+    ManagedBy: 'CDK',
   },
 });
+
+// Production Environment (uncomment when ready)
+// new FieldSmartProStack(app, 'FieldSmartProStack-Production', {
+//   env: { account, region },
+//   stage: 'production',
+//   description: 'FieldSmartPro Production Environment',
+//   tags: {
+//     Environment: 'Production',
+//     Project: 'FieldSmartPro',
+//     ManagedBy: 'CDK',
+//   },
+// });
