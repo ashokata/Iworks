@@ -1,45 +1,27 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { z } from 'zod';
-import { customerPostgresService } from '../../services/customer.postgres.service';
 import { getPrismaClient } from '../../services/prisma.service';
-
-const prisma = getPrismaClient();
 
 // Validation schema - accepts both camelCase and snake_case
 const updateCustomerSchema = z.object({
-  type: z.string().optional(), // Accept any string, normalize later
   firstName: z.string().optional(),
   lastName: z.string().optional(),
   first_name: z.string().optional(),
   last_name: z.string().optional(),
   display_name: z.string().optional(),
   displayName: z.string().optional(),
-  companyName: z.string().optional(),
-  company_name: z.string().optional(),
-  company: z.string().optional(),
   email: z.string().email().optional().or(z.literal('')),
   phone: z.string().optional(),
   mobilePhone: z.string().optional(),
   mobile_number: z.string().optional(),
-  homePhone: z.string().optional(),
-  home_number: z.string().optional(),
-  workPhone: z.string().optional(),
-  work_number: z.string().optional(),
-  jobTitle: z.string().optional(),
-  job_title: z.string().optional(),
-  preferredContactMethod: z.enum(['SMS', 'EMAIL', 'VOICE', 'PUSH', 'IN_APP']).optional(),
   notes: z.string().optional(),
-  doNotService: z.boolean().optional(),
-  doNotServiceReason: z.string().optional(),
-  notificationsEnabled: z.boolean().optional(),
-  notifications_enabled: z.boolean().optional(),
-  isContractor: z.boolean().optional(),
-  is_contractor: z.boolean().optional(),
-  isArchived: z.boolean().optional(),
-  archived: z.boolean().optional(),
-  verificationStatus: z.enum(['VERIFIED', 'UNVERIFIED', 'PENDING']).optional(),
-  verification_status: z.enum(['VERIFIED', 'UNVERIFIED', 'PENDING']).optional(),
-}).passthrough(); // Allow additional fields
+  street: z.string().optional(),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  zip: z.string().optional(),
+  zipCode: z.string().optional(),
+}).passthrough();
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   console.log('[PG-Update] Handler invoked');
@@ -47,10 +29,12 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
   const headers = {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type,X-Tenant-Id,X-User-Id',
+    'Access-Control-Allow-Headers': 'Content-Type,X-Tenant-Id,X-User-Id,Authorization',
   };
 
   try {
+    const prisma = getPrismaClient();
+    
     // Get tenant ID from header - REQUIRED for tenant isolation
     const tenantId = event.headers['x-tenant-id'] || event.headers['X-Tenant-Id'] || event.headers['X-Tenant-ID'];
     
@@ -123,71 +107,23 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       }
     }
 
-    // Normalize type (homeowner -> RESIDENTIAL, business -> COMMERCIAL)
-    let customerType = body.type;
-    if (customerType) {
-      customerType = customerType.toUpperCase();
-      if (customerType === 'HOMEOWNER') customerType = 'RESIDENTIAL';
-      if (customerType === 'BUSINESS') customerType = 'COMMERCIAL';
-    }
+    const email = body.email || '';
+    const phone = body.mobilePhone || body.mobile_number || body.phone || '';
+    const address = body.street || body.address || '';
+    const city = body.city || '';
+    const state = body.state || '';
+    const zipCode = body.zip || body.zipCode || '';
+    const notes = body.notes;
 
-    // Normalize field names
-    const normalizedData = {
-      type: customerType as 'RESIDENTIAL' | 'COMMERCIAL' | 'CONTRACTOR' | undefined,
-      firstName,
-      lastName,
-      companyName: body.companyName || body.company_name || body.company,
-      email: body.email || undefined,
-      mobilePhone: body.mobilePhone || body.mobile_number || body.phone,
-      homePhone: body.homePhone || body.home_number,
-      workPhone: body.workPhone || body.work_number,
-      jobTitle: body.jobTitle || body.job_title,
-      preferredContactMethod: body.preferredContactMethod,
-      notes: body.notes,
-      doNotService: body.doNotService,
-      doNotServiceReason: body.doNotServiceReason,
-      notificationsEnabled: body.notificationsEnabled ?? body.notifications_enabled,
-      verificationStatus: body.verificationStatus || body.verification_status,
-    };
+    // Check if customer exists using raw SQL
+    const existingCustomers = await prisma.$queryRawUnsafe<any[]>(`
+      SELECT id, "firstName", "lastName", email, phone, address, city, state, "zipCode", notes
+      FROM customers 
+      WHERE id = $1 AND "tenantId" = $2
+      LIMIT 1
+    `, customerId, tenantId);
 
-    // Remove undefined values
-    const cleanData = Object.fromEntries(
-      Object.entries(normalizedData).filter(([_, v]) => v !== undefined)
-    );
-
-    console.log('[PG-Update] Normalized data:', JSON.stringify(cleanData));
-
-    // Check if email already exists for another customer in this tenant
-    if (cleanData.email) {
-      const existingCustomer = await prisma.customer.findFirst({
-        where: {
-          tenantId,
-          email: cleanData.email,
-          isArchived: false,
-          NOT: {
-            id: customerId, // Exclude current customer
-          },
-        },
-        select: { id: true, email: true },
-      });
-
-      if (existingCustomer) {
-        console.log('[PG-Update] Email already exists for another customer:', cleanData.email);
-        return {
-          statusCode: 400,
-          headers,
-          body: JSON.stringify({
-            error: 'Email already exists',
-            message: `A customer with email "${cleanData.email}" already exists. Please use a different email address.`,
-          }),
-        };
-      }
-    }
-
-    // Update customer
-    const customer = await customerPostgresService.updateCustomer(tenantId, customerId, cleanData);
-
-    if (!customer) {
+    if (!existingCustomers || existingCustomers.length === 0) {
       return {
         statusCode: 404,
         headers,
@@ -195,42 +131,90 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       };
     }
 
-    console.log('[PG-Update] Customer updated:', customer.id);
+    const existing = existingCustomers[0];
+
+    // Check if email already exists for another customer
+    if (email && email !== existing.email) {
+      const emailCheck = await prisma.$queryRawUnsafe<any[]>(`
+        SELECT id FROM customers 
+        WHERE "tenantId" = $1 AND LOWER(email) = LOWER($2) AND id != $3
+        LIMIT 1
+      `, tenantId, email, customerId);
+
+      if (emailCheck && emailCheck.length > 0) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({
+            error: 'Email already exists',
+            message: `A customer with email "${email}" already exists.`,
+          }),
+        };
+      }
+    }
+
+    // Update customer using raw SQL - only update fields that are provided
+    await prisma.$executeRawUnsafe(`
+      UPDATE customers SET
+        "firstName" = COALESCE($1, "firstName"),
+        "lastName" = COALESCE($2, "lastName"),
+        email = COALESCE($3, email),
+        phone = COALESCE($4, phone),
+        address = COALESCE($5, address),
+        city = COALESCE($6, city),
+        state = COALESCE($7, state),
+        "zipCode" = COALESCE($8, "zipCode"),
+        notes = COALESCE($9, notes),
+        "updatedAt" = NOW()
+      WHERE id = $10 AND "tenantId" = $11
+    `, 
+      firstName || null,
+      lastName || null,
+      email || null,
+      phone || null,
+      address || null,
+      city || null,
+      state || null,
+      zipCode || null,
+      notes !== undefined ? notes : null,
+      customerId,
+      tenantId
+    );
+
+    console.log('[PG-Update] Customer updated:', customerId);
+
+    // Fetch updated customer
+    const updatedCustomers = await prisma.$queryRawUnsafe<any[]>(`
+      SELECT id, "tenantId", "firstName", "lastName", email, phone, address, city, state, "zipCode", notes,
+             "createdAt", "updatedAt"
+      FROM customers 
+      WHERE id = $1 AND "tenantId" = $2
+      LIMIT 1
+    `, customerId, tenantId);
+
+    const customer = updatedCustomers[0];
 
     // Format response for frontend compatibility
-    const primaryAddress = customer.addresses?.find(a => a.type === 'PRIMARY') || customer.addresses?.[0];
     const response = {
       customer: {
         id: customer.id,
         customerId: customer.id,
-        customerNumber: customer.customerNumber,
-        type: customer.type,
         firstName: customer.firstName,
         lastName: customer.lastName,
         first_name: customer.firstName,
         last_name: customer.lastName,
-        display_name: customer.companyName || `${customer.firstName || ''} ${customer.lastName || ''}`.trim(),
-        companyName: customer.companyName,
-        company: customer.companyName,
+        display_name: `${customer.firstName || ''} ${customer.lastName || ''}`.trim() || 'Unknown',
         email: customer.email,
-        mobilePhone: customer.mobilePhone,
-        mobile_number: customer.mobilePhone,
-        homePhone: customer.homePhone,
-        home_number: customer.homePhone,
-        workPhone: customer.workPhone,
-        work_number: customer.workPhone,
-        notes: customer.notes,
-        address: primaryAddress ? {
-          street: primaryAddress.street,
-          city: primaryAddress.city,
-          state: primaryAddress.state,
-          zip: primaryAddress.zip,
+        phone: customer.phone,
+        mobilePhone: customer.phone,
+        mobile_number: customer.phone,
+        address: customer.address ? {
+          street: customer.address,
+          city: customer.city,
+          state: customer.state,
+          zip: customer.zipCode,
         } : null,
-        addresses: customer.addresses,
-        verificationStatus: (customer as any).verificationStatus || 'VERIFIED',
-        verification_status: (customer as any).verificationStatus || 'VERIFIED',
-        createdSource: (customer as any).createdSource || 'WEB',
-        created_source: (customer as any).createdSource || 'WEB',
+        notes: customer.notes,
         tenantId: customer.tenantId,
         createdAt: customer.createdAt,
         created_at: customer.createdAt,
@@ -256,4 +240,3 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     };
   }
 };
-
