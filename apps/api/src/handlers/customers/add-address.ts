@@ -86,9 +86,9 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     const body = validationResult.data;
 
     // Verify customer exists
-    const customerCheck = await prisma.$queryRawUnsafe<any[]>(`
+    const customerCheck = await prisma.$queryRawUnsafe(`
       SELECT id FROM customers WHERE id = $1 AND "tenantId" = $2 LIMIT 1
-    `, customerId, tenantId);
+    `, customerId, tenantId) as any[];
 
     if (!customerCheck || customerCheck.length === 0) {
       return {

@@ -37,12 +37,12 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     console.log('[Tenant-Get] Tenant ID:', tenantId);
 
     // Get tenant using raw SQL
-    const tenants = await prisma.$queryRawUnsafe<any[]>(`
+    const tenants = await prisma.$queryRawUnsafe(`
       SELECT id, name, subdomain, settings, "isActive", "createdAt", "updatedAt"
       FROM tenants 
       WHERE id = $1
       LIMIT 1
-    `, tenantId);
+    `, tenantId) as any[];
 
     if (!tenants || tenants.length === 0) {
       return {

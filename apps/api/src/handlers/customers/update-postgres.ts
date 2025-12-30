@@ -116,12 +116,12 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     const notes = body.notes;
 
     // Check if customer exists using raw SQL
-    const existingCustomers = await prisma.$queryRawUnsafe<any[]>(`
+    const existingCustomers = await prisma.$queryRawUnsafe(`
       SELECT id, "firstName", "lastName", email, phone, address, city, state, "zipCode", notes
       FROM customers 
       WHERE id = $1 AND "tenantId" = $2
       LIMIT 1
-    `, customerId, tenantId);
+    `, customerId, tenantId) as any[];
 
     if (!existingCustomers || existingCustomers.length === 0) {
       return {
@@ -135,11 +135,11 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     // Check if email already exists for another customer
     if (email && email !== existing.email) {
-      const emailCheck = await prisma.$queryRawUnsafe<any[]>(`
+      const emailCheck = await prisma.$queryRawUnsafe(`
         SELECT id FROM customers 
         WHERE "tenantId" = $1 AND LOWER(email) = LOWER($2) AND id != $3
         LIMIT 1
-      `, tenantId, email, customerId);
+      `, tenantId, email, customerId) as any[];
 
       if (emailCheck && emailCheck.length > 0) {
         return {
@@ -184,13 +184,13 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     console.log('[PG-Update] Customer updated:', customerId);
 
     // Fetch updated customer
-    const updatedCustomers = await prisma.$queryRawUnsafe<any[]>(`
+    const updatedCustomers = await prisma.$queryRawUnsafe(`
       SELECT id, "tenantId", "firstName", "lastName", email, phone, address, city, state, "zipCode", notes,
              "createdAt", "updatedAt"
       FROM customers 
       WHERE id = $1 AND "tenantId" = $2
       LIMIT 1
-    `, customerId, tenantId);
+    `, customerId, tenantId) as any[];
 
     const customer = updatedCustomers[0];
 

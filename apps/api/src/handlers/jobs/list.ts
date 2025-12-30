@@ -43,7 +43,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     let total: number;
 
     if (status) {
-      jobs = await prisma.$queryRawUnsafe<any[]>(`
+      jobs = await prisma.$queryRawUnsafe(`
         SELECT 
           j.id, j."jobNumber", j.title, j.description, j.status, j.priority,
           j."scheduledDate", j."completedDate", j."estimatedDuration", j."actualDuration",
@@ -56,14 +56,14 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         WHERE j."tenantId" = $1 AND j.status = $2
         ORDER BY j."scheduledDate" DESC
         LIMIT $3 OFFSET $4
-      `, tenantId, status, limit, offset);
+      `, tenantId, status, limit, offset) as any[];
 
-      const countResult = await prisma.$queryRawUnsafe<any[]>(`
+      const countResult = await prisma.$queryRawUnsafe(`
         SELECT COUNT(*) as count FROM jobs WHERE "tenantId" = $1 AND status = $2
-      `, tenantId, status);
+      `, tenantId, status) as any[];
       total = parseInt(countResult[0]?.count || '0', 10);
     } else {
-      jobs = await prisma.$queryRawUnsafe<any[]>(`
+      jobs = await prisma.$queryRawUnsafe(`
         SELECT 
           j.id, j."jobNumber", j.title, j.description, j.status, j.priority,
           j."scheduledDate", j."completedDate", j."estimatedDuration", j."actualDuration",
@@ -76,11 +76,11 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         WHERE j."tenantId" = $1
         ORDER BY j."scheduledDate" DESC
         LIMIT $2 OFFSET $3
-      `, tenantId, limit, offset);
+      `, tenantId, limit, offset) as any[];
 
-      const countResult = await prisma.$queryRawUnsafe<any[]>(`
+      const countResult = await prisma.$queryRawUnsafe(`
         SELECT COUNT(*) as count FROM jobs WHERE "tenantId" = $1
-      `, tenantId);
+      `, tenantId) as any[];
       total = parseInt(countResult[0]?.count || '0', 10);
     }
 

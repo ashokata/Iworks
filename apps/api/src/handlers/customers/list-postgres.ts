@@ -45,7 +45,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     if (search) {
       // Search customers with addresses
       const searchPattern = `%${search.toLowerCase()}%`;
-      customers = await prisma.$queryRawUnsafe<any[]>(`
+      customers = await prisma.$queryRawUnsafe(`
         SELECT 
           c.id, c."tenantId", c."firstName", c."lastName", c.email, c.phone, 
           c.address as inline_address, c.city as inline_city, c.state as inline_state, c."zipCode" as inline_zip,
@@ -72,7 +72,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         LIMIT $3 OFFSET $4
       `, tenantId, searchPattern, limit, offset);
 
-      const countResult = await prisma.$queryRawUnsafe<any[]>(`
+      const countResult = await prisma.$queryRawUnsafe(`
         SELECT COUNT(*) as count FROM customers 
         WHERE "tenantId" = $1 
         AND (
@@ -81,11 +81,11 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
           OR LOWER(email) LIKE $2 
           OR phone LIKE $2
         )
-      `, tenantId, searchPattern);
+      `, tenantId, searchPattern) as any[];
       total = parseInt(countResult[0]?.count || '0', 10);
     } else {
       // List all customers with addresses
-      customers = await prisma.$queryRawUnsafe<any[]>(`
+      customers = await prisma.$queryRawUnsafe(`
         SELECT 
           c.id, c."tenantId", c."firstName", c."lastName", c.email, c.phone, 
           c.address as inline_address, c.city as inline_city, c.state as inline_state, c."zipCode" as inline_zip,
@@ -106,9 +106,9 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         LIMIT $2 OFFSET $3
       `, tenantId, limit, offset);
 
-      const countResult = await prisma.$queryRawUnsafe<any[]>(`
+      const countResult = await prisma.$queryRawUnsafe(`
         SELECT COUNT(*) as count FROM customers WHERE "tenantId" = $1
-      `, tenantId);
+      `, tenantId) as any[];
       total = parseInt(countResult[0]?.count || '0', 10);
     }
 

@@ -12,9 +12,9 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     console.log('✅ Database connection successful');
 
     // Check if tenant exists
-    const tenantExists = await prisma.$queryRawUnsafe<any[]>(`
+    const tenantExists = await prisma.$queryRawUnsafe(`
       SELECT COUNT(*) as count FROM tenants WHERE id = 'tenant1'
-    `);
+    `) as any[];
 
     if (parseInt(tenantExists[0].count) === 0) {
       // Create demo tenant using raw SQL (simple schema)
@@ -28,9 +28,9 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     }
 
     // Check if users exist
-    const usersExist = await prisma.$queryRawUnsafe<any[]>(`
+    const usersExist = await prisma.$queryRawUnsafe(`
       SELECT COUNT(*) as count FROM users WHERE "tenantId" = 'tenant1'
-    `);
+    `) as any[];
 
     if (parseInt(usersExist[0].count) === 0) {
       // Create demo users using raw SQL (simple schema)
@@ -47,9 +47,9 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     }
 
     // Check if customers already exist
-    const existingCustomers = await prisma.$queryRawUnsafe<any[]>(`
+    const existingCustomers = await prisma.$queryRawUnsafe(`
       SELECT COUNT(*) as count FROM customers WHERE "tenantId" = 'tenant1'
-    `);
+    `) as any[];
 
     const customerCount = parseInt(existingCustomers[0].count);
 

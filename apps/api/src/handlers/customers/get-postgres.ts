@@ -43,14 +43,14 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     console.log('[PG-Get] Customer ID:', customerId);
 
     // Get customer using raw SQL
-    const customers = await prisma.$queryRawUnsafe<any[]>(`
+    const customers = await prisma.$queryRawUnsafe(`
       SELECT 
         id, "tenantId", "firstName", "lastName", email, phone, address, city, state, "zipCode", notes,
         "createdAt", "updatedAt"
       FROM customers 
       WHERE id = $1 AND "tenantId" = $2
       LIMIT 1
-    `, customerId, tenantId);
+    `, customerId, tenantId) as any[];
 
     if (!customers || customers.length === 0) {
       return {
@@ -64,7 +64,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     console.log('[PG-Get] Customer found:', customer.id);
 
     // Get linked addresses from addresses table
-    const addresses = await prisma.$queryRawUnsafe<any[]>(`
+    const addresses = await prisma.$queryRawUnsafe(`
       SELECT 
         id, type, name, street, "streetLine2", city, state, zip, country,
         "accessNotes", "gateCode", latitude, longitude, "createdAt", "updatedAt"
@@ -75,7 +75,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
              WHEN type = 'BILLING' THEN 1 
              ELSE 2 END,
         "createdAt" DESC
-    `, customerId, tenantId);
+    `, customerId, tenantId) as any[];
 
     console.log('[PG-Get] Found', addresses?.length || 0, 'addresses for customer');
 

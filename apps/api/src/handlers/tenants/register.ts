@@ -44,9 +44,9 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       .replace(/^-|-$/g, '');
 
     // Check if tenant with this subdomain already exists using raw SQL
-    const existingTenants = await prisma.$queryRawUnsafe<any[]>(`
+    const existingTenants = await prisma.$queryRawUnsafe(`
       SELECT id FROM tenants WHERE subdomain = $1 LIMIT 1
-    `, subdomain);
+    `, subdomain) as any[];
 
     if (existingTenants && existingTenants.length > 0) {
       return {
@@ -59,9 +59,9 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     }
 
     // Check if user with this email already exists
-    const existingUsers = await prisma.$queryRawUnsafe<any[]>(`
+    const existingUsers = await prisma.$queryRawUnsafe(`
       SELECT id FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1
-    `, admin.email.trim());
+    `, admin.email.trim()) as any[];
 
     if (existingUsers && existingUsers.length > 0) {
       return {

@@ -33,7 +33,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     }
 
     // Find user by email using raw SQL to avoid schema mismatch
-    const users = await prisma.$queryRawUnsafe<any[]>(`
+    const users = await prisma.$queryRawUnsafe(`
       SELECT 
         u.id, u.email, u."passwordHash", u."firstName", u."lastName", 
         u.role, u."tenantId", u."isActive",
@@ -42,7 +42,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       LEFT JOIN tenants t ON u."tenantId" = t.id
       WHERE LOWER(u.email) = LOWER($1) AND u."isActive" = true
       LIMIT 1
-    `, email.trim());
+    `, email.trim()) as any[];
 
     if (!users || users.length === 0) {
       console.log('[Auth Login] User not found');

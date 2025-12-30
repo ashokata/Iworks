@@ -102,9 +102,9 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     // Check if email already exists for this tenant using raw SQL
     if (email) {
-      const existingCustomers = await prisma.$queryRawUnsafe<any[]>(`
+      const existingCustomers = await prisma.$queryRawUnsafe(`
         SELECT id FROM customers WHERE "tenantId" = $1 AND LOWER(email) = LOWER($2) LIMIT 1
-      `, tenantId, email);
+      `, tenantId, email) as any[];
 
       if (existingCustomers && existingCustomers.length > 0) {
         console.log('[PG-Create] Email already exists:', email);
