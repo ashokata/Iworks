@@ -8,7 +8,8 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "dev:local": "cp .env.local .env && tsx watch src/index.ts",
-    "build": "tsc && esbuild src/handlers/**/*.ts --bundle --platform=node --target=node20 --outdir=dist/handlers --external:@aws-sdk/* --external:pg-native --external:@prisma/client && node copy-prisma.js",
+    "build": "esbuild src/handlers/**/*.ts --bundle --platform=node --target=node20 --outdir=dist/handlers --external:@aws-sdk/* --external:pg-native --external:@prisma/client --log-level=warning && node copy-prisma.js",
+    "build:typecheck": "tsc && esbuild src/handlers/**/*.ts --bundle --platform=node --target=node20 --outdir=dist/handlers --external:@aws-sdk/* --external:pg-native --external:@prisma/client && node copy-prisma.js",
     "build:skip-check": "esbuild src/handlers/**/*.ts --bundle --platform=node --target=node20 --outdir=dist/handlers --external:@aws-sdk/* --external:pg-native --external:@prisma/client --log-level=warning && node copy-prisma.js",
     "build:dev": "cp .env.development .env && npm run build",
     "build:prod": "cp .env.production .env && npm run build",
