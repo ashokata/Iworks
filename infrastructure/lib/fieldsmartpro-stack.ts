@@ -313,11 +313,15 @@ export class FieldSmartProStack extends cdk.Stack {
       const amplifyApp = new amplify.CfnApp(this, 'WebApp', {
         name: `fieldsmartpro-web-${stage}`,
         repository: 'https://github.com/ashokata/Iworks',
-        platform: 'WEB',
+        platform: 'WEB_COMPUTE', // SSR support for Next.js
         accessToken: githubToken,
 
         // Build settings will be read from amplify.yml in the repo
         environmentVariables: [
+          {
+            name: 'NEXT_PUBLIC_API_BASE_URL',
+            value: api.url,
+          },
           {
             name: 'EXPO_PUBLIC_API_URL',
             value: api.url,
