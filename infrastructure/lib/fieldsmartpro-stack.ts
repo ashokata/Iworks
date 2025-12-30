@@ -194,6 +194,12 @@ export class FieldSmartProStack extends cdk.Stack {
       description: 'Register new tenant',
     });
 
+    const tenantGetFn = new lambda.Function(this, 'TenantGetFunction', {
+      ...postgresLambdaConfig,
+      handler: 'handlers/tenants/get.handler',
+      description: 'Get tenant details',
+    });
+
     const authLoginFn = new lambda.Function(this, 'AuthLoginFunction', {
       ...postgresLambdaConfig,
       handler: 'handlers/auth/login.handler',
@@ -246,7 +252,7 @@ export class FieldSmartProStack extends cdk.Stack {
     const postgresLambdas = [
       createCustomerFn, listCustomersFn, getCustomerFn, updateCustomerFn,
       createJobFn, listJobsFn, seedFn, migrateFn, vapiWebhookFn, llmChatFn,
-      tenantRegisterFn, authLoginFn
+      tenantRegisterFn, tenantGetFn, authLoginFn
     ];
     postgresLambdas.forEach(fn => dbSecret.grantRead(fn));
 
@@ -324,6 +330,9 @@ export class FieldSmartProStack extends cdk.Stack {
     const tenantsResource = apiResource.addResource('tenants');
     const tenantRegister = tenantsResource.addResource('register');
     tenantRegister.addMethod('POST', new apigateway.LambdaIntegration(tenantRegisterFn));
+    
+    const tenantById = tenantsResource.addResource('{tenantId}');
+    tenantById.addMethod('GET', new apigateway.LambdaIntegration(tenantGetFn));
 
     const authResource = apiResource.addResource('auth');
     const authLogin = authResource.addResource('login');
