@@ -311,18 +311,16 @@ export class FieldSmartProStack extends cdk.Stack {
     const seed = api.root.addResource('seed');
     seed.addMethod('POST', new apigateway.LambdaIntegration(seedFn));
 
-    // Auth endpoints
+    // Auth endpoints - OPTIONS handled by defaultCorsPreflightOptions
     const apiResource = api.root.addResource('api');
     
     const tenantsResource = apiResource.addResource('tenants');
     const tenantRegister = tenantsResource.addResource('register');
     tenantRegister.addMethod('POST', new apigateway.LambdaIntegration(tenantRegisterFn));
-    tenantRegister.addMethod('OPTIONS', new apigateway.LambdaIntegration(tenantRegisterFn));
 
     const authResource = apiResource.addResource('auth');
     const authLogin = authResource.addResource('login');
     authLogin.addMethod('POST', new apigateway.LambdaIntegration(authLoginFn));
-    authLogin.addMethod('OPTIONS', new apigateway.LambdaIntegration(authLoginFn));
 
     // VAPI Webhook endpoints
     const webhooks = api.root.addResource('webhooks');
@@ -423,16 +421,7 @@ export class FieldSmartProStack extends cdk.Stack {
       description: 'DynamoDB Cache Table',
     });
 
-    new cdk.CfnOutput(this, 'WebAppUrl', {
-      value: `https://${amplifyBranch.branchName}.${amplifyApp.attrDefaultDomain}`,
-      description: 'Web App URL (AWS Amplify)',
-      exportName: `${id}-WebAppUrl`,
-    });
-
-    new cdk.CfnOutput(this, 'AmplifyAppId', {
-      value: amplifyApp.attrAppId,
-      description: 'Amplify App ID',
-      exportName: `${id}-AmplifyAppId`,
-    });
+    // Note: Amplify outputs are only available when GITHUB_ACCESS_TOKEN is set
+    // The web app is now deployed on Vercel: https://iworks.vercel.app
   }
 }
