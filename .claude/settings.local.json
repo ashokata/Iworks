@@ -32,7 +32,10 @@
       "Bash(npx prisma generate:*)",
       "Bash(cdk deploy:*)",
       "Bash(timeout 30 cmd:*)",
-      "Bash(npm run build:skip-check:*)"
+      "Bash(npm run build:skip-check:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ]
   }
 }
