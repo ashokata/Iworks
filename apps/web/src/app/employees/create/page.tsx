@@ -3,7 +3,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { Button } from '@/components/ui/Button';
 import { 
   ArrowLeftIcon, 
@@ -26,7 +26,7 @@ type CreateEmployeeRequest = Omit<Employee, 'id' | 'tenantId' | 'rating' | 'skil
   certifications: string;
 };
 
-export default function CreateEmployeePage() {
+function CreateEmployeePageContent() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -524,5 +524,17 @@ export default function CreateEmployeePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function CreateEmployeePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    }>
+      <CreateEmployeePageContent />
+    </Suspense>
   );
 }

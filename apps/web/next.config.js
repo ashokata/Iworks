@@ -7,29 +7,18 @@ const withPWA = require('next-pwa')({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
+  // Disable image optimization for Amplify hosting
+  images: {
+    unoptimized: true,
+  },
   // Temporarily ignore TypeScript errors during build due to legacy/new type conflicts
   // TODO: Fix all type mismatches and remove this
   typescript: {
     ignoreBuildErrors: true,
   },
   env: {
-    NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || '/api-proxy',
-  },
-  async rewrites() {
-    return [
-      {
-        source: '/api-proxy/odata/:path*',
-        destination: 'http://localhost:4000/odata/:path*',
-      },
-      {
-        source: '/api-proxy/rest/:path*',
-        destination: 'http://localhost:4000/rest/:path*',
-      },
-      {
-        source: '/api-proxy/:path*',
-        destination: 'http://localhost:4000/:path*',
-      },
-    ]
+    NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || process.env.EXPO_PUBLIC_API_URL || 'https://epdlw6qkj7.execute-api.us-east-1.amazonaws.com/development',
   },
 };
 
