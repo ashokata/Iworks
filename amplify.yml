@@ -1,19 +1,19 @@
 version: 1
 applications:
-  - appRoot: apps/mobile
+  - appRoot: apps/web
     frontend:
       phases:
         preBuild:
           commands:
-            - npm install
-            - npx expo install react-native-web
+            - npm ci
         build:
           commands:
-            - npx expo export --platform web
+            - npm run build
       artifacts:
-        baseDirectory: dist
+        baseDirectory: .next
         files:
           - '**/*'
       cache:
         paths:
           - node_modules/**/*
+          - .next/cache/**/*
