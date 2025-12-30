@@ -33,7 +33,7 @@ export default function NewEstimatePage() {
     message: '',
     termsAndConditions: '',
     validUntil: '',
-    customerCanApprove: true,
+    customerCanApprove: false,
     status: 'DRAFT' as const,
     taxRate: 7.5,
   });
@@ -692,67 +692,76 @@ export default function NewEstimatePage() {
                           <TrashIcon className="h-5 w-5" />
                         </button>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="md:col-span-2">
-                          <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
-                            Service Name <span className="text-red-600">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            value={item.name}
-                            onChange={(e) => updateLineItem(item.id, 'name', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
-                            placeholder="e.g., HVAC System Installation"
-                          />
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                          <div className="md:col-span-5">
+                            <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
+                              Service Name <span className="text-red-600">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              value={item.name}
+                              onChange={(e) => updateLineItem(item.id, 'name', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                              placeholder="e.g., HVAC System Installation"
+                            />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
+                              Quantity
+                            </label>
+                            <input
+                              type="number"
+                              value={item.quantity}
+                              onChange={(e) => updateLineItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                              min="0"
+                              step="0.01"
+                            />
+                          </div>
+                          <div className="md:col-span-3">
+                            <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
+                              Unit Price ($)
+                            </label>
+                            <input
+                              type="number"
+                              value={item.unitPrice}
+                              onChange={(e) => updateLineItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                              min="0"
+                              step="0.01"
+                            />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
+                              &nbsp;
+                            </label>
+                            <label className="flex items-center cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={item.isTaxable}
+                                onChange={(e) => updateLineItem(item.id, 'isTaxable', e.target.checked)}
+                                className="h-4 w-4 text-[#1e3a8a] border-gray-300 rounded focus:ring-[#1e3a8a]"
+                              />
+                              <span className="ml-2 text-xs font-semibold text-[#1e3a8a]">
+                                Taxable
+                              </span>
+                            </label>
+                          </div>
                         </div>
-                        <div className="md:col-span-2">
-                          <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
-                            Description
-                          </label>
-                          <textarea
-                            rows={2}
-                            value={item.description}
-                            onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
-                            placeholder="Add description"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
-                            Quantity
-                          </label>
-                          <input
-                            type="number"
-                            value={item.quantity}
-                            onChange={(e) => updateLineItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
-                            min="0"
-                            step="0.01"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
-                            Unit Price ($)
-                          </label>
-                          <input
-                            type="number"
-                            value={item.unitPrice}
-                            onChange={(e) => updateLineItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
-                            min="0"
-                            step="0.01"
-                          />
-                        </div>
-                        <div className="flex items-center">
-                          <input
-                            type="checkbox"
-                            checked={item.isTaxable}
-                            onChange={(e) => updateLineItem(item.id, 'isTaxable', e.target.checked)}
-                            className="h-4 w-4 text-[#1e3a8a] border-gray-300 rounded focus:ring-[#1e3a8a]"
-                          />
-                          <label className="ml-2 text-xs font-semibold text-[#1e3a8a]">
-                            Taxable
-                          </label>
+                        <div className="grid grid-cols-1 gap-4">
+                          <div>
+                            <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
+                              Description
+                            </label>
+                            <textarea
+                              rows={2}
+                              value={item.description}
+                              onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                              placeholder="Add description"
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -793,67 +802,78 @@ export default function NewEstimatePage() {
                           <TrashIcon className="h-5 w-5" />
                         </button>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="md:col-span-2">
-                          <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
-                            Material Name <span className="text-red-600">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            value={item.name}
-                            onChange={(e) => updateLineItem(item.id, 'name', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
-                            placeholder="e.g., Copper Piping"
-                          />
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                          <div className="md:col-span-5">
+                            <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
+                              Material Name <span className="text-red-600">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              value={item.name}
+                              onChange={(e) => updateLineItem(item.id, 'name', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                              placeholder="e.g., Copper Piping"
+                            />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
+                              Quantity
+                            </label>
+                            <input
+                              type="number"
+                              value={item.quantity}
+                              onChange={(e) => updateLineItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                              min="0"
+                              step="0.01"
+                            />
+                          </div>
+                          <div className="md:col-span-3">
+                            <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
+                              Unit Price ($)
+                            </label>
+                            <input
+                              type="number"
+                              value={item.unitPrice}
+                              onChange={(e) => updateLineItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                              min="0"
+                              step="0.01"
+                            />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
+                              &nbsp;
+                            </label>
+                            <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white">
+                              <label className="flex items-center cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={item.isTaxable}
+                                  onChange={(e) => updateLineItem(item.id, 'isTaxable', e.target.checked)}
+                                  className="h-4 w-4 text-[#1e3a8a] border-gray-300 rounded focus:ring-[#1e3a8a]"
+                                />
+                                <span className="ml-2 text-xs font-semibold text-[#1e3a8a]">
+                                  Taxable
+                                </span>
+                              </label>
+                            </div>
+                          </div>
                         </div>
-                        <div className="md:col-span-2">
-                          <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
-                            Description
-                          </label>
-                          <textarea
-                            rows={2}
-                            value={item.description}
-                            onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
-                            placeholder="Add description"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
-                            Quantity
-                          </label>
-                          <input
-                            type="number"
-                            value={item.quantity}
-                            onChange={(e) => updateLineItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
-                            min="0"
-                            step="0.01"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
-                            Unit Price ($)
-                          </label>
-                          <input
-                            type="number"
-                            value={item.unitPrice}
-                            onChange={(e) => updateLineItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
-                            min="0"
-                            step="0.01"
-                          />
-                        </div>
-                        <div className="flex items-center">
-                          <input
-                            type="checkbox"
-                            checked={item.isTaxable}
-                            onChange={(e) => updateLineItem(item.id, 'isTaxable', e.target.checked)}
-                            className="h-4 w-4 text-[#1e3a8a] border-gray-300 rounded focus:ring-[#1e3a8a]"
-                          />
-                          <label className="ml-2 text-xs font-semibold text-[#1e3a8a]">
-                            Taxable
-                          </label>
+                        <div className="grid grid-cols-1 gap-4">
+                          <div>
+                            <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
+                              Description
+                            </label>
+                            <textarea
+                              rows={2}
+                              value={item.description}
+                              onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                              placeholder="Add description"
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -894,67 +914,78 @@ export default function NewEstimatePage() {
                           <TrashIcon className="h-5 w-5" />
                         </button>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="md:col-span-2">
-                          <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
-                            Labor Name <span className="text-red-600">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            value={item.name}
-                            onChange={(e) => updateLineItem(item.id, 'name', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
-                            placeholder="e.g., Installation Labor"
-                          />
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                          <div className="md:col-span-5">
+                            <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
+                              Labor Name <span className="text-red-600">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              value={item.name}
+                              onChange={(e) => updateLineItem(item.id, 'name', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                              placeholder="e.g., Installation Labor"
+                            />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
+                              Hours
+                            </label>
+                            <input
+                              type="number"
+                              value={item.quantity}
+                              onChange={(e) => updateLineItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                              min="0"
+                              step="0.01"
+                            />
+                          </div>
+                          <div className="md:col-span-3">
+                            <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
+                              Rate per Hour ($)
+                            </label>
+                            <input
+                              type="number"
+                              value={item.unitPrice}
+                              onChange={(e) => updateLineItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                              min="0"
+                              step="0.01"
+                            />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
+                              &nbsp;
+                            </label>
+                            <div className="w-full h-[42px] px-3 border border-gray-300 rounded-lg bg-white flex items-center">
+                              <label className="flex items-center cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={item.isTaxable}
+                                  onChange={(e) => updateLineItem(item.id, 'isTaxable', e.target.checked)}
+                                  className="h-4 w-4 text-[#1e3a8a] border-gray-300 rounded focus:ring-[#1e3a8a]"
+                                />
+                                <span className="ml-2 text-sm text-[#1e3a8a]">
+                                  Taxable
+                                </span>
+                              </label>
+                            </div>
+                          </div>
                         </div>
-                        <div className="md:col-span-2">
-                          <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
-                            Description
-                          </label>
-                          <textarea
-                            rows={2}
-                            value={item.description}
-                            onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
-                            placeholder="Add description"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
-                            Hours
-                          </label>
-                          <input
-                            type="number"
-                            value={item.quantity}
-                            onChange={(e) => updateLineItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
-                            min="0"
-                            step="0.01"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
-                            Rate per Hour ($)
-                          </label>
-                          <input
-                            type="number"
-                            value={item.unitPrice}
-                            onChange={(e) => updateLineItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
-                            min="0"
-                            step="0.01"
-                          />
-                        </div>
-                        <div className="flex items-center">
-                          <input
-                            type="checkbox"
-                            checked={item.isTaxable}
-                            onChange={(e) => updateLineItem(item.id, 'isTaxable', e.target.checked)}
-                            className="h-4 w-4 text-[#1e3a8a] border-gray-300 rounded focus:ring-[#1e3a8a]"
-                          />
-                          <label className="ml-2 text-xs font-semibold text-[#1e3a8a]">
-                            Taxable
-                          </label>
+                        <div className="grid grid-cols-1 gap-4">
+                          <div>
+                            <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
+                              Description
+                            </label>
+                            <textarea
+                              rows={2}
+                              value={item.description}
+                              onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                              placeholder="Add description"
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -995,67 +1026,78 @@ export default function NewEstimatePage() {
                           <TrashIcon className="h-5 w-5" />
                         </button>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="md:col-span-2">
-                          <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
-                            Equipment Name <span className="text-red-600">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            value={item.name}
-                            onChange={(e) => updateLineItem(item.id, 'name', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
-                            placeholder="e.g., Excavator Rental"
-                          />
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                          <div className="md:col-span-5">
+                            <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
+                              Equipment Name <span className="text-red-600">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              value={item.name}
+                              onChange={(e) => updateLineItem(item.id, 'name', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                              placeholder="e.g., Excavator Rental"
+                            />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
+                              Quantity
+                            </label>
+                            <input
+                              type="number"
+                              value={item.quantity}
+                              onChange={(e) => updateLineItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                              min="0"
+                              step="0.01"
+                            />
+                          </div>
+                          <div className="md:col-span-3">
+                            <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
+                              Unit Price ($)
+                            </label>
+                            <input
+                              type="number"
+                              value={item.unitPrice}
+                              onChange={(e) => updateLineItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                              min="0"
+                              step="0.01"
+                            />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
+                              &nbsp;
+                            </label>
+                            <div className="w-full h-[42px] px-3 border border-gray-300 rounded-lg bg-white flex items-center">
+                              <label className="flex items-center cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={item.isTaxable}
+                                  onChange={(e) => updateLineItem(item.id, 'isTaxable', e.target.checked)}
+                                  className="h-4 w-4 text-[#1e3a8a] border-gray-300 rounded focus:ring-[#1e3a8a]"
+                                />
+                                <span className="ml-2 text-sm text-[#1e3a8a]">
+                                  Taxable
+                                </span>
+                              </label>
+                            </div>
+                          </div>
                         </div>
-                        <div className="md:col-span-2">
-                          <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
-                            Description
-                          </label>
-                          <textarea
-                            rows={2}
-                            value={item.description}
-                            onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
-                            placeholder="Add description"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
-                            Quantity
-                          </label>
-                          <input
-                            type="number"
-                            value={item.quantity}
-                            onChange={(e) => updateLineItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
-                            min="0"
-                            step="0.01"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
-                            Unit Price ($)
-                          </label>
-                          <input
-                            type="number"
-                            value={item.unitPrice}
-                            onChange={(e) => updateLineItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
-                            min="0"
-                            step="0.01"
-                          />
-                        </div>
-                        <div className="flex items-center">
-                          <input
-                            type="checkbox"
-                            checked={item.isTaxable}
-                            onChange={(e) => updateLineItem(item.id, 'isTaxable', e.target.checked)}
-                            className="h-4 w-4 text-[#1e3a8a] border-gray-300 rounded focus:ring-[#1e3a8a]"
-                          />
-                          <label className="ml-2 text-xs font-semibold text-[#1e3a8a]">
-                            Taxable
-                          </label>
+                        <div className="grid grid-cols-1 gap-4">
+                          <div>
+                            <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
+                              Description
+                            </label>
+                            <textarea
+                              rows={2}
+                              value={item.description}
+                              onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                              placeholder="Add description"
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1096,67 +1138,76 @@ export default function NewEstimatePage() {
                           <TrashIcon className="h-5 w-5" />
                         </button>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="md:col-span-2">
-                          <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
-                            Item Name <span className="text-red-600">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            value={item.name}
-                            onChange={(e) => updateLineItem(item.id, 'name', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
-                            placeholder="e.g., Miscellaneous Fees"
-                          />
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                          <div className="md:col-span-5">
+                            <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
+                              Item Name <span className="text-red-600">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              value={item.name}
+                              onChange={(e) => updateLineItem(item.id, 'name', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                              placeholder="e.g., Miscellaneous Fees"
+                            />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
+                              Quantity
+                            </label>
+                            <input
+                              type="number"
+                              value={item.quantity}
+                              onChange={(e) => updateLineItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                              min="0"
+                              step="0.01"
+                            />
+                          </div>
+                          <div className="md:col-span-3">
+                            <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
+                              Unit Price ($)
+                            </label>
+                            <input
+                              type="number"
+                              value={item.unitPrice}
+                              onChange={(e) => updateLineItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                              min="0"
+                              step="0.01"
+                            />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
+                              &nbsp;
+                            </label>
+                            <label className="flex items-center cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={item.isTaxable}
+                                onChange={(e) => updateLineItem(item.id, 'isTaxable', e.target.checked)}
+                                className="h-4 w-4 text-[#1e3a8a] border-gray-300 rounded focus:ring-[#1e3a8a]"
+                              />
+                              <span className="ml-2 text-xs font-semibold text-[#1e3a8a]">
+                                Taxable
+                              </span>
+                            </label>
+                          </div>
                         </div>
-                        <div className="md:col-span-2">
-                          <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
-                            Description
-                          </label>
-                          <textarea
-                            rows={2}
-                            value={item.description}
-                            onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
-                            placeholder="Add description"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
-                            Quantity
-                          </label>
-                          <input
-                            type="number"
-                            value={item.quantity}
-                            onChange={(e) => updateLineItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
-                            min="0"
-                            step="0.01"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
-                            Unit Price ($)
-                          </label>
-                          <input
-                            type="number"
-                            value={item.unitPrice}
-                            onChange={(e) => updateLineItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
-                            min="0"
-                            step="0.01"
-                          />
-                        </div>
-                        <div className="flex items-center">
-                          <input
-                            type="checkbox"
-                            checked={item.isTaxable}
-                            onChange={(e) => updateLineItem(item.id, 'isTaxable', e.target.checked)}
-                            className="h-4 w-4 text-[#1e3a8a] border-gray-300 rounded focus:ring-[#1e3a8a]"
-                          />
-                          <label className="ml-2 text-xs font-semibold text-[#1e3a8a]">
-                            Taxable
-                          </label>
+                        <div className="grid grid-cols-1 gap-4">
+                          <div>
+                            <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
+                              Description
+                            </label>
+                            <textarea
+                              rows={2}
+                              value={item.description}
+                              onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                              placeholder="Add description"
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1320,3 +1371,5 @@ export default function NewEstimatePage() {
     </div>
   );
 }
+
+
