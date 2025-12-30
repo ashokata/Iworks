@@ -1,0 +1,19 @@
+version: 1
+applications:
+  - appRoot: apps/mobile
+    frontend:
+      phases:
+        preBuild:
+          commands:
+            - npm install
+            - npx expo install react-native-web
+        build:
+          commands:
+            - npx expo export:web
+      artifacts:
+        baseDirectory: dist
+        files:
+          - '**/*'
+      cache:
+        paths:
+          - node_modules/**/*
