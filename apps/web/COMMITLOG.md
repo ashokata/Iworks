@@ -4,6 +4,37 @@ All commits to this project are documented in this file.
 
 ---
 
+## 📦 Commit #38 - 2025-12-31 11:15 PM (IST)
+
+**Developer:** Veera Kuppili
+**Type:** Fix / Configuration
+
+### 📝 Commit Message
+```
+fix: add API proxy rewrites for local development
+
+Configure Next.js rewrites to proxy /api-proxy requests to Express 
+server on localhost:4000 in development mode. Resolves 404 errors 
+for /api/estimates and /api/tenants endpoints.
+```
+
+### ✨ Changes
+
+**Configuration:**
+- ✅ `apps/web/next.config.js` - Added rewrites configuration to proxy /api-proxy/* requests to localhost:4000 in development
+
+**Problem Solved:**
+- Fixed 404 errors when accessing /api-proxy/api/estimates endpoint
+- Fixed 404 errors when accessing /api-proxy/api/tenants endpoint
+- Enabled proper communication between Next.js frontend (port 3000) and Express API (port 4000) in local development
+
+**Technical Details:**
+- Added async rewrites() function to Next.js config
+- Proxy only active in NODE_ENV === 'development'
+- Routes /api-proxy/:path* to http://localhost:4000/:path*
+
+---
+
 ## 📦 Commit #37 - 2025-12-31 00:49 AM (IST)
 
 **Developer:** Veera Kuppili
