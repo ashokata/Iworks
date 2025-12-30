@@ -179,6 +179,22 @@ export class FieldSmartProStack extends cdk.Stack {
     });
 
     // ============================================================================
+    // AUTH & TENANT HANDLERS
+    // ============================================================================
+
+    const tenantRegisterFn = new lambda.Function(this, 'TenantRegisterFunction', {
+      ...postgresLambdaConfig,
+      handler: 'handlers/tenants/register.handler',
+      description: 'Register new tenant',
+    });
+
+    const authLoginFn = new lambda.Function(this, 'AuthLoginFunction', {
+      ...postgresLambdaConfig,
+      handler: 'handlers/auth/login.handler',
+      description: 'User login',
+    });
+
+    // ============================================================================
     // CHAT & AI HANDLERS
     // ============================================================================
 
@@ -223,7 +239,8 @@ export class FieldSmartProStack extends cdk.Stack {
     // Grant database secret read permissions to all PostgreSQL Lambda functions
     const postgresLambdas = [
       createCustomerFn, listCustomersFn, getCustomerFn, updateCustomerFn,
-      createJobFn, seedFn, migrateFn, vapiWebhookFn, llmChatFn
+      createJobFn, seedFn, migrateFn, vapiWebhookFn, llmChatFn,
+      tenantRegisterFn, authLoginFn
     ];
     postgresLambdas.forEach(fn => dbSecret.grantRead(fn));
 
@@ -293,6 +310,19 @@ export class FieldSmartProStack extends cdk.Stack {
 
     const seed = api.root.addResource('seed');
     seed.addMethod('POST', new apigateway.LambdaIntegration(seedFn));
+
+    // Auth endpoints
+    const apiResource = api.root.addResource('api');
+    
+    const tenantsResource = apiResource.addResource('tenants');
+    const tenantRegister = tenantsResource.addResource('register');
+    tenantRegister.addMethod('POST', new apigateway.LambdaIntegration(tenantRegisterFn));
+    tenantRegister.addMethod('OPTIONS', new apigateway.LambdaIntegration(tenantRegisterFn));
+
+    const authResource = apiResource.addResource('auth');
+    const authLogin = authResource.addResource('login');
+    authLogin.addMethod('POST', new apigateway.LambdaIntegration(authLoginFn));
+    authLogin.addMethod('OPTIONS', new apigateway.LambdaIntegration(authLoginFn));
 
     // VAPI Webhook endpoints
     const webhooks = api.root.addResource('webhooks');
