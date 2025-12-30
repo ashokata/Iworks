@@ -1,61 +1,34 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { z } from 'zod';
-import { customerPostgresService } from '../../services/customer.postgres.service';
 import { getPrismaClient } from '../../services/prisma.service';
-
-const prisma = getPrismaClient();
+import { v4 as uuidv4 } from 'uuid';
 
 // Validation schema - accepts both camelCase and snake_case
 const createCustomerSchema = z.object({
-  type: z.string().optional(), // Accept any string, normalize later
+  type: z.string().optional(),
   firstName: z.string().optional(),
   lastName: z.string().optional(),
-  first_name: z.string().optional(), // Frontend compatibility
-  last_name: z.string().optional(),  // Frontend compatibility
+  first_name: z.string().optional(),
+  last_name: z.string().optional(),
   companyName: z.string().optional(),
   company_name: z.string().optional(),
   company: z.string().optional(),
   email: z.string().email().optional().or(z.literal('')),
   phone: z.string().optional(),
   mobilePhone: z.string().optional(),
-  mobile_number: z.string().optional(), // Frontend compatibility
+  mobile_number: z.string().optional(),
   homePhone: z.string().optional(),
   home_number: z.string().optional(),
   workPhone: z.string().optional(),
   work_number: z.string().optional(),
-  jobTitle: z.string().optional(),
-  job_title: z.string().optional(),
-  preferredContactMethod: z.enum(['SMS', 'EMAIL', 'VOICE', 'PUSH', 'IN_APP']).optional(),
-  notificationsEnabled: z.boolean().optional(),
-  notifications_enabled: z.boolean().optional(),
-  isContractor: z.boolean().optional(),
-  is_contractor: z.boolean().optional(),
   notes: z.string().optional(),
-  // Flat address fields (backward compatibility)
   street: z.string().optional(),
-  address: z.string().optional(), // Alias for street
-  streetLine2: z.string().optional(),
+  address: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
   zip: z.string().optional(),
-  zipCode: z.string().optional(), // Alias
-  country: z.string().optional(),
-  // Addresses array (new)
-  addresses: z.array(z.object({
-    type: z.enum(['SERVICE', 'BILLING', 'PRIMARY']).optional(),
-    name: z.string().optional(),
-    street: z.string(),
-    streetLine2: z.string().optional(),
-    city: z.string(),
-    state: z.string(),
-    zip: z.string(),
-    zipCode: z.string().optional(), // Alias
-    postalCode: z.string().optional(), // Alias
-    country: z.string().optional(),
-    accessNotes: z.string().optional(),
-    gateCode: z.string().optional()
-  })).optional(),
-}).passthrough(); // Allow additional fields
+  zipCode: z.string().optional(),
+}).passthrough();
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   console.log('[PG-Create] Handler invoked');
@@ -63,10 +36,12 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
   const headers = {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type,X-Tenant-Id,X-User-Id',
+    'Access-Control-Allow-Headers': 'Content-Type,X-Tenant-Id,X-User-Id,Authorization',
   };
 
   try {
+    const prisma = getPrismaClient();
+    
     // Get tenant ID from header - REQUIRED for tenant isolation
     const tenantId = event.headers['x-tenant-id'] || event.headers['X-Tenant-Id'] || event.headers['X-Tenant-ID'];
     
@@ -112,115 +87,74 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     const body = validationResult.data;
 
-    // Normalize field names (frontend uses snake_case, backend uses camelCase)
-    // Also normalize type values (homeowner -> RESIDENTIAL, business -> COMMERCIAL)
-    let customerType = (body.type || 'RESIDENTIAL').toUpperCase();
-    if (customerType === 'HOMEOWNER') customerType = 'RESIDENTIAL';
-    if (customerType === 'BUSINESS') customerType = 'COMMERCIAL';
-    
-    // Build customFields object for fields not in main schema
-    const customFields: Record<string, any> = {};
-    if (body.isContractor !== undefined || body.is_contractor !== undefined) {
-      customFields.isContractor = body.isContractor ?? body.is_contractor;
-    }
-    if (body.jobTitle || body.job_title) {
-      customFields.jobTitle = body.jobTitle || body.job_title;
-    }
-    
-    const normalizedData = {
-      tenantId,
-      type: customerType as 'RESIDENTIAL' | 'COMMERCIAL' | 'CONTRACTOR',
-      firstName: body.firstName || body.first_name,
-      lastName: body.lastName || body.last_name,
-      companyName: body.companyName || body.company_name || body.company,
-      email: body.email || undefined,
-      mobilePhone: body.mobilePhone || body.mobile_number || body.phone,
-      homePhone: body.homePhone || body.home_number,
-      workPhone: body.workPhone || body.work_number,
-      preferredContactMethod: body.preferredContactMethod,
-      notificationsEnabled: body.notificationsEnabled ?? body.notifications_enabled,
-      notes: body.notes,
-      customFields: Object.keys(customFields).length > 0 ? customFields : undefined,
-      // Flat address fields (backward compatibility)
-      street: body.street || body.address,
-      streetLine2: body.streetLine2,
-      city: body.city,
-      state: body.state,
-      zip: body.zip || body.zipCode,
-      country: body.country,
-      // Addresses array (new)
-      addresses: body.addresses?.map(addr => ({
-        type: addr.type || 'SERVICE',
-        name: addr.name,
-        street: addr.street,
-        streetLine2: addr.streetLine2,
-        city: addr.city,
-        state: addr.state,
-        zip: addr.zip || addr.zipCode || addr.postalCode,
-        country: addr.country || 'US',
-        accessNotes: addr.accessNotes,
-        gateCode: addr.gateCode
-      })),
-    };
+    // Normalize field names
+    const firstName = body.firstName || body.first_name || '';
+    const lastName = body.lastName || body.last_name || '';
+    const email = body.email || '';
+    const phone = body.mobilePhone || body.mobile_number || body.phone || '';
+    const address = body.street || body.address || '';
+    const city = body.city || '';
+    const state = body.state || '';
+    const zipCode = body.zip || body.zipCode || '';
+    const notes = body.notes || '';
 
-    console.log('[PG-Create] Normalized data:', JSON.stringify(normalizedData));
+    console.log('[PG-Create] Normalized data:', { firstName, lastName, email, phone });
 
-    // Check if email already exists for this tenant
-    if (normalizedData.email) {
-      const existingCustomer = await prisma.customer.findFirst({
-        where: {
-          tenantId,
-          email: normalizedData.email,
-          isArchived: false,
-        },
-        select: { id: true, email: true },
-      });
+    // Check if email already exists for this tenant using raw SQL
+    if (email) {
+      const existingCustomers = await prisma.$queryRawUnsafe<any[]>(`
+        SELECT id FROM customers WHERE "tenantId" = $1 AND LOWER(email) = LOWER($2) LIMIT 1
+      `, tenantId, email);
 
-      if (existingCustomer) {
-        console.log('[PG-Create] Email already exists:', normalizedData.email);
+      if (existingCustomers && existingCustomers.length > 0) {
+        console.log('[PG-Create] Email already exists:', email);
         return {
           statusCode: 400,
           headers,
           body: JSON.stringify({
             error: 'Email already exists',
-            message: `A customer with email "${normalizedData.email}" already exists. Please use a different email address.`,
+            message: `A customer with email "${email}" already exists. Please use a different email address.`,
           }),
         };
       }
     }
 
-    // Create customer
-    const customer = await customerPostgresService.createCustomer(normalizedData);
-    console.log('[PG-Create] Customer created:', customer.id);
+    // Create customer using raw SQL
+    const customerId = uuidv4();
+
+    await prisma.$executeRawUnsafe(`
+      INSERT INTO customers (id, "tenantId", "firstName", "lastName", email, phone, address, city, state, "zipCode", notes, "createdAt", "updatedAt")
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
+    `, customerId, tenantId, firstName, lastName, email || null, phone, address, city, state, zipCode, notes || null);
+
+    console.log('[PG-Create] Customer created:', customerId);
 
     // Format response for frontend compatibility
     const response = {
       customer: {
-        id: customer.id,
-        customerId: customer.id,
-        customerNumber: customer.customerNumber,
-        type: customer.type,
-        firstName: customer.firstName,
-        lastName: customer.lastName,
-        first_name: customer.firstName,
-        last_name: customer.lastName,
-        display_name: customer.companyName || `${customer.firstName || ''} ${customer.lastName || ''}`.trim(),
-        companyName: customer.companyName,
-        company: customer.companyName,
-        email: customer.email,
-        mobilePhone: customer.mobilePhone,
-        mobile_number: customer.mobilePhone,
-        homePhone: customer.homePhone,
-        home_number: customer.homePhone,
-        workPhone: customer.workPhone,
-        work_number: customer.workPhone,
-        notes: customer.notes,
-        addresses: customer.addresses,
-        tenantId: customer.tenantId,
-        createdAt: customer.createdAt,
-        created_at: customer.createdAt,
-        updatedAt: customer.updatedAt,
-        updated_at: customer.updatedAt,
+        id: customerId,
+        customerId: customerId,
+        firstName,
+        lastName,
+        first_name: firstName,
+        last_name: lastName,
+        display_name: `${firstName} ${lastName}`.trim() || 'Unknown',
+        email,
+        phone,
+        mobilePhone: phone,
+        mobile_number: phone,
+        address: address ? {
+          street: address,
+          city,
+          state,
+          zip: zipCode,
+        } : null,
+        notes,
+        tenantId,
+        createdAt: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       },
     };
 
@@ -241,4 +175,3 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     };
   }
 };
-
