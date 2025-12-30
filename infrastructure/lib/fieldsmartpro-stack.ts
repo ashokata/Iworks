@@ -303,10 +303,42 @@ export class FieldSmartProStack extends cdk.Stack {
     // ============================================================================
     // WEB FRONTEND - AWS AMPLIFY HOSTING
     // ============================================================================
-    // Amplify app created manually in AWS Console
-    // Environment variables configured:
-    // - EXPO_PUBLIC_API_URL: https://epdlw6qkj7.execute-api.us-east-1.amazonaws.com/development/
-    // - EXPO_PUBLIC_TENANT_ID: tenant1
+
+    // NOTE: To deploy Amplify, set GITHUB_ACCESS_TOKEN environment variable:
+    // export GITHUB_ACCESS_TOKEN=your_github_pat_token
+    // Then run: cdk deploy
+    const githubToken = process.env.GITHUB_ACCESS_TOKEN;
+    
+    if (githubToken) {
+      const amplifyApp = new amplify.CfnApp(this, 'WebApp', {
+        name: `fieldsmartpro-web-${stage}`,
+        repository: 'https://github.com/ashokata/Iworks',
+        platform: 'WEB',
+        accessToken: githubToken,
+
+        // Build settings will be read from amplify.yml in the repo
+        environmentVariables: [
+          {
+            name: 'EXPO_PUBLIC_API_URL',
+            value: api.url,
+          },
+          {
+            name: 'EXPO_PUBLIC_TENANT_ID',
+            value: 'tenant1',
+          },
+        ],
+      });
+
+      // Create branch for the app
+      new amplify.CfnBranch(this, 'WebAppBranch', {
+        appId: amplifyApp.attrAppId,
+        branchName: stage === 'production' ? 'main' : 'customers-dynamodb',
+        enableAutoBuild: true,
+        enablePullRequestPreview: false,
+      });
+    } else {
+      console.warn('⚠️ GITHUB_ACCESS_TOKEN not set - Amplify web hosting will not be deployed');
+    }
 
     // ============================================================================
     // OUTPUTS
@@ -355,6 +387,18 @@ export class FieldSmartProStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'CacheTableName', {
       value: cacheTable.tableName,
       description: 'DynamoDB Cache Table',
+    });
+
+    new cdk.CfnOutput(this, 'WebAppUrl', {
+      value: `https://${amplifyBranch.branchName}.${amplifyApp.attrDefaultDomain}`,
+      description: 'Web App URL (AWS Amplify)',
+      exportName: `${id}-WebAppUrl`,
+    });
+
+    new cdk.CfnOutput(this, 'AmplifyAppId', {
+      value: amplifyApp.attrAppId,
+      description: 'Amplify App ID',
+      exportName: `${id}-AmplifyAppId`,
     });
   }
 }
