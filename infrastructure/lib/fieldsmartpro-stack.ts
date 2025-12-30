@@ -150,6 +150,12 @@ export class FieldSmartProStack extends cdk.Stack {
       description: 'Create job in PostgreSQL',
     });
 
+    const listJobsFn = new lambda.Function(this, 'ListJobsFunction', {
+      ...postgresLambdaConfig,
+      handler: 'handlers/jobs/list.handler',
+      description: 'List jobs in PostgreSQL',
+    });
+
     // ============================================================================
     // UTILITY HANDLERS
     // ============================================================================
@@ -239,7 +245,7 @@ export class FieldSmartProStack extends cdk.Stack {
     // Grant database secret read permissions to all PostgreSQL Lambda functions
     const postgresLambdas = [
       createCustomerFn, listCustomersFn, getCustomerFn, updateCustomerFn,
-      createJobFn, seedFn, migrateFn, vapiWebhookFn, llmChatFn,
+      createJobFn, listJobsFn, seedFn, migrateFn, vapiWebhookFn, llmChatFn,
       tenantRegisterFn, authLoginFn
     ];
     postgresLambdas.forEach(fn => dbSecret.grantRead(fn));
@@ -294,6 +300,7 @@ export class FieldSmartProStack extends cdk.Stack {
 
     // Job endpoints (PostgreSQL)
     const jobs = api.root.addResource('jobs');
+    jobs.addMethod('GET', new apigateway.LambdaIntegration(listJobsFn));
     jobs.addMethod('POST', new apigateway.LambdaIntegration(createJobFn));
 
     // Chat endpoints

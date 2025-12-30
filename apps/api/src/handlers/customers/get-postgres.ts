@@ -1,5 +1,5 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { customerPostgresService } from '../../services/customer.postgres.service';
+import { getPrismaClient } from '../../services/prisma.service';
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   console.log('[PG-Get] Handler invoked');
@@ -7,10 +7,12 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
   const headers = {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type,X-Tenant-Id,X-User-Id',
+    'Access-Control-Allow-Headers': 'Content-Type,X-Tenant-Id,X-User-Id,Authorization',
   };
 
   try {
+    const prisma = getPrismaClient();
+    
     // Get tenant ID from header - REQUIRED for tenant isolation
     const tenantId = event.headers['x-tenant-id'] || event.headers['X-Tenant-Id'] || event.headers['X-Tenant-ID'];
     
@@ -40,10 +42,17 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     console.log('[PG-Get] Customer ID:', customerId);
 
-    // Get customer
-    const customer = await customerPostgresService.getCustomer(tenantId, customerId);
+    // Get customer using raw SQL
+    const customers = await prisma.$queryRawUnsafe<any[]>(`
+      SELECT 
+        id, "tenantId", "firstName", "lastName", email, phone, address, city, state, "zipCode", notes,
+        "createdAt", "updatedAt"
+      FROM customers 
+      WHERE id = $1 AND "tenantId" = $2
+      LIMIT 1
+    `, customerId, tenantId);
 
-    if (!customer) {
+    if (!customers || customers.length === 0) {
       return {
         statusCode: 404,
         headers,
@@ -51,44 +60,30 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       };
     }
 
+    const customer = customers[0];
     console.log('[PG-Get] Customer found:', customer.id);
 
     // Format response for frontend compatibility
-    const primaryAddress = customer.addresses?.find(a => a.type === 'PRIMARY') || customer.addresses?.[0];
     const response = {
       customer: {
         id: customer.id,
         customerId: customer.id,
-        customerNumber: customer.customerNumber,
-        type: customer.type,
         firstName: customer.firstName,
         lastName: customer.lastName,
         first_name: customer.firstName,
         last_name: customer.lastName,
-        display_name: customer.companyName || `${customer.firstName || ''} ${customer.lastName || ''}`.trim(),
-        companyName: customer.companyName,
-        company: customer.companyName,
+        display_name: `${customer.firstName || ''} ${customer.lastName || ''}`.trim() || 'Unknown',
         email: customer.email,
-        mobilePhone: customer.mobilePhone,
-        mobile_number: customer.mobilePhone,
-        homePhone: customer.homePhone,
-        home_number: customer.homePhone,
-        workPhone: customer.workPhone,
-        work_number: customer.workPhone,
-        notes: customer.notes,
-        address: primaryAddress ? {
-          street: primaryAddress.street,
-          city: primaryAddress.city,
-          state: primaryAddress.state,
-          zip: primaryAddress.zip,
+        phone: customer.phone,
+        mobilePhone: customer.phone,
+        mobile_number: customer.phone,
+        address: customer.address ? {
+          street: customer.address,
+          city: customer.city,
+          state: customer.state,
+          zip: customer.zipCode,
         } : null,
-        addresses: customer.addresses,
-        totalJobs: customer.totalJobs,
-        lifetimeValue: customer.lifetimeValue,
-        preferredContactMethod: customer.preferredContactMethod,
-        notificationsEnabled: customer.notificationsEnabled,
-        doNotService: customer.doNotService,
-        doNotServiceReason: customer.doNotServiceReason,
+        notes: customer.notes,
         tenantId: customer.tenantId,
         createdAt: customer.createdAt,
         created_at: customer.createdAt,
@@ -114,4 +109,3 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     };
   }
 };
-
