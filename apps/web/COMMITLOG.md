@@ -4,6 +4,76 @@ All commits to this project are documented in this file.
 
 ---
 
+## 📦 Commit #36 - 2025-12-30 11:30 PM (IST)
+
+**Developer:** Veera Kuppili
+**Type:** Feature / Refactor
+
+### 📝 Commit Message
+```
+feat(estimates): simplify structure and add UI enhancements
+
+- Simplified estimates from multi-option to direct line items structure
+- Removed EstimateOption model, lineItems now belong directly to Estimate
+- Added blue gradient header theme matching jobs page UI
+- Implemented "Use Same as Primary Address" checkbox functionality
+- Added useSameAsPrimary boolean field to Estimate model
+- Restructured layout with checkboxes in two-column row (Use Same as Primary Address on left, Customer Can Approve on right)
+- Added customerCanApprove, multipleOptionsAllowed, expirationDate, and taxRate fields to Estimate model
+- Updated API handlers (create-postgres.ts, update-postgres.ts) to handle useSameAsPrimary field
+- Updated TypeScript interfaces in estimateService.ts to match new structure
+- Updated estimates list page to display lineItems instead of options
+- Updated service request pages (new/edit) to handle simplified estimate structure
+- Applied consistent blue theme styling (#1e3a8a) across all estimate pages
+- Organized line items by type (Services, Materials, Labor, Equipment, Other)
+
+Database changes:
+- Added useSameAsPrimary, customerCanApprove, multipleOptionsAllowed, expirationDate, taxRate to estimates table
+- Migrated line items from estimate_options to direct estimate relationship
+- Removed estimate_options table and approvedOptionId field
+
+BREAKING CHANGE: Estimates API structure changed from nested options to flat lineItems array
+```
+
+### ✨ Changes
+
+**Database Schema:**
+- ✅ `apps/api/prisma/schema.prisma` - Added useSameAsPrimary, customerCanApprove, multipleOptionsAllowed, expirationDate, taxRate fields
+- ✅ Removed EstimateOption model, lineItems now directly reference Estimate
+- ✅ Database migrations created for structure simplification
+
+**API Handlers:**
+- ✅ `apps/api/src/handlers/estimates/create-postgres.ts` - Extract and save useSameAsPrimary field
+- ✅ `apps/api/src/handlers/estimates/update-postgres.ts` - Handle useSameAsPrimary in updates
+
+**Frontend Services:**
+- ✅ `apps/web/src/services/estimateService.ts` - Updated interfaces to match simplified structure
+- ✅ Removed EstimateOption interface, added useSameAsPrimary to Create/Update interfaces
+
+**UI Pages:**
+- ✅ `apps/web/src/app/estimates/new/page.tsx` - Complete UI overhaul with blue gradient header
+- ✅ `apps/web/src/app/estimates/edit/[id]/page.tsx` - Matching UI updates and useSameAsPrimary initialization
+- ✅ `apps/web/src/app/estimates/page.tsx` - Updated to display lineItems instead of options
+- ✅ `apps/web/src/app/service-requests/new/page.tsx` - Handle simplified estimate structure
+- ✅ `apps/web/src/app/service-requests/edit/[id]/page.tsx` - Handle simplified estimate structure
+
+### 🎨 UI Enhancements
+- Blue gradient header theme (#1a2a6c to #1e40af) matching jobs page
+- Organized line items by type with separate sections (Services, Materials, Labor, Equipment, Other)
+- Two-column checkbox layout: "Use Same as Primary Address" (left), "Customer Can Approve" (right)
+- Improved form validation and error messaging
+- Enhanced visual hierarchy with blue theme (#1e3a8a)
+
+### 🔧 Architecture Changes
+- **Simplified Data Model:** Removed complex multi-option structure in favor of flat line items
+- **Better UX:** Direct line item management instead of nested option groups
+- **Improved Performance:** Fewer database queries without option layer
+- **Enhanced Flexibility:** Line items directly linked to estimates
+
+### 📊 Files Changed: 10
+
+---
+
 ## 📦 Commit #35 - 2025-12-29 11:45 PM (IST)
 
 **Developer:** Veera Kuppili
