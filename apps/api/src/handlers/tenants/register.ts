@@ -1,5 +1,6 @@
 import { APIGatewayProxyHandler } from 'aws-lambda';
 import { getPrismaClient } from '../../services/prisma.service';
+import { v4 as uuidv4 } from 'uuid';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -22,6 +23,8 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     const body = JSON.parse(event.body || '{}');
     const { company, admin } = body;
 
+    console.log('[Tenant Register] Request:', { company: company?.name, admin: admin?.email });
+
     // Validate required fields
     if (!company?.name || !admin?.email || !admin?.password) {
       return {
@@ -34,18 +37,18 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       };
     }
 
-    // Generate slug from company name
-    const slug = company.name
+    // Generate subdomain from company name (use subdomain instead of slug)
+    const subdomain = company.name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '');
 
-    // Check if tenant with this slug already exists
-    const existingTenant = await prisma.tenant.findUnique({
-      where: { slug },
-    });
+    // Check if tenant with this subdomain already exists using raw SQL
+    const existingTenants = await prisma.$queryRawUnsafe<any[]>(`
+      SELECT id FROM tenants WHERE subdomain = $1 LIMIT 1
+    `, subdomain);
 
-    if (existingTenant) {
+    if (existingTenants && existingTenants.length > 0) {
       return {
         statusCode: 409,
         headers: CORS_HEADERS,
@@ -55,40 +58,42 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       };
     }
 
-    // Create tenant and admin user in a transaction
-    const result = await prisma.$transaction(async (tx) => {
-      // Create tenant
-      const tenant = await tx.tenant.create({
-        data: {
-          name: company.name,
-          slug,
-          status: 'TRIAL',
-          settings: {
-            domain: company.domain || '',
-            email: company.email || '',
-            phone: company.phone || '',
-          },
-        },
-      });
+    // Check if user with this email already exists
+    const existingUsers = await prisma.$queryRawUnsafe<any[]>(`
+      SELECT id FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1
+    `, admin.email.trim());
 
-      // Create admin user
-      const user = await tx.user.create({
-        data: {
-          tenant: { connect: { id: tenant.id } },
-          email: admin.email,
-          passwordHash: admin.password, // In production, hash this
-          firstName: admin.firstName || '',
-          lastName: admin.lastName || '',
-          role: 'OWNER',
-          isActive: true,
-          isVerified: true,
-        },
-      });
+    if (existingUsers && existingUsers.length > 0) {
+      return {
+        statusCode: 409,
+        headers: CORS_HEADERS,
+        body: JSON.stringify({
+          error: 'An account with this email already exists.',
+        }),
+      };
+    }
 
-      return { tenant, user };
-    });
+    // Create tenant and user using raw SQL
+    const tenantId = uuidv4();
+    const userId = uuidv4();
 
-    console.log('[Tenant Register] Success:', result.tenant.name);
+    // Create tenant
+    await prisma.$executeRawUnsafe(`
+      INSERT INTO tenants (id, name, subdomain, settings, "isActive", "createdAt", "updatedAt")
+      VALUES ($1, $2, $3, $4::jsonb, true, NOW(), NOW())
+    `, tenantId, company.name, subdomain, JSON.stringify({
+      domain: company.domain || '',
+      email: company.email || '',
+      phone: company.phone || '',
+    }));
+
+    // Create admin user
+    await prisma.$executeRawUnsafe(`
+      INSERT INTO users (id, email, "passwordHash", "firstName", "lastName", role, "isActive", "tenantId", "createdAt", "updatedAt")
+      VALUES ($1, $2, $3, $4, $5, 'ADMIN', true, $6, NOW(), NOW())
+    `, userId, admin.email.toLowerCase().trim(), admin.password, admin.firstName || '', admin.lastName || '', tenantId);
+
+    console.log('[Tenant Register] Success:', { tenantId, userId, company: company.name });
 
     return {
       statusCode: 201,
@@ -96,24 +101,25 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       body: JSON.stringify({
         message: 'Registration successful',
         tenant: {
-          id: result.tenant.id,
-          name: result.tenant.name,
-          slug: result.tenant.slug,
+          id: tenantId,
+          name: company.name,
+          subdomain,
         },
         user: {
-          id: result.user.id,
-          email: result.user.email,
+          id: userId,
+          email: admin.email,
         },
       }),
     };
   } catch (error: any) {
     console.error('[Tenant Register] Error:', error);
 
-    if (error.code === 'P2002') {
+    // Handle unique constraint violations
+    if (error.message?.includes('unique') || error.message?.includes('duplicate')) {
       return {
         statusCode: 409,
         headers: CORS_HEADERS,
-        body: JSON.stringify({ error: 'A company with this information already exists' }),
+        body: JSON.stringify({ error: 'A company or user with this information already exists' }),
       };
     }
 
@@ -124,4 +130,3 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     };
   }
 };
-
