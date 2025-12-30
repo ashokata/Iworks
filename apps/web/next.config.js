@@ -7,8 +7,10 @@ const withPWA = require('next-pwa')({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Note: Removed 'standalone' - Amplify WEB_COMPUTE handles Next.js natively
-  // Disable image optimization for Amplify hosting
+  // Static export for Amplify WEB platform (no SSR)
+  output: 'export',
+  trailingSlash: true,
+  // Disable image optimization for static export
   images: {
     unoptimized: true,
   },

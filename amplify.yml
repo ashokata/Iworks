@@ -10,14 +10,10 @@ applications:
           commands:
             - npm run build
       artifacts:
-        baseDirectory: .
+        # Static export outputs to 'out' directory
+        baseDirectory: out
         files:
-          - '.next/**/*'
-          - 'public/**/*'
-          - 'package.json'
-          - 'next.config.js'
-          - 'node_modules/**/*'
+          - '**/*'
       cache:
         paths:
           - node_modules/**/*
-          - .next/cache/**/*
