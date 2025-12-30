@@ -140,6 +140,12 @@ export class FieldSmartProStack extends cdk.Stack {
       description: 'Update customer in PostgreSQL',
     });
 
+    const addAddressFn = new lambda.Function(this, 'AddAddressFunction', {
+      ...postgresLambdaConfig,
+      handler: 'handlers/customers/add-address.handler',
+      description: 'Add address to customer',
+    });
+
     // ============================================================================
     // JOB HANDLERS (PostgreSQL)
     // ============================================================================
@@ -303,6 +309,10 @@ export class FieldSmartProStack extends cdk.Stack {
     customerById.addMethod('GET', new apigateway.LambdaIntegration(getCustomerFn));
     customerById.addMethod('PUT', new apigateway.LambdaIntegration(updateCustomerFn));
     customerById.addMethod('DELETE', new apigateway.LambdaIntegration(updateCustomerFn)); // Soft delete
+
+    // Customer addresses endpoint
+    const customerAddresses = customerById.addResource('addresses');
+    customerAddresses.addMethod('POST', new apigateway.LambdaIntegration(addAddressFn));
 
     // Job endpoints (PostgreSQL)
     const jobs = api.root.addResource('jobs');

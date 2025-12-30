@@ -56,6 +56,31 @@ const migrationStatements = [
   `CREATE INDEX IF NOT EXISTS "customers_tenantId_idx" ON customers("tenantId")`,
   `CREATE INDEX IF NOT EXISTS "customers_email_idx" ON customers(email)`,
 
+  // Create addresses table (linked to customers)
+  `CREATE TABLE IF NOT EXISTS addresses (
+    id TEXT PRIMARY KEY,
+    type TEXT DEFAULT 'SERVICE' NOT NULL,
+    name TEXT,
+    street TEXT NOT NULL,
+    "streetLine2" TEXT,
+    city TEXT NOT NULL,
+    state TEXT NOT NULL,
+    zip TEXT NOT NULL,
+    country TEXT DEFAULT 'US',
+    "accessNotes" TEXT,
+    "gateCode" TEXT,
+    latitude DOUBLE PRECISION,
+    longitude DOUBLE PRECISION,
+    "customerId" TEXT REFERENCES customers(id) ON DELETE CASCADE,
+    "propertyId" TEXT,
+    "tenantId" TEXT NOT NULL REFERENCES tenants(id),
+    "createdAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" TIMESTAMP(3) NOT NULL
+  )`,
+
+  `CREATE INDEX IF NOT EXISTS "addresses_customerId_idx" ON addresses("customerId")`,
+  `CREATE INDEX IF NOT EXISTS "addresses_tenantId_idx" ON addresses("tenantId")`,
+
   // Create jobs table
   `CREATE TABLE IF NOT EXISTS jobs (
     id TEXT PRIMARY KEY,
