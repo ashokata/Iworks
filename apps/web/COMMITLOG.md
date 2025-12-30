@@ -4,6 +4,37 @@ All commits to this project are documented in this file.
 
 ---
 
+## 📦 Commit #37 - 2025-12-31 00:49 AM (IST)
+
+**Developer:** Veera Kuppili
+**Type:** Fix / UI Enhancement
+
+### 📝 Commit Message
+```
+fix(web): improve estimate form UX and fix customerCanApprove default
+
+- Change customerCanApprove default from true to false for better security
+- Restructure line item layout to 12-column grid for better responsiveness
+- Move description field below main inputs for cleaner layout
+- Improve taxable checkbox alignment and styling
+- Apply consistent formatting across new and edit estimate pages
+```
+
+### ✨ Changes
+
+**Frontend Pages:**
+- ✅ `apps/web/src/app/estimates/new/page.tsx` - Updated customerCanApprove default to false, improved line item grid layout
+- ✅ `apps/web/src/app/estimates/edit/[id]/page.tsx` - Applied same UX improvements for consistency
+
+**UI Improvements:**
+- Grid layout changed from 2-column to 12-column system for better control
+- Service name, quantity, unit price, and taxable checkbox now in single row
+- Description field moved to separate row below for better readability
+- Taxable checkbox properly aligned with consistent styling
+- Enhanced responsive behavior across all screen sizes
+
+---
+
 ## 📦 Commit #36 - 2025-12-30 11:30 PM (IST)
 
 **Developer:** Veera Kuppili
