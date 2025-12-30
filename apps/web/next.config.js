@@ -7,10 +7,9 @@ const withPWA = require('next-pwa')({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Note: Removed 'standalone' - Amplify WEB_COMPUTE handles Next.js natively
-  // Disable image optimization for Amplify hosting
+  // Vercel handles Next.js SSR natively - no special config needed
   images: {
-    unoptimized: true,
+    unoptimized: false, // Vercel supports image optimization
   },
   // Temporarily ignore TypeScript errors during build due to legacy/new type conflicts
   // TODO: Fix all type mismatches and remove this
