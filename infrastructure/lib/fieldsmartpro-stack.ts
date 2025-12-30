@@ -303,11 +303,53 @@ export class FieldSmartProStack extends cdk.Stack {
     // ============================================================================
     // WEB FRONTEND - AWS AMPLIFY HOSTING
     // ============================================================================
-    // Amplify app is being set up manually through AWS Console
-    // Use the following configuration when setting up:
-    // Repository: https://github.com/ashokata/Iworks
-    // Branch: customers-dynamodb (for development)
-    // Build settings are in the build spec below
+
+    const amplifyApp = new amplify.CfnApp(this, 'WebApp', {
+      name: `fieldsmartpro-web-${stage}`,
+      repository: 'https://github.com/ashokata/Iworks',
+      platform: 'WEB',
+      // OAuth connection already established in Console
+
+      // Build settings for Expo web app
+      buildSpec: `version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - cd apps/mobile
+        - npm install
+        - npx expo install react-native-web
+    build:
+      commands:
+        - npx expo export:web
+  artifacts:
+    baseDirectory: apps/mobile/dist
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - node_modules/**/*`,
+
+      // Environment variables for the web app
+      environmentVariables: [
+        {
+          name: 'EXPO_PUBLIC_API_URL',
+          value: api.url,
+        },
+        {
+          name: 'EXPO_PUBLIC_TENANT_ID',
+          value: 'tenant1',
+        },
+      ],
+    });
+
+    // Create branch for the app
+    const amplifyBranch = new amplify.CfnBranch(this, 'WebAppBranch', {
+      appId: amplifyApp.attrAppId,
+      branchName: stage === 'production' ? 'main' : 'customers-dynamodb',
+      enableAutoBuild: true,
+      enablePullRequestPreview: false,
+    });
 
     // ============================================================================
     // OUTPUTS
@@ -356,6 +398,18 @@ export class FieldSmartProStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'CacheTableName', {
       value: cacheTable.tableName,
       description: 'DynamoDB Cache Table',
+    });
+
+    new cdk.CfnOutput(this, 'WebAppUrl', {
+      value: `https://${amplifyBranch.branchName}.${amplifyApp.attrDefaultDomain}`,
+      description: 'Web App URL (AWS Amplify)',
+      exportName: `${id}-WebAppUrl`,
+    });
+
+    new cdk.CfnOutput(this, 'AmplifyAppId', {
+      value: amplifyApp.attrAppId,
+      description: 'Amplify App ID',
+      exportName: `${id}-AmplifyAppId`,
     });
   }
 }
