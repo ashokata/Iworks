@@ -38,10 +38,14 @@ export const handler = async (
       title,
       message,
       termsAndConditions,
+      expirationDate,
+      customerCanApprove = true,
+      multipleOptionsAllowed = false,
+      useSameAsPrimary = false,
       validUntil,
       status = 'DRAFT',
       taxRate = 0,
-      options = [],
+      lineItems = [],
     } = body;
 
     // Validate required fields
@@ -59,10 +63,10 @@ export const handler = async (
       };
     }
 
-    if (!options || options.length === 0) {
+    if (!lineItems || lineItems.length === 0) {
       return {
         statusCode: 400,
-        body: JSON.stringify({ error: 'At least one estimate option is required' }),
+        body: JSON.stringify({ error: 'At least one line item is required' }),
       };
     }
 
@@ -141,71 +145,25 @@ export const handler = async (
       }
     }
 
-    // Calculate totals for each option
-    const processedOptions = options.map((option: any, optionIndex: number) => {
-      const lineItems = option.lineItems || [];
-      
-      // Calculate subtotal from line items
-      const subtotal = lineItems.reduce((sum: number, item: any) => {
-        return sum + (item.quantity * item.unitPrice);
-      }, 0);
+    // Calculate totals from line items
+    const subtotal = lineItems.reduce((sum: number, item: any) => {
+      return sum + (item.quantity * item.unitPrice);
+    }, 0);
 
-      // Calculate discount
-      let discountAmount = 0;
-      if (option.discountType === 'PERCENTAGE') {
-        discountAmount = subtotal * (option.discountValue / 100);
-      } else if (option.discountType === 'FIXED_AMOUNT') {
-        discountAmount = option.discountValue || 0;
-      }
+    // Calculate discount (can be added later if needed)
+    const discountAmount = 0;
 
-      // Calculate tax
-      const taxableAmount = lineItems
-        .filter((item: any) => item.isTaxable !== false)
-        .reduce((sum: number, item: any) => sum + (item.quantity * item.unitPrice), 0);
-      
-      const afterDiscount = taxableAmount - (taxableAmount / subtotal) * discountAmount;
-      const taxAmount = afterDiscount * (taxRate / 100);
+    // Calculate tax
+    const taxableAmount = lineItems
+      .filter((item: any) => item.isTaxable !== false)
+      .reduce((sum: number, item: any) => sum + (item.quantity * item.unitPrice), 0);
+    
+    const taxAmount = taxableAmount * (taxRate / 100);
 
-      // Calculate total
-      const total = subtotal - discountAmount + taxAmount;
+    // Calculate total
+    const total = subtotal - discountAmount + taxAmount;
 
-      return {
-        name: option.name,
-        description: option.description || null,
-        coverImageUrl: option.coverImageUrl || null,
-        isRecommended: option.isRecommended || false,
-        subtotal,
-        discountType: option.discountType || 'NONE',
-        discountValue: option.discountValue || 0,
-        discountAmount,
-        taxRate,
-        taxAmount,
-        total,
-        sortOrder: option.sortOrder !== undefined ? option.sortOrder : optionIndex,
-        lineItems: {
-          create: lineItems.map((item: any, itemIndex: number) => ({
-            type: item.type,
-            name: item.name,
-            description: item.description || null,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            unitCost: item.unitCost || 0,
-            isTaxable: item.isTaxable !== false,
-            isOptional: item.isOptional || false,
-            isSelected: item.isSelected !== false,
-            sortOrder: item.sortOrder !== undefined ? item.sortOrder : itemIndex,
-          })),
-        },
-      };
-    });
-
-    // Calculate estimate totals
-    const estimateSubtotal = processedOptions.reduce((sum, opt) => sum + opt.subtotal, 0);
-    const estimateDiscountAmount = processedOptions.reduce((sum, opt) => sum + opt.discountAmount, 0);
-    const estimateTaxAmount = processedOptions.reduce((sum, opt) => sum + opt.taxAmount, 0);
-    const estimateTotal = processedOptions.reduce((sum, opt) => sum + opt.total, 0);
-
-    // Create estimate with options and line items
+    // Create estimate with line items
     const estimate = await prisma.estimate.create({
       data: {
         tenantId,
@@ -216,14 +174,29 @@ export const handler = async (
         title: title || null,
         message: message || null,
         termsAndConditions: termsAndConditions || null,
+        expirationDate: expirationDate ? new Date(expirationDate) : null,
+        customerCanApprove,
+        multipleOptionsAllowed,
+        useSameAsPrimary,
         validUntil: validUntil ? new Date(validUntil) : null,
-        subtotal: estimateSubtotal,
-        discountAmount: estimateDiscountAmount,
-        taxAmount: estimateTaxAmount,
-        total: estimateTotal,
+        subtotal,
+        discountAmount,
+        taxRate,
+        taxAmount,
+        total,
         sentAt: status === 'SENT' ? new Date() : null,
-        options: {
-          create: processedOptions,
+        lineItems: {
+          create: lineItems.map((item: any, itemIndex: number) => ({
+            type: item.type,
+            name: item.name,
+            description: item.description || null,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            unitCost: item.unitCost || 0,
+            isTaxable: item.isTaxable !== false,
+            isOptional: item.isOptional || false,
+            sortOrder: item.sortOrder !== undefined ? item.sortOrder : itemIndex,
+          })),
         },
       },
       include: {
@@ -245,14 +218,7 @@ export const handler = async (
             zip: true,
           },
         },
-        options: {
-          include: {
-            lineItems: {
-              orderBy: {
-                sortOrder: 'asc',
-              },
-            },
-          },
+        lineItems: {
           orderBy: {
             sortOrder: 'asc',
           },

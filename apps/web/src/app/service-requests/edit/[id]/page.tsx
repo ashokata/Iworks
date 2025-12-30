@@ -1014,54 +1014,46 @@ export default function EditServiceRequestPage() {
                       
                       <div className="pt-2 border-t border-green-200">
                         <div className="flex items-center justify-between mb-2">
-                          <p className="text-xs font-bold text-gray-700 uppercase tracking-wider">Options & Line Items</p>
+                          <p className="text-xs font-bold text-gray-700 uppercase tracking-wider">Line Items</p>
                           <div className="text-right">
                             <p className="text-xs text-gray-500">Total</p>
                             <p className="text-lg font-bold text-gray-800">${Number(selectedEstimate.total).toFixed(2)}</p>
                           </div>
                         </div>
                         
-                        {selectedEstimate.options.map((option, optionIdx) => (
-                          <div key={option.id} className="mb-3 last:mb-0">
-                            <div className="flex items-start justify-between mb-2">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2">
-                                  <p className="text-sm font-semibold text-gray-800">{option.name}</p>
-                                  {option.isRecommended && (
-                                    <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-semibold rounded">
-                                      Recommended
+                        {selectedEstimate.lineItems && selectedEstimate.lineItems.length > 0 ? (
+                          <div className="space-y-3">
+                            {selectedEstimate.lineItems.map((item) => (
+                              <div key={item.id} className="flex items-start justify-between text-sm">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-semibold text-gray-800">{item.name}</span>
+                                    <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 text-xs rounded">
+                                      {item.type}
                                     </span>
-                                  )}
-                                </div>
-                                {option.description && (
-                                  <p className="text-xs text-gray-600 mt-0.5">{option.description}</p>
-                                )}
-                              </div>
-                              <p className="text-sm font-semibold text-gray-700 ml-4">${Number(option.total).toFixed(2)}</p>
-                            </div>
-                            
-                            {option.lineItems.length > 0 && (
-                              <div className="ml-4 space-y-1">
-                                {option.lineItems.map((item) => (
-                                  <div key={item.id} className="flex items-start justify-between text-xs">
-                                    <div className="flex-1">
-                                      <span className="text-gray-700">{item.name}</span>
-                                      {item.description && (
-                                        <span className="text-gray-500 ml-1">- {item.description}</span>
-                                      )}
-                                      <span className="text-gray-500 ml-2">
-                                        (Qty: {Number(item.quantity)} × ${Number(item.unitPrice).toFixed(2)})
+                                    {item.isOptional && (
+                                      <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-xs rounded">
+                                        Optional
                                       </span>
-                                    </div>
-                                    <span className="text-gray-600 font-medium ml-2">
-                                      ${(Number(item.quantity) * Number(item.unitPrice)).toFixed(2)}
-                                    </span>
+                                    )}
                                   </div>
-                                ))}
+                                  {item.description && (
+                                    <p className="text-xs text-gray-600 mt-0.5">{item.description}</p>
+                                  )}
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    Qty: {Number(item.quantity)} × ${Number(item.unitPrice).toFixed(2)}
+                                    {item.isTaxable && <span className="ml-2 text-green-600">• Taxable</span>}
+                                  </p>
+                                </div>
+                                <span className="text-gray-700 font-semibold ml-4">
+                                  ${(Number(item.quantity) * Number(item.unitPrice)).toFixed(2)}
+                                </span>
                               </div>
-                            )}
+                            ))}
                           </div>
-                        ))}
+                        ) : (
+                          <p className="text-xs text-gray-500 italic">No line items</p>
+                        )}
                       </div>
                     </div>
                   )}

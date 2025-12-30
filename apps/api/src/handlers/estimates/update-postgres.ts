@@ -43,11 +43,7 @@ export const handler = async (
     const existing = await prisma.estimate.findFirst({
       where: { id, tenantId },
       include: {
-        options: {
-          include: {
-            lineItems: true,
-          },
-        },
+        lineItems: true,
       },
     });
 
@@ -63,9 +59,14 @@ export const handler = async (
       title,
       message,
       termsAndConditions,
+      expirationDate,
+      customerCanApprove,
+      multipleOptionsAllowed,
+      useSameAsPrimary,
       validUntil,
       status,
-      options,
+      taxRate,
+      lineItems,
     } = body;
 
     // Build update data
@@ -74,7 +75,12 @@ export const handler = async (
     if (title !== undefined) updateData.title = title;
     if (message !== undefined) updateData.message = message;
     if (termsAndConditions !== undefined) updateData.termsAndConditions = termsAndConditions;
+    if (expirationDate !== undefined) updateData.expirationDate = expirationDate ? new Date(expirationDate) : null;
+    if (customerCanApprove !== undefined) updateData.customerCanApprove = customerCanApprove;
+    if (multipleOptionsAllowed !== undefined) updateData.multipleOptionsAllowed = multipleOptionsAllowed;
+    if (useSameAsPrimary !== undefined) updateData.useSameAsPrimary = useSameAsPrimary;
     if (validUntil !== undefined) updateData.validUntil = validUntil ? new Date(validUntil) : null;
+    if (taxRate !== undefined) updateData.taxRate = taxRate;
     
     // Handle status changes with timestamps
     if (status !== undefined) {
@@ -92,100 +98,45 @@ export const handler = async (
       }
     }
 
-    // Handle options update if provided
-    if (options && Array.isArray(options)) {
-      // First, get all option IDs for this estimate
-      const existingOptions = await prisma.estimateOption.findMany({
-        where: { estimateId: id },
-        select: { id: true },
-      });
-      
-      const optionIds = existingOptions.map(opt => opt.id);
-      
-      // Delete existing line items using option IDs
-      if (optionIds.length > 0) {
-        await prisma.estimateLineItem.deleteMany({
-          where: {
-            estimateOptionId: {
-              in: optionIds,
-            },
-          },
-        });
-      }
-      
-      // Delete existing options
-      await prisma.estimateOption.deleteMany({
+    // Handle line items update if provided
+    if (lineItems && Array.isArray(lineItems)) {
+      // Delete existing line items
+      await prisma.estimateLineItem.deleteMany({
         where: { estimateId: id },
       });
 
-      // Get tax rate from first option or use existing
-      const taxRate = options[0]?.taxRate || existing.options[0]?.taxRate || 0;
+      // Calculate totals
+      const subtotal = lineItems.reduce((sum: number, item: any) => {
+        return sum + (item.quantity * item.unitPrice);
+      }, 0);
 
-      // Process and create new options
-      const processedOptions = options.map((option: any, optionIndex: number) => {
-        const lineItems = option.lineItems || [];
-        
-        const subtotal = lineItems.reduce((sum: number, item: any) => {
-          return sum + (item.quantity * item.unitPrice);
-        }, 0);
+      const discountAmount = 0; // Can be added later if needed
 
-        let discountAmount = 0;
-        if (option.discountType === 'PERCENTAGE') {
-          discountAmount = subtotal * (option.discountValue / 100);
-        } else if (option.discountType === 'FIXED_AMOUNT') {
-          discountAmount = option.discountValue || 0;
-        }
+      const taxableAmount = lineItems
+        .filter((item: any) => item.isTaxable !== false)
+        .reduce((sum: number, item: any) => sum + (item.quantity * item.unitPrice), 0);
+      
+      const estimateTaxRate = taxRate !== undefined ? taxRate : existing.taxRate;
+      const taxAmount = taxableAmount * (Number(estimateTaxRate) / 100);
+      const total = subtotal - discountAmount + taxAmount;
 
-        const taxableAmount = lineItems
-          .filter((item: any) => item.isTaxable !== false)
-          .reduce((sum: number, item: any) => sum + (item.quantity * item.unitPrice), 0);
-        
-        const afterDiscount = taxableAmount - (taxableAmount / subtotal) * discountAmount;
-        const taxAmount = afterDiscount * (taxRate / 100);
-        const total = subtotal - discountAmount + taxAmount;
+      updateData.subtotal = subtotal;
+      updateData.discountAmount = discountAmount;
+      updateData.taxAmount = taxAmount;
+      updateData.total = total;
 
-        return {
-          name: option.name,
-          description: option.description || null,
-          coverImageUrl: option.coverImageUrl || null,
-          isRecommended: option.isRecommended || false,
-          subtotal,
-          discountType: option.discountType || 'NONE',
-          discountValue: option.discountValue || 0,
-          discountAmount,
-          taxRate,
-          taxAmount,
-          total,
-          sortOrder: option.sortOrder !== undefined ? option.sortOrder : optionIndex,
-          lineItems: {
-            create: lineItems.map((item: any, itemIndex: number) => ({
-              type: item.type,
-              name: item.name,
-              description: item.description || null,
-              quantity: item.quantity,
-              unitPrice: item.unitPrice,
-              unitCost: item.unitCost || 0,
-              isTaxable: item.isTaxable !== false,
-              isOptional: item.isOptional || false,
-              isSelected: item.isSelected !== false,
-              sortOrder: item.sortOrder !== undefined ? item.sortOrder : itemIndex,
-            })),
-          },
-        };
-      });
-
-      const estimateSubtotal = processedOptions.reduce((sum, opt) => sum + opt.subtotal, 0);
-      const estimateDiscountAmount = processedOptions.reduce((sum, opt) => sum + opt.discountAmount, 0);
-      const estimateTaxAmount = processedOptions.reduce((sum, opt) => sum + opt.taxAmount, 0);
-      const estimateTotal = processedOptions.reduce((sum, opt) => sum + opt.total, 0);
-
-      updateData.subtotal = estimateSubtotal;
-      updateData.discountAmount = estimateDiscountAmount;
-      updateData.taxAmount = estimateTaxAmount;
-      updateData.total = estimateTotal;
-
-      updateData.options = {
-        create: processedOptions,
+      updateData.lineItems = {
+        create: lineItems.map((item: any, itemIndex: number) => ({
+          type: item.type,
+          name: item.name,
+          description: item.description || null,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          unitCost: item.unitCost || 0,
+          isTaxable: item.isTaxable !== false,
+          isOptional: item.isOptional || false,
+          sortOrder: item.sortOrder !== undefined ? item.sortOrder : itemIndex,
+        })),
       };
     }
 
@@ -212,14 +163,7 @@ export const handler = async (
             zip: true,
           },
         },
-        options: {
-          include: {
-            lineItems: {
-              orderBy: {
-                sortOrder: 'asc',
-              },
-            },
-          },
+        lineItems: {
           orderBy: {
             sortOrder: 'asc',
           },

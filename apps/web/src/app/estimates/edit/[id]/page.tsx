@@ -19,17 +19,6 @@ interface LineItem {
   unitCost: number;
   isTaxable: boolean;
   isOptional: boolean;
-  isSelected: boolean;
-}
-
-interface Option {
-  id: string;
-  name: string;
-  description: string;
-  isRecommended: boolean;
-  discountType: 'NONE' | 'PERCENTAGE' | 'FIXED_AMOUNT';
-  discountValue: number;
-  lineItems: LineItem[];
 }
 
 export default function EditEstimatePage() {
@@ -46,16 +35,34 @@ export default function EditEstimatePage() {
     message: '',
     termsAndConditions: '',
     validUntil: '',
+    customerCanApprove: true,
     status: 'DRAFT' as const,
     taxRate: 7.5,
   });
 
-  const [options, setOptions] = useState<Option[]>([]);
+  const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showValidation, setShowValidation] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [useSameAsPrimary, setUseSameAsPrimary] = useState(false);
+  const [showAddressModal, setShowAddressModal] = useState(false);
+  const [newAddress, setNewAddress] = useState({
+    street: '',
+    city: '',
+    state: '',
+    zip: '',
+    type: 'SERVICE' as const
+  });
+  const [pendingAddresses, setPendingAddresses] = useState<Array<{
+    id: string;
+    street: string;
+    city: string;
+    state: string;
+    zip: string;
+    type: string;
+  }>>([]);
 
   // Fetch estimate
   const { data: estimate, isLoading: estimateLoading } = useQuery({
@@ -65,15 +72,18 @@ export default function EditEstimatePage() {
   });
 
   // Fetch customers
-  const { data: customers = [], isLoading: isLoadingCustomers } = useQuery({
+  const { data: customers = [], isLoading: customersLoading } = useQuery({
     queryKey: ['customers'],
-    queryFn: () => customerService.getAllCustomers(),
+    queryFn: customerService.getAllCustomers,
     enabled: isAuthenticated,
   });
 
-  const selectedCustomer = customers?.find((c: any) => c.id === formData.customerId);
-  const customerAddresses = ((selectedCustomer?.addresses as any)?.data || selectedCustomer?.addresses || [])
-    .filter((addr: any) => addr.type?.toUpperCase() === 'SERVICE');
+  const selectedCustomer = customers.find((c: Customer) => c.id === formData.customerId);
+  const customerAddresses = [
+    ...((selectedCustomer?.addresses as any)?.data || selectedCustomer?.addresses || [])
+      .filter((addr: any) => addr.type?.toUpperCase() === 'SERVICE'),
+    ...pendingAddresses
+  ];
 
   // Initialize form with estimate data
   useEffect(() => {
@@ -90,45 +100,89 @@ export default function EditEstimatePage() {
         message: estimate.message || '',
         termsAndConditions: estimate.termsAndConditions || '',
         validUntil: estimate.validUntil ? new Date(estimate.validUntil).toISOString().split('T')[0] : '',
+        customerCanApprove: estimate.customerCanApprove ?? true,
         status: estimate.status || 'DRAFT',
         taxRate: formatCurrency(estimate.taxRate),
       });
+      
+      setUseSameAsPrimary(estimate.useSameAsPrimary ?? false);
 
-      // Initialize options with existing data
-      const initialOptions = (estimate.options || []).map((option: any, idx: number) => ({
-        id: option.id || `option-${idx}`,
-        name: option.name || '',
-        description: option.description || '',
-        isRecommended: option.isRecommended || false,
-        discountType: option.discountType || 'NONE',
-        discountValue: formatCurrency(option.discountValue),
-        lineItems: (option.lineItems || []).map((item: any, itemIdx: number) => ({
-          id: item.id || `item-${itemIdx}`,
-          type: item.type || 'SERVICE',
-          name: item.name || '',
-          description: item.description || '',
-          quantity: formatCurrency(item.quantity),
-          unitPrice: formatCurrency(item.unitPrice),
-          unitCost: formatCurrency(item.unitCost),
-          isTaxable: item.isTaxable !== undefined ? item.isTaxable : true,
-          isOptional: item.isOptional || false,
-          isSelected: item.isSelected !== undefined ? item.isSelected : true,
-        })),
+      // Initialize line items from estimate
+      const initialLineItems = (estimate.lineItems || []).map((item: any, idx: number) => ({
+        id: item.id || `item-${idx}`,
+        type: item.type || 'SERVICE',
+        name: item.name || '',
+        description: item.description || '',
+        quantity: formatCurrency(item.quantity),
+        unitPrice: formatCurrency(item.unitPrice),
+        unitCost: formatCurrency(item.unitCost),
+        isTaxable: item.isTaxable !== undefined ? item.isTaxable : true,
+        isOptional: item.isOptional || false,
       }));
 
-      setOptions(initialOptions.length > 0 ? initialOptions : [{
-        id: `option-${Date.now()}`,
-        name: 'Option 1',
-        description: '',
-        isRecommended: true,
-        discountType: 'NONE',
-        discountValue: 0,
-        lineItems: [],
-      }]);
-
+      setLineItems(initialLineItems);
       setIsInitialized(true);
     }
   }, [estimate, isInitialized]);
+
+  // Don't auto-clear addressId on edit page to preserve loaded data
+
+  // Handle useSameAsPrimary checkbox change
+  useEffect(() => {
+    if (useSameAsPrimary && selectedCustomer) {
+      const addresses = (selectedCustomer?.addresses as any)?.data || selectedCustomer?.addresses || [];
+      const primaryAddress = addresses.find((addr: any) => addr.type?.toUpperCase() === 'PRIMARY');
+      
+      if (primaryAddress) {
+        // Check if a SERVICE address already exists with same details
+        const normalizedPrimary = {
+          street: (primaryAddress.street || '').trim().toLowerCase(),
+          city: (primaryAddress.city || '').trim().toLowerCase(),
+          state: (primaryAddress.state || '').trim().toLowerCase(),
+          zip: (primaryAddress.zip || '').trim()
+        };
+        
+        const existingServiceAddress = addresses.find((addr: any) => {
+          if (addr.type?.toUpperCase() !== 'SERVICE') return false;
+          
+          const normalizedAddr = {
+            street: (addr.street || '').trim().toLowerCase(),
+            city: (addr.city || '').trim().toLowerCase(),
+            state: (addr.state || '').trim().toLowerCase(),
+            zip: (addr.zip || '').trim()
+          };
+          
+          return normalizedAddr.street === normalizedPrimary.street &&
+            normalizedAddr.city === normalizedPrimary.city &&
+            normalizedAddr.state === normalizedPrimary.state &&
+            normalizedAddr.zip === normalizedPrimary.zip;
+        });
+
+        if (existingServiceAddress) {
+          // Use existing SERVICE address
+          setFormData(prev => ({ ...prev, addressId: existingServiceAddress.id }));
+        } else {
+          // Create a pending SERVICE address
+          const newServiceAddress = {
+            id: `pending-primary-${Date.now()}`,
+            street: primaryAddress.street,
+            city: primaryAddress.city,
+            state: primaryAddress.state,
+            zip: primaryAddress.zip,
+            type: 'SERVICE' as const
+          };
+          setPendingAddresses(prev => {
+            const filtered = prev.filter(addr => !addr.id.startsWith('pending-primary-'));
+            return [...filtered, newServiceAddress];
+          });
+          setFormData(prev => ({ ...prev, addressId: newServiceAddress.id }));
+        }
+      }
+    } else if (!useSameAsPrimary) {
+      // Clear pending-primary addresses when unchecked
+      setPendingAddresses(prev => prev.filter(addr => !addr.id.startsWith('pending-primary-')));
+    }
+  }, [useSameAsPrimary, selectedCustomer]);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -144,237 +198,209 @@ export default function EditEstimatePage() {
     }
   }, [toast]);
 
-  const addOption = () => {
-    setOptions([
-      ...options,
+  const addService = () => {
+    setLineItems([
+      ...lineItems,
       {
-        id: `option-new-${Date.now()}`,
-        name: `Option ${options.length + 1}`,
+        id: `service-${Date.now()}`,
+        type: 'SERVICE',
+        name: '',
         description: '',
-        isRecommended: false,
-        discountType: 'NONE',
-        discountValue: 0,
-        lineItems: [],
+        quantity: 1,
+        unitPrice: 0,
+        unitCost: 0,
+        isTaxable: true,
+        isOptional: false,
       },
     ]);
   };
 
-  const removeOption = (optionId: string) => {
-    if (options.length === 1) {
-      alert('You must have at least one option');
-      return;
-    }
-    setOptions(options.filter((opt) => opt.id !== optionId));
+  const addMaterial = () => {
+    setLineItems([
+      ...lineItems,
+      {
+        id: `material-${Date.now()}`,
+        type: 'MATERIAL',
+        name: '',
+        description: '',
+        quantity: 1,
+        unitPrice: 0,
+        unitCost: 0,
+        isTaxable: true,
+        isOptional: false,
+      },
+    ]);
   };
 
-  const updateOption = (optionId: string, field: string, value: any) => {
-    setOptions(
-      options.map((opt) =>
-        opt.id === optionId ? { ...opt, [field]: value } : opt
-      )
-    );
+  const addLabor = () => {
+    setLineItems([
+      ...lineItems,
+      {
+        id: `labor-${Date.now()}`,
+        type: 'LABOR',
+        name: '',
+        description: '',
+        quantity: 1,
+        unitPrice: 0,
+        unitCost: 0,
+        isTaxable: true,
+        isOptional: false,
+      },
+    ]);
   };
 
-  const addLineItem = (optionId: string) => {
-    setOptions(
-      options.map((opt) =>
-        opt.id === optionId
-          ? {
-              ...opt,
-              lineItems: [
-                ...opt.lineItems,
-                {
-                  id: `item-new-${Date.now()}`,
-                  type: 'SERVICE' as const,
-                  name: '',
-                  description: '',
-                  quantity: 1,
-                  unitPrice: 0,
-                  unitCost: 0,
-                  isTaxable: true,
-                  isOptional: false,
-                  isSelected: true,
-                },
-              ],
-            }
-          : opt
-      )
-    );
+  const addEquipment = () => {
+    setLineItems([
+      ...lineItems,
+      {
+        id: `equipment-${Date.now()}`,
+        type: 'EQUIPMENT',
+        name: '',
+        description: '',
+        quantity: 1,
+        unitPrice: 0,
+        unitCost: 0,
+        isTaxable: true,
+        isOptional: false,
+      },
+    ]);
   };
 
-  const removeLineItem = (optionId: string, itemId: string) => {
-    setOptions(
-      options.map((opt) =>
-        opt.id === optionId
-          ? {
-              ...opt,
-              lineItems: opt.lineItems.filter((item) => item.id !== itemId),
-            }
-          : opt
-      )
-    );
+  const addOther = () => {
+    setLineItems([
+      ...lineItems,
+      {
+        id: `other-${Date.now()}`,
+        type: 'OTHER',
+        name: '',
+        description: '',
+        quantity: 1,
+        unitPrice: 0,
+        unitCost: 0,
+        isTaxable: true,
+        isOptional: false,
+      },
+    ]);
   };
 
-  const updateLineItem = (
-    optionId: string,
-    itemId: string,
-    field: string,
-    value: any
-  ) => {
-    setOptions(
-      options.map((opt) =>
-        opt.id === optionId
-          ? {
-              ...opt,
-              lineItems: opt.lineItems.map((item) =>
-                item.id === itemId ? { ...item, [field]: value } : item
-              ),
-            }
-          : opt
-      )
-    );
+  const removeLineItem = (itemId: string) => {
+    setLineItems(lineItems.filter((item) => item.id !== itemId));
   };
 
-  const calculateOptionTotal = (option: Option) => {
-    const subtotal = option.lineItems.reduce(
-      (sum, item) => sum + item.quantity * item.unitPrice,
-      0
-    );
-    
-    let discountAmount = 0;
-    if (option.discountType === 'PERCENTAGE') {
-      discountAmount = subtotal * (option.discountValue / 100);
-    } else if (option.discountType === 'FIXED_AMOUNT') {
-      discountAmount = option.discountValue;
-    }
-    
-    const afterDiscount = subtotal - discountAmount;
-    const taxableAmount = option.lineItems
+  const updateLineItem = (itemId: string, field: keyof LineItem, value: any) => {
+    setLineItems(lineItems.map((item) => {
+      if (item.id === itemId) {
+        return { ...item, [field]: value };
+      }
+      return item;
+    }));
+  };
+
+  const calculateSubtotal = () => {
+    return lineItems.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+  };
+
+  const calculateTaxAmount = () => {
+    const taxableAmount = lineItems
       .filter((item) => item.isTaxable)
       .reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
-    
-    const taxAmount = (taxableAmount - (taxableAmount / subtotal) * discountAmount) * (formData.taxRate / 100);
-    const total = afterDiscount + taxAmount;
-    
-    return { subtotal, discountAmount, taxAmount, total };
+    return taxableAmount * (formData.taxRate / 100);
   };
 
-  const calculateEstimateTotal = () => {
-    let subtotal = 0;
-    let discountAmount = 0;
-    let taxAmount = 0;
-    let total = 0;
-
-    options.forEach((option) => {
-      const optionTotals = calculateOptionTotal(option);
-      subtotal += optionTotals.subtotal;
-      discountAmount += optionTotals.discountAmount;
-      taxAmount += optionTotals.taxAmount;
-      total += optionTotals.total;
-    });
-
-    return { subtotal, discountAmount, taxAmount, total };
+  const calculateTotal = () => {
+    return calculateSubtotal() + calculateTaxAmount();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     setShowValidation(true);
-    
+
     const newErrors: Record<string, string> = {};
-    
+
     if (!formData.title) newErrors.title = 'Title is required';
     if (!formData.customerId) newErrors.customerId = 'Customer is required';
-    if (!formData.addressId) newErrors.addressId = 'Address is required';
-    
-    // Check for duplicate option names
-    const optionNames = options.map(opt => opt.name.trim().toLowerCase()).filter(name => name);
-    const duplicateOptionNames = optionNames.filter((name, index) => optionNames.indexOf(name) !== index);
-    if (duplicateOptionNames.length > 0) {
-      newErrors.duplicateOptions = `Duplicate option names found: ${[...new Set(duplicateOptionNames)].join(', ')}`;
+    if (!formData.addressId) newErrors.addressId = 'Service address is required';
+
+    if (lineItems.length === 0) {
+      newErrors.lineItems = 'At least one line item is required';
     }
-    
-    options.forEach((option, idx) => {
-      if (!option.name) newErrors[`option-${idx}-name`] = 'Option name is required';
-      if (option.lineItems.length === 0) {
-        newErrors[`option-${idx}-items`] = 'At least one line item is required';
-      }
-      
-      // Check for duplicate line item names within the same option
-      const lineItemNames = option.lineItems.map(item => item.name.trim().toLowerCase()).filter(name => name);
-      const duplicateLineItems = lineItemNames.filter((name, index) => lineItemNames.indexOf(name) !== index);
-      if (duplicateLineItems.length > 0) {
-        newErrors[`option-${idx}-duplicate-items`] = `Duplicate line items in ${option.name}: ${[...new Set(duplicateLineItems)].join(', ')}`;
-      }
-      
-      option.lineItems.forEach((item, itemIdx) => {
-        if (!item.name) newErrors[`item-${idx}-${itemIdx}-name`] = 'Item name is required';
-      });
+
+    lineItems.forEach((item, idx) => {
+      if (!item.name) newErrors[`item-${idx}-name`] = 'Item name is required';
     });
-    
+
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       setToast({ message: 'Please fix validation errors', type: 'error' });
       return;
     }
-    
+
     setIsSaving(true);
-    
+
     try {
-      // Prepare estimate data
+      let finalAddressId = formData.addressId;
+
+      // Save any pending addresses first
+      if (pendingAddresses.length > 0 && selectedCustomer) {
+        console.log('[EditEstimate] Saving pending addresses for customer:', selectedCustomer.id);
+        for (const pendingAddr of pendingAddresses) {
+          const { id, ...addressData } = pendingAddr;
+          console.log('[EditEstimate] Saving address:', addressData);
+          const createdAddress = await customerService.addAddress(selectedCustomer.id, addressData);
+          console.log('[EditEstimate] Address created with ID:', createdAddress.id);
+          
+          // If this was the selected address, update the ID to the real one
+          if (finalAddressId === id) {
+            console.log('[EditEstimate] Updating finalAddressId from', id, 'to', createdAddress.id);
+            finalAddressId = createdAddress.id;
+          }
+        }
+        
+        // Invalidate customers cache so next time we have fresh data
+        console.log('[EditEstimate] Invalidating customers cache');
+        await queryClient.invalidateQueries({ queryKey: ['customers'] });
+      }
+
       const estimateData = {
         customerId: formData.customerId,
-        addressId: formData.addressId,
+        addressId: finalAddressId,
         title: formData.title,
         message: formData.message || undefined,
         termsAndConditions: formData.termsAndConditions || undefined,
         validUntil: formData.validUntil || undefined,
+        customerCanApprove: formData.customerCanApprove,
+        useSameAsPrimary: useSameAsPrimary,
         status: formData.status,
         taxRate: formData.taxRate,
-        options: options.map((option, optionIndex) => ({
-          name: option.name,
-          description: option.description || undefined,
-          isRecommended: option.isRecommended,
-          discountType: option.discountType,
-          discountValue: option.discountValue,
-          sortOrder: optionIndex,
-          lineItems: option.lineItems.map((item, itemIndex) => ({
-            type: item.type,
-            name: item.name,
-            description: item.description || undefined,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            unitCost: item.unitCost,
-            isTaxable: item.isTaxable,
-            isOptional: item.isOptional,
-            isSelected: item.isSelected,
-            sortOrder: itemIndex,
-          })),
+        lineItems: lineItems.map((item) => ({
+          type: item.type,
+          name: item.name,
+          description: item.description || undefined,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          unitCost: item.unitCost,
+          isTaxable: item.isTaxable,
+          isOptional: item.isOptional,
         })),
       };
-      
-      console.log('[EditEstimate] Updating estimate:', estimateData);
-      
+
       await estimateService.update(estimateId, estimateData);
-      
-      console.log('[EditEstimate] Updated estimate successfully');
-      
-      // Invalidate queries to refresh data
+
       queryClient.invalidateQueries({ queryKey: ['estimates'] });
       queryClient.invalidateQueries({ queryKey: ['estimate', estimateId] });
-      
+
       setToast({ message: 'Estimate updated successfully!', type: 'success' });
-      
-      // Redirect to estimate details page after a short delay
+
       setTimeout(() => {
         router.push(`/estimates/${estimateId}`);
       }, 1000);
-      
+
     } catch (error: any) {
       console.error('[EditEstimate] Error updating estimate:', error);
-      setToast({ 
-        message: error.message || 'Failed to update estimate', 
-        type: 'error' 
+      setToast({
+        message: error.message || 'Failed to update estimate',
+        type: 'error'
       });
     } finally {
       setIsSaving(false);
@@ -403,72 +429,109 @@ export default function EditEstimatePage() {
     );
   }
 
-  const totals = calculateEstimateTotal();
+  const services = lineItems.filter(item => item.type === 'SERVICE');
+  const materials = lineItems.filter(item => item.type === 'MATERIAL');
+  const labor = lineItems.filter(item => item.type === 'LABOR');
+  const equipment = lineItems.filter(item => item.type === 'EQUIPMENT');
+  const others = lineItems.filter(item => item.type === 'OTHER');
+  const subtotal = calculateSubtotal();
+  const taxAmount = calculateTaxAmount();
+  const total = calculateTotal();
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50">
+      {/* Top Navigation Bar */}
+      <header className="bg-gradient-to-r from-[#1a2a6c] to-[#1e40af] shadow-lg sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={() => router.back()}
+              className="text-white hover:bg-white/10 rounded-lg px-3 py-2 transition-colors flex items-center space-x-2"
+            >
+              <ArrowLeftIcon className="w-5 h-5" />
+              <span className="font-medium">Back</span>
+            </button>
+            <div className="h-8 w-px bg-white/20"></div>
+            <h1 className="text-2xl font-bold text-white">Edit Estimate</h1>
+            <span className="text-sm text-white/80">({estimate.estimateNumber})</span>
+          </div>
+          <div className="flex items-center space-x-4">
+            <div className={`px-4 py-2 rounded-full text-sm font-medium ${
+              formData.status === 'DRAFT' ? 'bg-gray-100 text-gray-800' :
+              formData.status === 'SENT' ? 'bg-blue-100 text-blue-800' :
+              formData.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
+              'bg-red-100 text-red-800'
+            }`}>
+              {formData.status.charAt(0) + formData.status.slice(1).toLowerCase()}
+            </div>
+            <button
+              type="submit"
+              onClick={handleSubmit}
+              disabled={isSaving}
+              className="inline-flex items-center px-6 py-2.5 bg-white text-gray-900 rounded-lg text-sm font-semibold transition-all disabled:opacity-50 hover:bg-gray-50 shadow-md hover:shadow-lg"
+            >
+              {isSaving ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Saving...
+                </>
+              ) : (
+                'Save Changes'
+              )}
+            </button>
+          </div>
+        </div>
+      </header>
+
       {/* Toast Notification */}
       {toast && (
-        <div className="fixed top-4 right-4 z-50 animate-fade-in-down">
-          <div className={`rounded-lg px-6 py-4 shadow-lg ${
-            toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'
-          } text-white`}>
-            <p className="font-medium">{toast.message}</p>
-          </div>
+        <div className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg ${
+          toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'
+        } text-white`}>
+          {toast.message}
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-8">
-          <button
-            onClick={() => router.back()}
-            className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900 mb-4"
-          >
-            <ArrowLeftIcon className="h-4 w-4 mr-2" />
-            Back
-          </button>
-          <h1 className="text-3xl font-bold text-gray-900">Edit Estimate</h1>
-          <p className="mt-2 text-sm text-gray-600">
-            Editing {estimate.estimateNumber}
-          </p>
-        </div>
-
+      {/* Main Content Area */}
+      <div className="max-w-7xl mx-auto p-8 pb-16">
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Basic Information */}
-          <div className="bg-white shadow rounded-lg p-6 space-y-6">
-            <h2 className="text-lg font-semibold text-gray-900">Basic Information</h2>
-            
+          <div className="bg-white rounded-xl shadow-sm border border-blue-100 p-8">
+            <h2 className="text-xl font-bold text-[#1e3a8a] mb-6 pb-4 border-b border-blue-200">Basic Information</h2>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Title */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Estimate Title *
+                <label className="block text-sm font-semibold text-[#1e3a8a] mb-2">
+                  Estimate Title <span className="text-red-600">*</span>
                 </label>
                 <input
                   type="text"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="e.g., Kitchen Renovation"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a] transition-all placeholder:text-gray-400"
+                  placeholder="e.g., HVAC Installation"
                 />
                 {showValidation && errors.title && <p className="mt-1 text-sm text-red-600">{errors.title}</p>}
               </div>
 
               {/* Customer */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Customer * {isLoadingCustomers && <span className="text-xs text-gray-500">(Loading...)</span>}
+                <label className="block text-sm font-semibold text-[#1e3a8a] mb-2">
+                  Customer <span className="text-red-600">*</span>
                 </label>
                 <SearchableSelect
-                  options={customers?.map((customer: any) => ({
+                  options={customers.map((customer: Customer) => ({
                     value: customer.id,
                     label: `${customer.firstName || ''} ${customer.lastName || ''} (${customer.email || customer.customerNumber || ''})`
-                  })) || []}
+                  }))}
                   value={formData.customerId}
                   onChange={(value) => setFormData({ ...formData, customerId: value, addressId: '' })}
-                  placeholder={isLoadingCustomers ? "Loading customers..." : "-- Select a customer --"}
-                  disabled={isLoadingCustomers}
+                  placeholder={customersLoading ? "Loading customers..." : "-- Select a customer --"}
+                  disabled={customersLoading}
                 />
                 {showValidation && errors.customerId && <p className="mt-1 text-sm text-red-600">{errors.customerId}</p>}
               </div>
@@ -497,55 +560,88 @@ export default function EditEstimatePage() {
                 </div>
               )}
 
+              {/* Use Same as Primary Address */}
+              <div>
+                <label className="inline-flex items-center cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={useSameAsPrimary}
+                    onChange={(e) => setUseSameAsPrimary(e.target.checked)}
+                    disabled={!selectedCustomer}
+                    className="h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  />
+                  <span className={`ml-2 text-sm font-medium ${
+                    !selectedCustomer ? 'text-gray-400' : 'text-gray-700 group-hover:text-blue-600'
+                  } transition-colors`}>
+                    Use Same as Primary Address
+                  </span>
+                </label>
+                {!selectedCustomer && (
+                  <p className="text-xs text-gray-500 mt-1 ml-8">
+                    Select a customer first to enable this option
+                  </p>
+                )}
+                {useSameAsPrimary && selectedCustomer && (() => {
+                  const addresses = selectedCustomer?.addresses || [];
+                  const primaryAddress = addresses.find((addr: any) => addr.type?.toUpperCase() === 'PRIMARY');
+                  return primaryAddress ? (
+                    <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-xs font-semibold text-blue-700 mb-1">Using Primary Address:</p>
+                      <p className="text-sm text-gray-700">
+                        {primaryAddress.street}, {primaryAddress.city}, {primaryAddress.state} {primaryAddress.zip}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-amber-600 mt-1 ml-8">
+                      No primary address found for this customer
+                    </p>
+                  );
+                })()}
+              </div>
+
+              {/* Customer Can Approve */}
+              <div className="flex items-center">
+                <label className="inline-flex items-center cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={formData.customerCanApprove}
+                    onChange={(e) => setFormData({ ...formData, customerCanApprove: e.target.checked })}
+                    className="h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                  />
+                  <span className="ml-2 text-sm font-medium text-gray-700 group-hover:text-blue-600 transition-colors">
+                    Customer Can Approve
+                  </span>
+                </label>
+              </div>
+
               {/* Address */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Service Address *
+                <label className="block text-sm font-semibold text-[#1e3a8a] mb-2">
+                  Service Address <span className="text-red-600">*</span>
                 </label>
                 <SearchableSelect
-                  options={customerAddresses.map((address: any) => ({
-                    value: address.id,
-                    label: `${address.street}, ${address.city}, ${address.state} ${address.zip}`
-                  }))}
+                  options={[
+                    ...customerAddresses.map((address: any) => ({
+                      value: address.id,
+                      label: `${address.street}, ${address.city}, ${address.state} ${address.zip}`
+                    })),
+                    ...(selectedCustomer ? [{
+                      value: '__add_new__',
+                      label: '+ Add New Service Address'
+                    }] : [])
+                  ]}
                   value={formData.addressId}
-                  onChange={(value) => setFormData({ ...formData, addressId: value })}
-                  disabled={!formData.customerId || !selectedCustomer}
-                  placeholder={
-                    !formData.customerId 
-                      ? "Select a customer first" 
-                      : "-- Select an address --"
-                  }
+                  disabled={!formData.customerId || useSameAsPrimary}
+                  onChange={(value) => {
+                    if (value === '__add_new__') {
+                      setShowAddressModal(true);
+                      return;
+                    }
+                    setFormData({ ...formData, addressId: value });
+                  }}
+                  placeholder={selectedCustomer ? "-- Select service address --" : "Select a customer first"}
                 />
                 {showValidation && errors.addressId && <p className="mt-1 text-sm text-red-600">{errors.addressId}</p>}
-              </div>
-
-              {/* Valid Until */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Valid Until
-                </label>
-                <input
-                  type="date"
-                  value={formData.validUntil}
-                  onChange={(e) => setFormData({ ...formData, validUntil: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-
-              {/* Tax Rate */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tax Rate (%)
-                </label>
-                <input
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  max="100"
-                  value={formData.taxRate}
-                  onChange={(e) => setFormData({ ...formData, taxRate: parseFloat(e.target.value) || 0 })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
               </div>
 
               {/* Status */}
@@ -564,343 +660,609 @@ export default function EditEstimatePage() {
                   <option value="DECLINED">Declined</option>
                 </select>
               </div>
+
+              {/* Valid Until */}
+              <div>
+                <label className="block text-sm font-semibold text-[#1e3a8a] mb-2">
+                  Valid Until
+                </label>
+                <input
+                  type="date"
+                  value={formData.validUntil}
+                  onChange={(e) => setFormData({ ...formData, validUntil: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                />
+              </div>
+
+              {/* Tax Rate */}
+              <div>
+                <label className="block text-sm font-semibold text-[#1e3a8a] mb-2">
+                  Tax Rate (%)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={formData.taxRate}
+                  onChange={(e) => setFormData({ ...formData, taxRate: parseFloat(e.target.value) || 0 })}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                />
+              </div>
             </div>
 
             {/* Message */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-[#1e3a8a] mb-2">
                 Message / Description
               </label>
               <textarea
                 rows={3}
                 value={formData.message}
                 onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
                 placeholder="Add a message for the customer"
               />
             </div>
 
             {/* Terms */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-[#1e3a8a] mb-2">
                 Terms and Conditions
               </label>
               <textarea
                 rows={3}
                 value={formData.termsAndConditions}
                 onChange={(e) => setFormData({ ...formData, termsAndConditions: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
                 placeholder="Enter terms and conditions"
               />
             </div>
           </div>
 
-          {/* Options */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">Options</h2>
-              <button
-                type="button"
-                onClick={addOption}
-                className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-              >
-                <PlusIcon className="h-4 w-4 mr-2" />
-                Add Option
-              </button>
-            </div>
+          {/* Line Items */}
+          <div className="bg-white rounded-xl shadow-sm border border-blue-100 p-8">
+            <h2 className="text-xl font-bold text-[#1e3a8a] mb-6 pb-4 border-b border-blue-200">Line Items</h2>
 
-            {/* Duplicate Options Error */}
-            {showValidation && errors.duplicateOptions && (
+            {showValidation && errors.lineItems && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <p className="text-sm text-red-600 font-medium">{errors.duplicateOptions}</p>
+                <p className="text-sm text-red-600 font-medium">{errors.lineItems}</p>
               </div>
             )}
 
-            {options.map((option, optionIdx) => {
-              const optionTotals = calculateOptionTotal(option);
-              
-              return (
-                <div key={option.id} className="bg-white shadow rounded-lg p-6 space-y-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Option Name *
-                        </label>
-                        <input
-                          type="text"
-                          value={option.name}
-                          onChange={(e) => updateOption(option.id, 'name', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-                          placeholder="e.g., Standard Package"
-                        />
-                        {showValidation && errors[`option-${optionIdx}-name`] && (
-                          <p className="mt-1 text-sm text-red-600">{errors[`option-${optionIdx}-name`]}</p>
-                        )}
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Description
-                        </label>
-                        <input
-                          type="text"
-                          value={option.description}
-                          onChange={(e) => updateOption(option.id, 'description', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-                          placeholder="Brief description"
-                        />
-                      </div>
-                    </div>
-
-                    {options.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeOption(option.id)}
-                        className="ml-4 p-2 text-red-600 hover:bg-red-50 rounded-md"
-                      >
-                        <TrashIcon className="h-5 w-5" />
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={option.isRecommended}
-                        onChange={(e) => updateOption(option.id, 'isRecommended', e.target.checked)}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      />
-                      <label className="ml-2 text-sm text-gray-700">
-                        Recommended Option
-                      </label>
-                    </div>
-
-                    <div>
-                      <select
-                        value={option.discountType}
-                        onChange={(e) => updateOption(option.id, 'discountType', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="NONE">No Discount</option>
-                        <option value="PERCENTAGE">Percentage</option>
-                        <option value="FIXED_AMOUNT">Fixed Amount</option>
-                      </select>
-                    </div>
-
-                    {option.discountType !== 'NONE' && (
-                      <div>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={option.discountValue}
-                          onChange={(e) => updateOption(option.id, 'discountValue', parseFloat(e.target.value) || 0)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500"
-                          placeholder={option.discountType === 'PERCENTAGE' ? 'Discount %' : 'Discount $'}
-                        />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Line Items */}
-                  <div className="mt-6">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-sm font-semibold text-gray-900">Line Items</h3>
-                      <button
-                        type="button"
-                        onClick={() => addLineItem(option.id)}
-                        className="inline-flex items-center px-3 py-1 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                      >
-                        <PlusIcon className="h-3 w-3 mr-1" />
-                        Add Item
-                      </button>
-                    </div>
-
-                    {showValidation && errors[`option-${optionIdx}-items`] && (
-                      <p className="mb-2 text-sm text-red-600">{errors[`option-${optionIdx}-items`]}</p>
-                    )}
-
-                    {showValidation && errors[`option-${optionIdx}-duplicate-items`] && (
-                      <div className="mb-2 bg-red-50 border border-red-200 rounded p-3">
-                        <p className="text-sm text-red-600 font-medium">{errors[`option-${optionIdx}-duplicate-items`]}</p>
-                      </div>
-                    )}
-
-                    {option.lineItems.length === 0 ? (
-                      <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                        <p className="text-sm text-gray-500">No items added. Click "Add Item" to start.</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {option.lineItems.map((item, itemIdx) => (
-                          <div key={item.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                            <div className="grid grid-cols-12 gap-3">
-                              {/* Type */}
-                              <div className="col-span-2">
-                                <label className="block text-xs font-medium text-gray-700 mb-1">Type</label>
-                                <select
-                                  value={item.type}
-                                  onChange={(e) => updateLineItem(option.id, item.id, 'type', e.target.value)}
-                                  className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
-                                >
-                                  <option value="SERVICE">Service</option>
-                                  <option value="MATERIAL">Material</option>
-                                  <option value="LABOR">Labor</option>
-                                  <option value="EQUIPMENT">Equipment</option>
-                                  <option value="OTHER">Other</option>
-                                </select>
-                              </div>
-
-                              {/* Name */}
-                              <div className="col-span-3">
-                                <label className="block text-xs font-medium text-gray-700 mb-1">Name *</label>
-                                <input
-                                  type="text"
-                                  value={item.name}
-                                  onChange={(e) => updateLineItem(option.id, item.id, 'name', e.target.value)}
-                                  className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
-                                  placeholder="Item name"
-                                />
-                              </div>
-
-                              {/* Description */}
-                              <div className="col-span-3">
-                                <label className="block text-xs font-medium text-gray-700 mb-1">Description</label>
-                                <input
-                                  type="text"
-                                  value={item.description}
-                                  onChange={(e) => updateLineItem(option.id, item.id, 'description', e.target.value)}
-                                  className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
-                                  placeholder="Description"
-                                />
-                              </div>
-
-                              {/* Quantity */}
-                              <div className="col-span-1">
-                                <label className="block text-xs font-medium text-gray-700 mb-1">Qty</label>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="0.01"
-                                  value={item.quantity}
-                                  onChange={(e) => updateLineItem(option.id, item.id, 'quantity', parseFloat(e.target.value) || 0)}
-                                  className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
-                                />
-                              </div>
-
-                              {/* Unit Price */}
-                              <div className="col-span-2">
-                                <label className="block text-xs font-medium text-gray-700 mb-1">Price</label>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="0.01"
-                                  value={item.unitPrice}
-                                  onChange={(e) => updateLineItem(option.id, item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
-                                  className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
-                                  placeholder="0.00"
-                                />
-                              </div>
-
-                              {/* Delete */}
-                              <div className="col-span-1 flex items-end justify-center">
-                                <button
-                                  type="button"
-                                  onClick={() => removeLineItem(option.id, item.id)}
-                                  className="p-1 text-red-600 hover:bg-red-50 rounded"
-                                >
-                                  <TrashIcon className="h-4 w-4" />
-                                </button>
-                              </div>
-                            </div>
-
-                            {/* Checkboxes */}
-                            <div className="mt-2 flex items-center space-x-4">
-                              <label className="flex items-center text-xs text-gray-600">
-                                <input
-                                  type="checkbox"
-                                  checked={item.isTaxable}
-                                  onChange={(e) => updateLineItem(option.id, item.id, 'isTaxable', e.target.checked)}
-                                  className="h-3 w-3 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-1"
-                                />
-                                Taxable
-                              </label>
-                              <label className="flex items-center text-xs text-gray-600">
-                                <input
-                                  type="checkbox"
-                                  checked={item.isOptional}
-                                  onChange={(e) => updateLineItem(option.id, item.id, 'isOptional', e.target.checked)}
-                                  className="h-3 w-3 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-1"
-                                />
-                                Optional
-                              </label>
-                              <span className="text-xs font-medium text-gray-700">
-                                Total: ${(item.quantity * item.unitPrice).toFixed(2)}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Option Totals */}
-                  <div className="mt-4 pt-4 border-t border-gray-200">
-                    <div className="flex justify-end space-x-8 text-sm">
-                      <div className="space-y-1 text-right">
-                        <p className="text-gray-600">Subtotal:</p>
-                        <p className="text-gray-600">Discount:</p>
-                        <p className="text-gray-600">Tax:</p>
-                        <p className="text-lg font-semibold text-gray-900">Total:</p>
-                      </div>
-                      <div className="space-y-1 text-right">
-                        <p className="text-gray-900">${optionTotals.subtotal.toFixed(2)}</p>
-                        <p className="text-red-600">-${optionTotals.discountAmount.toFixed(2)}</p>
-                        <p className="text-gray-900">${optionTotals.taxAmount.toFixed(2)}</p>
-                        <p className="text-lg font-semibold text-blue-600">${optionTotals.total.toFixed(2)}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Estimate Total */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Estimate Total</h3>
-            <div className="flex justify-end space-x-12">
-              <div className="space-y-2 text-right">
-                <p className="text-gray-700">Subtotal:</p>
-                <p className="text-gray-700">Total Discount:</p>
-                <p className="text-gray-700">Total Tax:</p>
-                <p className="text-2xl font-bold text-gray-900">Grand Total:</p>
+            {/* Services Section */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-semibold text-[#1e3a8a]">Services</h3>
+                <button
+                  type="button"
+                  onClick={addService}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-[#1e3a8a] hover:bg-[#1e40af]"
+                >
+                  <PlusIcon className="h-4 w-4 mr-2" />
+                  Add Service
+                </button>
               </div>
-              <div className="space-y-2 text-right">
-                <p className="text-gray-900 font-medium">${totals.subtotal.toFixed(2)}</p>
-                <p className="text-red-600 font-medium">-${totals.discountAmount.toFixed(2)}</p>
-                <p className="text-gray-900 font-medium">${totals.taxAmount.toFixed(2)}</p>
-                <p className="text-2xl font-bold text-green-600">${totals.total.toFixed(2)}</p>
+
+              {services.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  No services added yet
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {services.map((item) => (
+                    <div key={item.id} className="border border-blue-100 rounded-lg p-4 bg-white">
+                      <div className="flex items-start justify-between mb-4">
+                        <h4 className="text-sm font-semibold text-[#1e3a8a]">Service</h4>
+                        <button
+                          type="button"
+                          onClick={() => removeLineItem(item.id)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          <TrashIcon className="h-5 w-5" />
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="md:col-span-2">
+                          <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
+                            Service Name <span className="text-red-600">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={item.name}
+                            onChange={(e) => updateLineItem(item.id, 'name', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                            placeholder="e.g., Plumbing Installation"
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
+                            Description
+                          </label>
+                          <textarea
+                            rows={2}
+                            value={item.description}
+                            onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                            placeholder="Add description"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
+                            Quantity
+                          </label>
+                          <input
+                            type="number"
+                            value={item.quantity}
+                            onChange={(e) => updateLineItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                            min="0"
+                            step="0.01"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
+                            Unit Price ($)
+                          </label>
+                          <input
+                            type="number"
+                            value={item.unitPrice}
+                            onChange={(e) => updateLineItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                            min="0"
+                            step="0.01"
+                          />
+                        </div>
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={item.isTaxable}
+                            onChange={(e) => updateLineItem(item.id, 'isTaxable', e.target.checked)}
+                            className="h-4 w-4 text-[#1e3a8a] border-gray-300 rounded focus:ring-[#1e3a8a]"
+                          />
+                          <label className="ml-2 text-xs font-semibold text-[#1e3a8a]">
+                            Taxable
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Materials Section */}
+            <div className="space-y-4 pt-6 border-t border-blue-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-semibold text-[#1e3a8a]">Materials</h3>
+                <button
+                  type="button"
+                  onClick={addMaterial}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-[#1e3a8a] hover:bg-[#1e40af]"
+                >
+                  <PlusIcon className="h-4 w-4 mr-2" />
+                  Add Material
+                </button>
+              </div>
+
+              {materials.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  No materials added yet
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {materials.map((item) => (
+                    <div key={item.id} className="border border-blue-100 rounded-lg p-4">
+                      <div className="flex items-start justify-between mb-4">
+                        <h4 className="text-sm font-semibold text-[#1e3a8a]">Material</h4>
+                        <button
+                          type="button"
+                          onClick={() => removeLineItem(item.id)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          <TrashIcon className="h-5 w-5" />
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="md:col-span-2">
+                          <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
+                            Material Name <span className="text-red-600">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={item.name}
+                            onChange={(e) => updateLineItem(item.id, 'name', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                            placeholder="e.g., Copper Piping"
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            Description
+                          </label>
+                          <textarea
+                            rows={2}
+                            value={item.description}
+                            onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                            placeholder="Add description"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            Quantity
+                          </label>
+                          <input
+                            type="number"
+                            value={item.quantity}
+                            onChange={(e) => updateLineItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                            min="0"
+                            step="0.01"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            Unit Price ($)
+                          </label>
+                          <input
+                            type="number"
+                            value={item.unitPrice}
+                            onChange={(e) => updateLineItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                            min="0"
+                            step="0.01"
+                          />
+                        </div>
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={item.isTaxable}
+                            onChange={(e) => updateLineItem(item.id, 'isTaxable', e.target.checked)}
+                            className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                          />
+                          <label className="ml-2 text-xs font-medium text-gray-600">
+                            Taxable
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Labor Section */}
+            <div className="space-y-4 pt-6 border-t border-blue-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-semibold text-[#1e3a8a]">Labor</h3>
+                <button
+                  type="button"
+                  onClick={addLabor}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-[#1e3a8a] hover:bg-[#1e40af]"
+                >
+                  <PlusIcon className="h-4 w-4 mr-2" />
+                  Add Labor
+                </button>
+              </div>
+
+              {labor.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  No labor added yet
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {labor.map((item) => (
+                    <div key={item.id} className="border border-blue-100 rounded-lg p-4">
+                      <div className="flex items-start justify-between mb-4">
+                        <h4 className="text-sm font-semibold text-[#1e3a8a]">Labor</h4>
+                        <button
+                          type="button"
+                          onClick={() => removeLineItem(item.id)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          <TrashIcon className="h-5 w-5" />
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="md:col-span-2">
+                          <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
+                            Labor Name <span className="text-red-600">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={item.name}
+                            onChange={(e) => updateLineItem(item.id, 'name', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                            placeholder="e.g., Installation Labor"
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
+                            Description
+                          </label>
+                          <textarea
+                            rows={2}
+                            value={item.description}
+                            onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                            placeholder="Add description"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
+                            Hours
+                          </label>
+                          <input
+                            type="number"
+                            value={item.quantity}
+                            onChange={(e) => updateLineItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                            min="0"
+                            step="0.01"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
+                            Rate per Hour ($)
+                          </label>
+                          <input
+                            type="number"
+                            value={item.unitPrice}
+                            onChange={(e) => updateLineItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                            min="0"
+                            step="0.01"
+                          />
+                        </div>
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={item.isTaxable}
+                            onChange={(e) => updateLineItem(item.id, 'isTaxable', e.target.checked)}
+                            className="h-4 w-4 text-[#1e3a8a] border-gray-300 rounded focus:ring-[#1e3a8a]"
+                          />
+                          <label className="ml-2 text-xs font-semibold text-[#1e3a8a]">
+                            Taxable
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Equipment Section */}
+            <div className="space-y-4 pt-6 border-t border-blue-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-semibold text-[#1e3a8a]">Equipment</h3>
+                <button
+                  type="button"
+                  onClick={addEquipment}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-[#1e3a8a] hover:bg-[#1e40af]"
+                >
+                  <PlusIcon className="h-4 w-4 mr-2" />
+                  Add Equipment
+                </button>
+              </div>
+
+              {equipment.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  No equipment added yet
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {equipment.map((item) => (
+                    <div key={item.id} className="border border-blue-100 rounded-lg p-4">
+                      <div className="flex items-start justify-between mb-4">
+                        <h4 className="text-sm font-semibold text-[#1e3a8a]">Equipment</h4>
+                        <button
+                          type="button"
+                          onClick={() => removeLineItem(item.id)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          <TrashIcon className="h-5 w-5" />
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="md:col-span-2">
+                          <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
+                            Equipment Name <span className="text-red-600">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={item.name}
+                            onChange={(e) => updateLineItem(item.id, 'name', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                            placeholder="e.g., Excavator Rental"
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
+                            Description
+                          </label>
+                          <textarea
+                            rows={2}
+                            value={item.description}
+                            onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                            placeholder="Add description"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
+                            Quantity
+                          </label>
+                          <input
+                            type="number"
+                            value={item.quantity}
+                            onChange={(e) => updateLineItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                            min="0"
+                            step="0.01"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            Unit Price ($)
+                          </label>
+                          <input
+                            type="number"
+                            value={item.unitPrice}
+                            onChange={(e) => updateLineItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                            min="0"
+                            step="0.01"
+                          />
+                        </div>
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={item.isTaxable}
+                            onChange={(e) => updateLineItem(item.id, 'isTaxable', e.target.checked)}
+                            className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                          />
+                          <label className="ml-2 text-xs font-medium text-gray-600">
+                            Taxable
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Other Section */}
+            <div className="space-y-4 pt-6 border-t border-blue-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-semibold text-[#1e3a8a]">Other</h3>
+                <button
+                  type="button"
+                  onClick={addOther}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-[#1e3a8a] hover:bg-[#1e40af]"
+                >
+                  <PlusIcon className="h-4 w-4 mr-2" />
+                  Add Other
+                </button>
+              </div>
+
+              {others.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  No other items added yet
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {others.map((item) => (
+                    <div key={item.id} className="border border-blue-100 rounded-lg p-4">
+                      <div className="flex items-start justify-between mb-4">
+                        <h4 className="text-sm font-semibold text-[#1e3a8a]">Other</h4>
+                        <button
+                          type="button"
+                          onClick={() => removeLineItem(item.id)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          <TrashIcon className="h-5 w-5" />
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="md:col-span-2">
+                          <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
+                            Item Name <span className="text-red-600">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={item.name}
+                            onChange={(e) => updateLineItem(item.id, 'name', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                            placeholder="e.g., Miscellaneous Fees"
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
+                            Description
+                          </label>
+                          <textarea
+                            rows={2}
+                            value={item.description}
+                            onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                            placeholder="Add description"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
+                            Quantity
+                          </label>
+                          <input
+                            type="number"
+                            value={item.quantity}
+                            onChange={(e) => updateLineItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                            min="0"
+                            step="0.01"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-[#1e3a8a] mb-1">
+                            Unit Price ($)
+                          </label>
+                          <input
+                            type="number"
+                            value={item.unitPrice}
+                            onChange={(e) => updateLineItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                            min="0"
+                            step="0.01"
+                          />
+                        </div>
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={item.isTaxable}
+                            onChange={(e) => updateLineItem(item.id, 'isTaxable', e.target.checked)}
+                            className="h-4 w-4 text-[#1e3a8a] border-gray-300 rounded focus:ring-[#1e3a8a]"
+                          />
+                          <label className="ml-2 text-xs font-semibold text-[#1e3a8a]">
+                            Taxable
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Subtotal */}
+            <div className="pt-6 border-t border-blue-200">
+              <div className="flex justify-between items-center text-lg">
+                <span className="font-semibold text-[#1e3a8a]">Subtotal</span>
+                <span className="font-bold text-[#1e3a8a]">${subtotal.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm text-[#1e3a8a] mt-2">
+                <span>Tax ({formData.taxRate}%)</span>
+                <span>${taxAmount.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center text-xl font-bold text-[#1e3a8a] mt-4 pt-4 border-t border-blue-200">
+                <span>Total</span>
+                <span>${total.toFixed(2)}</span>
               </div>
             </div>
           </div>
 
-          {/* Actions */}
-          <div className="flex justify-end space-x-3">
+          {/* Submit Button */}
+          <div className="flex items-center justify-end space-x-4">
             <button
               type="button"
               onClick={() => router.back()}
-              disabled={isSaving}
-              className="px-6 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSaving}
-              className="px-6 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-6 py-2 bg-blue-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
             >
               {isSaving ? (
                 <>
@@ -908,11 +1270,118 @@ export default function EditEstimatePage() {
                   Saving...
                 </>
               ) : (
-                'Save Changes'
+                'Update Estimate'
               )}
             </button>
           </div>
         </form>
+
+        {/* Add Service Address Modal */}
+        {showAddressModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+              <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
+                <h3 className="text-xl font-bold text-white">Add Service Address</h3>
+              </div>
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wider">
+                    Street Address *
+                  </label>
+                  <input
+                    type="text"
+                    value={newAddress.street}
+                    onChange={(e) => setNewAddress({ ...newAddress, street: e.target.value })}
+                    className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 focus:border-blue-500 focus:bg-white rounded-xl transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-100"
+                    placeholder="Enter street address"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wider">
+                    City *
+                  </label>
+                  <input
+                    type="text"
+                    value={newAddress.city}
+                    onChange={(e) => setNewAddress({ ...newAddress, city: e.target.value })}
+                    className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 focus:border-blue-500 focus:bg-white rounded-xl transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-100"
+                    placeholder="Enter city"
+                  />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wider">
+                      State *
+                    </label>
+                    <input
+                      type="text"
+                      value={newAddress.state}
+                      onChange={(e) => setNewAddress({ ...newAddress, state: e.target.value })}
+                      className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 focus:border-blue-500 focus:bg-white rounded-xl transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-100"
+                      placeholder="State"
+                      maxLength={2}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wider">
+                      ZIP Code *
+                    </label>
+                    <input
+                      type="text"
+                      value={newAddress.zip}
+                      onChange={(e) => setNewAddress({ ...newAddress, zip: e.target.value })}
+                      className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 focus:border-blue-500 focus:bg-white rounded-xl transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-100"
+                      placeholder="ZIP"
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddressModal(false);
+                    setNewAddress({ street: '', city: '', state: '', zip: '', type: 'SERVICE' });
+                  }}
+                  className="px-4 py-2 text-gray-700 hover:bg-gray-200 rounded-xl font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!selectedCustomer || !newAddress.street || !newAddress.city || !newAddress.state || !newAddress.zip) {
+                      alert('Please fill in all address fields');
+                      return;
+                    }
+                    
+                    // Stage address locally with temporary ID
+                    const stagedAddress = {
+                      id: `pending-${Date.now()}`,
+                      ...newAddress
+                    };
+                    
+                    setPendingAddresses([...pendingAddresses, stagedAddress]);
+                    
+                    // Auto-select the new address
+                    setFormData({ ...formData, addressId: stagedAddress.id });
+                    
+                    setShowAddressModal(false);
+                    setNewAddress({ street: '', city: '', state: '', zip: '', type: 'SERVICE' });
+                  }}
+                  disabled={!newAddress.street || !newAddress.city || !newAddress.state || !newAddress.zip}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                >
+                  Add Address
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -377,59 +377,42 @@ export default function EstimatesPage() {
                           </p>
                         )}
                         
-                        {/* Options and Line Items Summary */}
-                        {estimate.options && estimate.options.length > 0 && (
-                          <div className="mt-3 space-y-2">
-                            {estimate.options.map((option: any) => (
-                              <div key={option.id} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                                <div className="flex items-center justify-between mb-2">
-                                  <h4 className="text-sm font-semibold text-gray-900">
-                                    {option.name}
-                                    {option.isRecommended && (
-                                      <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                                        Recommended
-                                      </span>
+                        {/* Line Items Summary */}
+                        {estimate.lineItems && estimate.lineItems.length > 0 && (
+                          <div className="mt-3 bg-gray-50 rounded-lg p-3 border border-gray-200">
+                            <p className="text-xs font-medium text-gray-700 mb-2">
+                              Line Items ({estimate.lineItems.length}):
+                            </p>
+                            <div className="space-y-1">
+                              {estimate.lineItems.slice(0, 3).map((item: any) => (
+                                <div key={item.id} className="flex justify-between items-center text-xs">
+                                  <div className="flex items-center space-x-2">
+                                    <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                                      item.type === 'SERVICE' ? 'bg-blue-50 text-blue-700' :
+                                      item.type === 'MATERIAL' ? 'bg-green-50 text-green-700' :
+                                      item.type === 'LABOR' ? 'bg-purple-50 text-purple-700' :
+                                      item.type === 'EQUIPMENT' ? 'bg-orange-50 text-orange-700' :
+                                      'bg-gray-50 text-gray-700'
+                                    }`}>
+                                      {item.type}
+                                    </span>
+                                    <span className="text-gray-700">{item.name}</span>
+                                    <span className="text-gray-500">x{item.quantity}</span>
+                                    {item.isOptional && (
+                                      <span className="text-xs text-gray-500">(Optional)</span>
                                     )}
-                                  </h4>
-                                  <span className="text-sm font-semibold text-gray-900">
-                                    ${formatCurrency(option.total)}
+                                  </div>
+                                  <span className="text-gray-900 font-medium">
+                                    ${formatCurrency(item.quantity * item.unitPrice)}
                                   </span>
                                 </div>
-                                {option.description && (
-                                  <p className="text-xs text-gray-600 mb-2">{option.description}</p>
-                                )}
-                                {option.lineItems && option.lineItems.length > 0 && (
-                                  <div className="space-y-1">
-                                    <p className="text-xs font-medium text-gray-700 mb-1">
-                                      Line Items ({option.lineItems.length}):
-                                    </p>
-                                    {option.lineItems.map((item: any) => (
-                                      <div key={item.id} className="flex justify-between items-center text-xs">
-                                        <div className="flex items-center space-x-2">
-                                          <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
-                                            item.type === 'SERVICE' ? 'bg-blue-50 text-blue-700' :
-                                            item.type === 'MATERIAL' ? 'bg-green-50 text-green-700' :
-                                            item.type === 'LABOR' ? 'bg-purple-50 text-purple-700' :
-                                            item.type === 'EQUIPMENT' ? 'bg-orange-50 text-orange-700' :
-                                            'bg-gray-50 text-gray-700'
-                                          }`}>
-                                            {item.type}
-                                          </span>
-                                          <span className="text-gray-700">{item.name}</span>
-                                          <span className="text-gray-500">x{item.quantity}</span>
-                                          {item.isOptional && (
-                                            <span className="text-gray-400 italic">(Optional)</span>
-                                          )}
-                                        </div>
-                                        <span className="text-gray-900 font-medium">
-                                          ${(item.quantity * item.unitPrice).toFixed(2)}
-                                        </span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            ))}
+                              ))}
+                              {estimate.lineItems.length > 3 && (
+                                <p className="text-xs text-gray-500 mt-2">
+                                  +{estimate.lineItems.length - 3} more items
+                                </p>
+                              )}
+                            </div>
                           </div>
                         )}
                       </div>
@@ -438,9 +421,9 @@ export default function EstimatesPage() {
                           ${formatCurrency(estimate.total || 0)}
                         </p>
                         <p className="text-xs text-gray-500 mt-1">Total Amount</p>
-                        {estimate.options && estimate.options.length > 0 && (
+                        {estimate.lineItems && estimate.lineItems.length > 0 && (
                           <p className="text-xs text-gray-500 mt-2">
-                            {estimate.options.length} option{estimate.options.length !== 1 ? 's' : ''}
+                            {estimate.lineItems.length} item{estimate.lineItems.length !== 1 ? 's' : ''}
                           </p>
                         )}
                       </div>

@@ -18,25 +18,7 @@ export interface EstimateLineItem {
   unitCost: number;
   isTaxable: boolean;
   isOptional: boolean;
-  isSelected: boolean;
   sortOrder: number;
-}
-
-export interface EstimateOption {
-  id: string;
-  name: string;
-  description: string | null;
-  coverImageUrl: string | null;
-  isRecommended: boolean;
-  subtotal: number;
-  discountType: 'NONE' | 'PERCENTAGE' | 'FIXED_AMOUNT';
-  discountValue: number;
-  discountAmount: number;
-  taxRate: number;
-  taxAmount: number;
-  total: number;
-  sortOrder: number;
-  lineItems: EstimateLineItem[];
 }
 
 export interface Estimate {
@@ -46,16 +28,26 @@ export interface Estimate {
   title: string | null;
   message: string | null;
   termsAndConditions: string | null;
+  
+  // Expiration and approval settings
+  expirationDate: string | null;
+  customerCanApprove: boolean;
+  multipleOptionsAllowed: boolean;
+  
   validUntil: string | null;
   sentAt: string | null;
   viewedAt: string | null;
   approvedAt: string | null;
   declinedAt: string | null;
   expiredAt: string | null;
+  
+  // Pricing
   subtotal: number;
   discountAmount: number;
+  taxRate: number;
   taxAmount: number;
   total: number;
+  
   createdAt: string;
   updatedAt: string;
   customer: {
@@ -72,7 +64,7 @@ export interface Estimate {
     state: string;
     zip: string;
   };
-  options: EstimateOption[];
+  lineItems: EstimateLineItem[];
 }
 
 export interface CreateEstimateData {
@@ -81,28 +73,23 @@ export interface CreateEstimateData {
   title?: string;
   message?: string;
   termsAndConditions?: string;
+  expirationDate?: string;
+  customerCanApprove?: boolean;
+  multipleOptionsAllowed?: boolean;
+  useSameAsPrimary?: boolean;
   validUntil?: string;
   status?: 'DRAFT' | 'SENT';
   taxRate?: number;
-  options: Array<{
+  lineItems: Array<{
+    type: 'SERVICE' | 'MATERIAL' | 'LABOR' | 'EQUIPMENT' | 'OTHER';
     name: string;
     description?: string;
-    isRecommended?: boolean;
-    discountType?: 'NONE' | 'PERCENTAGE' | 'FIXED_AMOUNT';
-    discountValue?: number;
+    quantity: number;
+    unitPrice: number;
+    unitCost?: number;
+    isTaxable?: boolean;
+    isOptional?: boolean;
     sortOrder: number;
-    lineItems: Array<{
-      type: 'SERVICE' | 'MATERIAL' | 'LABOR' | 'EQUIPMENT' | 'OTHER';
-      name: string;
-      description?: string;
-      quantity: number;
-      unitPrice: number;
-      unitCost?: number;
-      isTaxable?: boolean;
-      isOptional?: boolean;
-      isSelected?: boolean;
-      sortOrder: number;
-    }>;
   }>;
 }
 
@@ -110,29 +97,24 @@ export interface UpdateEstimateData {
   title?: string;
   message?: string;
   termsAndConditions?: string;
+  expirationDate?: string;
+  customerCanApprove?: boolean;
+  multipleOptionsAllowed?: boolean;
+  useSameAsPrimary?: boolean;
   validUntil?: string;
   status?: 'DRAFT' | 'SENT' | 'VIEWED' | 'APPROVED' | 'DECLINED' | 'EXPIRED';
-  options?: Array<{
+  taxRate?: number;
+  lineItems?: Array<{
     id?: string;
+    type: 'SERVICE' | 'MATERIAL' | 'LABOR' | 'EQUIPMENT' | 'OTHER';
     name: string;
     description?: string;
-    isRecommended?: boolean;
-    discountType?: 'NONE' | 'PERCENTAGE' | 'FIXED_AMOUNT';
-    discountValue?: number;
+    quantity: number;
+    unitPrice: number;
+    unitCost?: number;
+    isTaxable?: boolean;
+    isOptional?: boolean;
     sortOrder: number;
-    lineItems: Array<{
-      id?: string;
-      type: 'SERVICE' | 'MATERIAL' | 'LABOR' | 'EQUIPMENT' | 'OTHER';
-      name: string;
-      description?: string;
-      quantity: number;
-      unitPrice: number;
-      unitCost?: number;
-      isTaxable?: boolean;
-      isOptional?: boolean;
-      isSelected?: boolean;
-      sortOrder: number;
-    }>;
   }>;
 }
 

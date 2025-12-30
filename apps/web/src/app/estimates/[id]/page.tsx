@@ -288,38 +288,18 @@ export default function EstimateDetailsPage() {
           </div>
         )}
 
-        {/* Options & Line Items */}
-        <div className="space-y-6 mb-6">
-          {estimate.options.map((option) => (
-            <div key={option.id} className="bg-white shadow rounded-lg p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <div className="flex items-center gap-3">
-                    <h2 className="text-xl font-bold text-gray-900">{option.name}</h2>
-                    {option.isRecommended && (
-                      <span className="px-3 py-1 bg-blue-100 text-blue-700 text-sm font-semibold rounded-full">
-                        Recommended
-                      </span>
-                    )}
-                  </div>
-                  {option.description && (
-                    <p className="mt-1 text-gray-600">{option.description}</p>
-                  )}
-                </div>
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-gray-900">${formatCurrency(option.total)}</p>
-                  <p className="text-sm text-gray-500">Total</p>
-                </div>
-              </div>
+        {/* Line Items */}
+        <div className="bg-white shadow rounded-lg p-6 mb-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">Line Items</h2>
 
-              {/* Line Items */}
+          {/* Services */}
+          {estimate.lineItems && estimate.lineItems.filter((item: any) => item.type === 'SERVICE').length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Services</h3>
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Type
-                      </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Item
                       </th>
@@ -335,19 +315,8 @@ export default function EstimateDetailsPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {option.lineItems.map((item) => (
+                    {estimate.lineItems.filter((item: any) => item.type === 'SERVICE').map((item: any) => (
                       <tr key={item.id}>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <span className={`px-2 py-1 text-xs font-medium rounded ${
-                            item.type === 'SERVICE' ? 'bg-blue-100 text-blue-700' :
-                            item.type === 'MATERIAL' ? 'bg-green-100 text-green-700' :
-                            item.type === 'LABOR' ? 'bg-purple-100 text-purple-700' :
-                            item.type === 'EQUIPMENT' ? 'bg-orange-100 text-orange-700' :
-                            'bg-gray-100 text-gray-700'
-                          }`}>
-                            {item.type}
-                          </span>
-                        </td>
                         <td className="px-4 py-3">
                           <div>
                             <p className="text-sm font-medium text-gray-900">{item.name}</p>
@@ -359,7 +328,7 @@ export default function EstimateDetailsPage() {
                                 <span className="text-xs text-gray-500 italic">Optional</span>
                               )}
                               {item.isTaxable && (
-                                <span className="text-xs text-gray-500">Taxable</span>
+                                <span className="text-xs text-green-600">Taxable</span>
                               )}
                             </div>
                           </div>
@@ -378,48 +347,102 @@ export default function EstimateDetailsPage() {
                   </tbody>
                 </table>
               </div>
+            </div>
+          )}
 
-              {/* Option Totals */}
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <div className="flex justify-end">
-                  <div className="w-64 space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Subtotal:</span>
-                      <span className="text-gray-900">${formatCurrency(option.subtotal)}</span>
-                    </div>
-                    {parseFloat(option.discountAmount?.toString() || '0') > 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">
-                          Discount {option.discountType === 'PERCENTAGE' && `(${option.discountValue}%)`}:
-                        </span>
-                        <span className="text-red-600">-${formatCurrency(option.discountAmount)}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Tax ({formatCurrency(option.taxRate)}%):</span>
-                      <span className="text-gray-900">${formatCurrency(option.taxAmount)}</span>
-                    </div>
-                    <div className="flex justify-between text-lg font-bold pt-2 border-t border-gray-200">
-                      <span className="text-gray-900">Total:</span>
-                      <span className="text-blue-600">${formatCurrency(option.total)}</span>
-                    </div>
+          {/* Materials */}
+          {estimate.lineItems && estimate.lineItems.filter((item: any) => item.type === 'MATERIAL').length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Materials</h3>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Item
+                      </th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Qty
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Unit Price
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Total
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {estimate.lineItems.filter((item: any) => item.type === 'MATERIAL').map((item: any) => (
+                      <tr key={item.id}>
+                        <td className="px-4 py-3">
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">{item.name}</p>
+                            {item.description && (
+                              <p className="text-sm text-gray-500">{item.description}</p>
+                            )}
+                            <div className="flex items-center gap-2 mt-1">
+                              {item.isOptional && (
+                                <span className="text-xs text-gray-500 italic">Optional</span>
+                              )}
+                              {item.isTaxable && (
+                                <span className="text-xs text-green-600">Taxable</span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-center text-sm text-gray-900">
+                          {item.quantity}
+                        </td>
+                        <td className="px-4 py-3 text-right text-sm text-gray-900">
+                          ${formatCurrency(item.unitPrice)}
+                        </td>
+                        <td className="px-4 py-3 text-right text-sm font-medium text-gray-900">
+                          ${formatCurrency(parseFloat(item.quantity?.toString() || '0') * parseFloat(item.unitPrice?.toString() || '0'))}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Totals */}
+          <div className="mt-6 pt-4 border-t border-gray-200">
+            <div className="flex justify-end">
+              <div className="w-64 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Subtotal:</span>
+                  <span className="text-gray-900">${formatCurrency(estimate.subtotal)}</span>
+                </div>
+                {parseFloat(estimate.discountAmount?.toString() || '0') > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Discount:</span>
+                    <span className="text-red-600">-${formatCurrency(estimate.discountAmount)}</span>
                   </div>
+                )}
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Tax ({formatCurrency(estimate.taxRate)}%):</span>
+                  <span className="text-gray-900">${formatCurrency(estimate.taxAmount)}</span>
+                </div>
+                <div className="flex justify-between text-lg font-bold pt-2 border-t border-gray-200">
+                  <span className="text-gray-900">Total:</span>
+                  <span className="text-blue-600">${formatCurrency(estimate.total)}</span>
                 </div>
               </div>
             </div>
-          ))}
+          </div>
         </div>
 
-        {/* Estimate Total */}
+        {/* Estimate Total Summary */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-bold text-gray-900">Estimate Total</h2>
             <div className="text-right">
               <p className="text-3xl font-bold text-blue-600">${formatCurrency(estimate.total)}</p>
-              {estimate.options.length > 1 && (
-                <p className="text-sm text-gray-600 mt-1">
-                  {estimate.options.length} options included
-                </p>
+              {estimate.lineItems && estimate.lineItems.length > 0 && (
+                <p className="text-sm text-gray-600 mt-1">{estimate.lineItems.length} line item{estimate.lineItems.length !== 1 ? 's' : ''}</p>
               )}
             </div>
           </div>

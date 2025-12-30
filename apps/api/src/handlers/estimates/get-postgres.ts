@@ -56,14 +56,7 @@ export const handler = async (
             zip: true,
           },
         },
-        options: {
-          include: {
-            lineItems: {
-              orderBy: {
-                sortOrder: 'asc',
-              },
-            },
-          },
+        lineItems: {
           orderBy: {
             sortOrder: 'asc',
           },
