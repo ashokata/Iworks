@@ -9,10 +9,14 @@ applications:
         build:
           commands:
             - npm run build
+            # Copy static assets to standalone
             - cp -r public .next/standalone/apps/web/ || true
             - cp -r .next/static .next/standalone/apps/web/.next/
+            # Copy node_modules to the app directory (needed for monorepo standalone)
+            - cp -r .next/standalone/node_modules .next/standalone/apps/web/ || true
       artifacts:
-        baseDirectory: .next/standalone
+        # For monorepo, standalone output is in apps/web subdirectory
+        baseDirectory: .next/standalone/apps/web
         files:
           - '**/*'
       cache:
