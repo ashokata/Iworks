@@ -49,3 +49,4 @@ cdk.out/
 prisma/migrations/
 *.db
 *.db-journal
+nul
