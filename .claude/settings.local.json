@@ -35,7 +35,11 @@
       "Bash(npm run build:skip-check:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(rm:*)",
+      "Bash(ls:*)",
+      "Bash(copy:*)",
+      "Bash(cp:*)"
     ]
   }
 }
