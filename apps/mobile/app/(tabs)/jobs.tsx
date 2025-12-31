@@ -53,7 +53,7 @@ function transformJob(job: ApiJob): DisplayJob {
     time,
     jobType: { 
       name: 'General', 
-      color: '#6366f1' 
+      color: '#3b82f6' 
     },
   };
 }
@@ -132,7 +132,7 @@ export default function JobsScreen() {
     switch (status) {
       case 'SCHEDULED': return { color: '#f59e0b', bg: '#fef3c7', label: 'Scheduled' };
       case 'DISPATCHED': return { color: '#3b82f6', bg: '#dbeafe', label: 'Dispatched' };
-      case 'EN_ROUTE': return { color: '#8b5cf6', bg: '#ede9fe', label: 'En Route' };
+      case 'EN_ROUTE': return { color: '#60a5fa', bg: '#dbeafe', label: 'En Route' };
       case 'IN_PROGRESS': return { color: '#10b981', bg: '#d1fae5', label: 'In Progress' };
       case 'COMPLETED': return { color: '#6b7280', bg: '#f3f4f6', label: 'Completed' };
       default: return { color: '#6b7280', bg: '#f3f4f6', label: status };
@@ -304,7 +304,7 @@ export default function JobsScreen() {
     <View style={{ flex: 1, backgroundColor: isDark ? '#0f172a' : '#f8fafc' }}>
       {/* Header */}
       <LinearGradient
-        colors={isDark ? ['#1e1b4b', '#312e81'] : ['#4f46e5', '#6366f1']}
+        colors={isDark ? ['#172554', '#1e3a8a'] : ['#2563eb', '#3b82f6']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={{ paddingBottom: 16 }}
@@ -371,12 +371,12 @@ export default function JobsScreen() {
                 <Ionicons 
                   name={tab.icon as any} 
                   size={16} 
-                  color={activeFilter === tab.key ? '#6366f1' : 'rgba(255,255,255,0.8)'} 
+                  color={activeFilter === tab.key ? '#3b82f6' : 'rgba(255,255,255,0.8)'} 
                 />
                 <Text style={{
                   fontSize: 13,
                   fontWeight: '600',
-                  color: activeFilter === tab.key ? '#6366f1' : 'white',
+                  color: activeFilter === tab.key ? '#3b82f6' : 'white',
                 }}>
                   {tab.label}
                 </Text>
@@ -415,10 +415,10 @@ export default function JobsScreen() {
           width: 56,
           height: 56,
           borderRadius: 28,
-          backgroundColor: '#6366f1',
+          backgroundColor: '#3b82f6',
           alignItems: 'center',
           justifyContent: 'center',
-          shadowColor: '#6366f1',
+          shadowColor: '#3b82f6',
           shadowOffset: { width: 0, height: 4 },
           shadowOpacity: 0.4,
           shadowRadius: 8,

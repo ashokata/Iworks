@@ -69,8 +69,8 @@ export default function ProfileScreen() {
         },
         {
           icon: 'stats-chart-outline',
-          iconColor: '#8b5cf6',
-          iconBg: '#ede9fe',
+          iconColor: '#60a5fa',
+          iconBg: '#dbeafe',
           title: 'Performance',
           subtitle: 'Jobs, ratings & metrics',
           type: 'navigate',
@@ -97,7 +97,7 @@ export default function ProfileScreen() {
         },
         {
           icon: 'cloud-offline-outline',
-          iconColor: '#6366f1',
+          iconColor: '#3b82f6',
           iconBg: '#e0e7ff',
           title: 'Offline Mode',
           subtitle: 'Work without internet',
@@ -159,8 +159,8 @@ export default function ProfileScreen() {
         },
         {
           icon: 'card-outline',
-          iconColor: '#8b5cf6',
-          iconBg: '#ede9fe',
+          iconColor: '#60a5fa',
+          iconBg: '#dbeafe',
           title: 'Payment Methods',
           subtitle: 'Manage cards & accounts',
           type: 'navigate',
@@ -182,7 +182,7 @@ export default function ProfileScreen() {
         },
         {
           icon: 'chatbubbles-outline',
-          iconColor: '#6366f1',
+          iconColor: '#3b82f6',
           iconBg: '#e0e7ff',
           title: 'Contact Support',
           subtitle: 'Chat or call us',
@@ -243,7 +243,7 @@ export default function ProfileScreen() {
           <Switch
             value={item.value}
             onValueChange={item.onToggle}
-            trackColor={{ false: isDark ? '#475569' : '#e2e8f0', true: '#6366f1' }}
+            trackColor={{ false: isDark ? '#475569' : '#e2e8f0', true: '#3b82f6' }}
             thumbColor="white"
             ios_backgroundColor={isDark ? '#475569' : '#e2e8f0'}
           />
@@ -259,7 +259,7 @@ export default function ProfileScreen() {
     <View style={[styles.container, { backgroundColor: isDark ? '#0f172a' : '#f8fafc' }]}>
       {/* Header with gradient */}
       <LinearGradient
-        colors={isDark ? ['#1e1b4b', '#312e81'] : ['#4f46e5', '#6366f1']}
+        colors={isDark ? ['#172554', '#1e3a8a'] : ['#2563eb', '#3b82f6']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.header}
@@ -268,7 +268,7 @@ export default function ProfileScreen() {
           <View style={styles.profileSection}>
             <View style={styles.avatarContainer}>
               <LinearGradient
-                colors={['#8b5cf6', '#6366f1']}
+                colors={['#60a5fa', '#3b82f6']}
                 style={styles.avatar}
               >
                 <Text style={styles.avatarText}>
@@ -398,7 +398,7 @@ const styles = StyleSheet.create({
     borderRadius: 7,
     backgroundColor: '#22c55e',
     borderWidth: 2,
-    borderColor: '#4f46e5',
+    borderColor: '#2563eb',
   },
   userInfo: {
     flex: 1,
@@ -494,7 +494,7 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#6366f1',
+    color: '#3b82f6',
   },
   appVersion: {
     fontSize: 12,
@@ -534,7 +534,7 @@ const settingStyles = StyleSheet.create({
     marginTop: 2,
   },
   badge: {
-    backgroundColor: '#6366f1',
+    backgroundColor: '#3b82f6',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,

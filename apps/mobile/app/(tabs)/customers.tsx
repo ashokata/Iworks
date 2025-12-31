@@ -81,10 +81,10 @@ export default function CustomersScreen() {
     <Animated.View entering={FadeInDown.delay(index * 50).springify()}>
       <TouchableOpacity style={styles.customerItem} activeOpacity={0.7}>
         <View style={[styles.avatar, { 
-          backgroundColor: item.type === 'COMMERCIAL' ? '#fef3c7' : '#ede9fe' 
+          backgroundColor: item.type === 'COMMERCIAL' ? '#fef3c7' : '#dbeafe' 
         }]}>
           <Text style={[styles.avatarText, {
-            color: item.type === 'COMMERCIAL' ? '#d97706' : '#6366f1'
+            color: item.type === 'COMMERCIAL' ? '#d97706' : '#3b82f6'
           }]}>
             {item.name.charAt(0).toUpperCase()}
           </Text>
@@ -93,10 +93,10 @@ export default function CustomersScreen() {
           <View style={styles.customerRow}>
             <Text style={styles.customerName} numberOfLines={1}>{item.name}</Text>
             <View style={[styles.typeBadge, { 
-              backgroundColor: item.type === 'COMMERCIAL' ? '#fef3c7' : '#ede9fe' 
+              backgroundColor: item.type === 'COMMERCIAL' ? '#fef3c7' : '#dbeafe' 
             }]}>
               <Text style={[styles.typeText, { 
-                color: item.type === 'COMMERCIAL' ? '#d97706' : '#6366f1' 
+                color: item.type === 'COMMERCIAL' ? '#d97706' : '#3b82f6' 
               }]}>
                 {item.type}
               </Text>
@@ -129,7 +129,7 @@ export default function CustomersScreen() {
     <View style={styles.container}>
       {/* Header */}
       <LinearGradient
-        colors={isDark ? ['#1e1b4b', '#312e81'] : ['#4f46e5', '#6366f1']}
+        colors={isDark ? ['#172554', '#1e3a8a'] : ['#2563eb', '#3b82f6']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.header}
@@ -162,7 +162,7 @@ export default function CustomersScreen() {
       {/* Customer List */}
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#6366f1" />
+          <ActivityIndicator size="large" color="#3b82f6" />
           <Text style={styles.loadingText}>Loading customers...</Text>
         </View>
       ) : (
@@ -176,8 +176,8 @@ export default function CustomersScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              tintColor="#6366f1"
-              colors={['#6366f1']}
+              tintColor="#3b82f6"
+              colors={['#3b82f6']}
             />
           }
           ListEmptyComponent={
@@ -348,10 +348,10 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#6366f1',
+    backgroundColor: '#3b82f6',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#6366f1',
+    shadowColor: '#3b82f6',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 8,

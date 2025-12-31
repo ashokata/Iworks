@@ -54,7 +54,7 @@ function AIRAButton({ onPress, focused }: { onPress: () => void; focused: boolea
       {/* Outer glow ring */}
       <Animated.View style={[styles.glowRing, animatedGlow]}>
         <LinearGradient
-          colors={['#8b5cf6', '#6366f1', '#3b82f6']}
+          colors={['#60a5fa', '#3b82f6', '#3b82f6']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.glowGradient}
@@ -64,7 +64,7 @@ function AIRAButton({ onPress, focused }: { onPress: () => void; focused: boolea
       {/* Main button */}
       <Animated.View style={[styles.airaButton, animatedScale]}>
         <LinearGradient
-          colors={focused ? ['#7c3aed', '#4f46e5'] : ['#8b5cf6', '#6366f1']}
+          colors={focused ? ['#2563eb', '#2563eb'] : ['#60a5fa', '#3b82f6']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.airaGradient}
@@ -84,7 +84,7 @@ export default function TabLayout() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   
-  const activeColor = '#6366f1';
+  const activeColor = '#3b82f6';
   const inactiveColor = isDark ? '#6b7280' : '#9ca3af';
   const bgColor = isDark ? '#0f172a' : '#ffffff';
   const borderColor = isDark ? '#1e293b' : '#f1f5f9';
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 30,
     overflow: 'hidden',
-    shadowColor: '#6366f1',
+    shadowColor: '#3b82f6',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.5,
     shadowRadius: 12,

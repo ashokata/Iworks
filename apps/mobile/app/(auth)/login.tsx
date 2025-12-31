@@ -173,7 +173,7 @@ export default function LoginScreen() {
               >
                 <View style={styles.logoContainer}>
                   <LinearGradient
-                    colors={['#6366f1', '#8b5cf6']}
+                    colors={['#3b82f6', '#60a5fa']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={styles.logoGradient}
@@ -337,7 +337,7 @@ export default function LoginScreen() {
                   activeOpacity={0.8}
                 >
                   <LinearGradient
-                    colors={isLoading ? ['#94a3b8', '#94a3b8'] : ['#6366f1', '#8b5cf6']}
+                    colors={isLoading ? ['#94a3b8', '#94a3b8'] : ['#3b82f6', '#60a5fa']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={styles.signInGradient}
@@ -363,7 +363,7 @@ export default function LoginScreen() {
                     <Ionicons
                       name={biometricType === 'Face ID' ? 'scan' : 'finger-print'}
                       size={24}
-                      color="#6366f1"
+                      color="#3b82f6"
                     />
                     <Text style={styles.biometricText}>
                       Sign in with {biometricType}
@@ -399,7 +399,7 @@ export default function LoginScreen() {
                     disabled={isLoading}
                   >
                     <View style={styles.demoIconContainer}>
-                      <Ionicons name={demo.icon as any} size={20} color="#6366f1" />
+                      <Ionicons name={demo.icon as any} size={20} color="#3b82f6" />
                     </View>
                     <View style={styles.demoInfo}>
                       <Text style={styles.demoRole}>{demo.role}</Text>
@@ -464,7 +464,7 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#6366f1',
+    shadowColor: '#3b82f6',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
@@ -544,8 +544,8 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     marginRight: 8,
   },
   checkboxChecked: {
-    backgroundColor: '#6366f1',
-    borderColor: '#6366f1',
+    backgroundColor: '#3b82f6',
+    borderColor: '#3b82f6',
   },
   rememberMeText: {
     fontSize: 14,
@@ -554,7 +554,7 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
   forgotPassword: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6366f1',
+    color: '#3b82f6',
   },
   errorContainer: {
     flexDirection: 'row',
@@ -577,7 +577,7 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
     marginBottom: 16,
-    shadowColor: '#6366f1',
+    shadowColor: '#3b82f6',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -606,7 +606,7 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
   biometricText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#6366f1',
+    color: '#3b82f6',
   },
   divider: {
     flexDirection: 'row',
@@ -643,7 +643,7 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: '#ede9fe',
+    backgroundColor: '#dbeafe',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -678,7 +678,7 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     lineHeight: 18,
   },
   footerLink: {
-    color: '#6366f1',
+    color: '#3b82f6',
     fontWeight: '600',
   },
 });

@@ -291,7 +291,7 @@ export default function AIRAScreen() {
       >
         {!isUser && (
           <LinearGradient
-            colors={['#8b5cf6', '#6366f1']}
+            colors={['#60a5fa', '#3b82f6']}
             style={messageStyles.avatarBot}
           >
             <Ionicons name="sparkles" size={16} color="white" />
@@ -301,7 +301,7 @@ export default function AIRAScreen() {
         <View style={[
           messageStyles.bubble,
           isUser ? messageStyles.bubbleUser : messageStyles.bubbleBot,
-          { backgroundColor: isUser ? '#6366f1' : (isDark ? '#1e293b' : '#ffffff') }
+          { backgroundColor: isUser ? '#3b82f6' : (isDark ? '#1e293b' : '#ffffff') }
         ]}>
           {item.isLoading ? (
             <View style={messageStyles.loading}>
@@ -311,7 +311,7 @@ export default function AIRAScreen() {
                     key={i}
                     style={[messageStyles.dot, { 
                       opacity: 0.5 + (i * 0.2),
-                      backgroundColor: '#6366f1',
+                      backgroundColor: '#3b82f6',
                     }]} 
                   />
                 ))}
@@ -342,12 +342,12 @@ export default function AIRAScreen() {
                     <TouchableOpacity
                       key={idx}
                       style={[messageStyles.suggestionChip, { 
-                        backgroundColor: isDark ? '#312e81' : '#ede9fe',
-                        borderColor: isDark ? '#4f46e5' : '#c4b5fd',
+                        backgroundColor: isDark ? '#1e3a8a' : '#dbeafe',
+                        borderColor: isDark ? '#2563eb' : '#93c5fd',
                       }]}
                       onPress={() => handleSuggestion(suggestion)}
                     >
-                      <Text style={[messageStyles.suggestionText, { color: '#6366f1' }]}>
+                      <Text style={[messageStyles.suggestionText, { color: '#3b82f6' }]}>
                         {suggestion}
                       </Text>
                     </TouchableOpacity>
@@ -371,7 +371,7 @@ export default function AIRAScreen() {
     <View style={[styles.container, { backgroundColor: isDark ? '#0f172a' : '#f8fafc' }]}>
       {/* Header */}
       <LinearGradient
-        colors={['#6366f1', '#8b5cf6']}
+        colors={['#3b82f6', '#60a5fa']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.header}
@@ -463,7 +463,7 @@ export default function AIRAScreen() {
               <Ionicons
                 name={isListening ? 'mic' : 'mic-outline'}
                 size={22}
-                color={isListening ? 'white' : '#6366f1'}
+                color={isListening ? 'white' : '#3b82f6'}
               />
             </TouchableOpacity>
           </Animated.View>
@@ -501,7 +501,7 @@ export default function AIRAScreen() {
             disabled={!inputText.trim() || isLoading}
           >
             <LinearGradient
-              colors={inputText.trim() && !isLoading ? ['#6366f1', '#8b5cf6'] : ['#cbd5e1', '#cbd5e1']}
+              colors={inputText.trim() && !isLoading ? ['#3b82f6', '#60a5fa'] : ['#cbd5e1', '#cbd5e1']}
               style={styles.sendBtnGradient}
             >
               <Ionicons name="send" size={18} color="white" />
@@ -663,7 +663,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#ede9fe',
+    backgroundColor: '#dbeafe',
     alignItems: 'center',
     justifyContent: 'center',
   },

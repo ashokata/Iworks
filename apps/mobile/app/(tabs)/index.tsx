@@ -54,7 +54,7 @@ function transformJob(job: ApiJob): DisplayJob {
     estimatedDuration: job.estimatedDuration || 60,
     jobType: { 
       name: 'General', 
-      color: '#6366f1' 
+      color: '#3b82f6' 
     },
   };
 }
@@ -111,7 +111,7 @@ export default function TodayScreen() {
     switch (status) {
       case 'SCHEDULED': return { color: '#f59e0b', bg: '#fef3c7', label: 'Scheduled' };
       case 'DISPATCHED': return { color: '#3b82f6', bg: '#dbeafe', label: 'Dispatched' };
-      case 'EN_ROUTE': return { color: '#8b5cf6', bg: '#ede9fe', label: 'En Route' };
+      case 'EN_ROUTE': return { color: '#60a5fa', bg: '#dbeafe', label: 'En Route' };
       case 'IN_PROGRESS': return { color: '#10b981', bg: '#d1fae5', label: 'In Progress' };
       case 'COMPLETED': return { color: '#6b7280', bg: '#f3f4f6', label: 'Completed' };
       default: return { color: '#6b7280', bg: '#f3f4f6', label: status };
@@ -137,7 +137,7 @@ export default function TodayScreen() {
     <View style={styles.container}>
       {/* Header with gradient */}
       <LinearGradient
-        colors={isDark ? ['#1e1b4b', '#312e81'] : ['#4f46e5', '#6366f1']}
+        colors={isDark ? ['#172554', '#1e3a8a'] : ['#2563eb', '#3b82f6']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.header}
@@ -226,8 +226,8 @@ export default function TodayScreen() {
           <RefreshControl 
             refreshing={refreshing} 
             onRefresh={onRefresh} 
-            tintColor="#6366f1"
-            colors={['#6366f1']}
+            tintColor="#3b82f6"
+            colors={['#3b82f6']}
           />
         }
         showsVerticalScrollIndicator={false}
@@ -243,13 +243,13 @@ export default function TodayScreen() {
             <QuickActionButton
               icon="add-circle"
               label="New Job"
-              color="#6366f1"
+              color="#3b82f6"
               isDark={isDark}
             />
             <QuickActionButton
               icon="document-text"
               label="Estimate"
-              color="#8b5cf6"
+              color="#60a5fa"
               isDark={isDark}
             />
             <QuickActionButton
@@ -284,7 +284,7 @@ export default function TodayScreen() {
                 setSelectedDate(new Date());
               }}
             >
-              <Text style={{ fontSize: 13, fontWeight: '600', color: '#6366f1' }}>Today</Text>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: '#3b82f6' }}>Today</Text>
             </TouchableOpacity>
           </View>
           <View style={[styles.calendarCard, { backgroundColor: isDark ? '#1e293b' : '#ffffff' }]}>
@@ -297,7 +297,7 @@ export default function TodayScreen() {
                 }}
                 style={styles.calendarNavBtn}
               >
-                <Ionicons name="chevron-back" size={20} color="#6366f1" />
+                <Ionicons name="chevron-back" size={20} color="#3b82f6" />
               </TouchableOpacity>
               <Text style={styles.calendarMonthText}>
                 {format(currentMonth, 'MMMM yyyy')}
@@ -309,7 +309,7 @@ export default function TodayScreen() {
                 }}
                 style={styles.calendarNavBtn}
               >
-                <Ionicons name="chevron-forward" size={20} color="#6366f1" />
+                <Ionicons name="chevron-forward" size={20} color="#3b82f6" />
               </TouchableOpacity>
             </View>
 
@@ -475,9 +475,9 @@ function CalendarGrid({
                   justifyContent: 'center',
                   borderRadius: 20,
                   backgroundColor: isSelected
-                    ? '#6366f1'
+                    ? '#3b82f6'
                     : isTodayDate
-                    ? isDark ? '#312e81' : '#e0e7ff'
+                    ? isDark ? '#1e3a8a' : '#e0e7ff'
                     : 'transparent',
                 }}
               >
@@ -488,7 +488,7 @@ function CalendarGrid({
                     color: isSelected
                       ? 'white'
                       : isTodayDate
-                      ? '#6366f1'
+                      ? '#3b82f6'
                       : !isCurrentMonth
                       ? '#9ca3af'
                       : isDark ? '#f1f5f9' : '#1e293b',
@@ -504,7 +504,7 @@ function CalendarGrid({
                       width: 4,
                       height: 4,
                       borderRadius: 2,
-                      backgroundColor: isTodayDate ? '#6366f1' : '#10b981',
+                      backgroundColor: isTodayDate ? '#3b82f6' : '#10b981',
                     }}
                   />
                 )}
@@ -699,7 +699,7 @@ function JobCard({ job, isDark }: { job: Job; isDark: boolean }) {
           </TouchableOpacity>
           <TouchableOpacity 
             style={[cardStyles.startJobBtn, { 
-              backgroundColor: job.status === 'IN_PROGRESS' ? '#10b981' : '#6366f1' 
+              backgroundColor: job.status === 'IN_PROGRESS' ? '#10b981' : '#3b82f6' 
             }]}
           >
             <Text style={{ color: 'white', fontWeight: '600', fontSize: 14 }}>
@@ -725,7 +725,7 @@ function getStatusConfig(status: string) {
   switch (status) {
     case 'SCHEDULED': return { color: '#f59e0b', bg: '#fef3c7', label: 'Scheduled' };
     case 'DISPATCHED': return { color: '#3b82f6', bg: '#dbeafe', label: 'Dispatched' };
-    case 'EN_ROUTE': return { color: '#8b5cf6', bg: '#ede9fe', label: 'En Route' };
+    case 'EN_ROUTE': return { color: '#60a5fa', bg: '#dbeafe', label: 'En Route' };
     case 'IN_PROGRESS': return { color: '#10b981', bg: '#d1fae5', label: 'In Progress' };
     case 'COMPLETED': return { color: '#6b7280', bg: '#f3f4f6', label: 'Completed' };
     default: return { color: '#6b7280', bg: '#f3f4f6', label: status };
@@ -1051,7 +1051,7 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: isDark ? '#312e81' : '#e0e7ff',
+    backgroundColor: isDark ? '#1e3a8a' : '#e0e7ff',
     alignItems: 'center',
     justifyContent: 'center',
   },
