@@ -111,7 +111,7 @@ export default function LoginScreen() {
   const handleBiometricAuth = async () => {
     try {
       const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: 'Sign in to FieldSmartPro',
+        promptMessage: 'Sign in to iWorks',
         fallbackLabel: 'Use Password',
         disableDeviceFallback: false,
       });
@@ -120,7 +120,7 @@ export default function LoginScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         // In production, retrieve stored credentials securely
         // For now, use demo credentials
-        setValue('email', 'mike@fieldsmartpro.local');
+        setValue('email', 'mike@iworks.local');
         setValue('password', 'demo-hash');
         handleSubmit(onSubmit)();
       }
@@ -152,38 +152,49 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Blue gradient header with brand */}
       <LinearGradient
-        colors={isDark ? ['#0f172a', '#1e293b'] : ['#f8fafc', '#ffffff']}
-        style={styles.gradient}
+        colors={isDark ? ['#1e3a8a', '#2563eb'] : ['#1d4ed8', '#3b82f6']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.headerGradient}
       >
-        <SafeAreaView style={styles.safeArea}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.keyboardView}
+        <SafeAreaView edges={['top']}>
+          <Animated.View
+            entering={FadeInDown.delay(100).springify()}
+            style={styles.brandSection}
           >
-            <ScrollView
-              contentContainerStyle={styles.scrollContent}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
+            {/* Brand Icon */}
+            <View style={styles.brandIcon}>
+              <Ionicons name="construct" size={32} color="#ffffff" />
+            </View>
+            
+            {/* Brand Name */}
+            <Text style={styles.brandName}>Infield Works</Text>
+            <Text style={styles.brandTagline}>Smart Field Solutions</Text>
+          </Animated.View>
+        </SafeAreaView>
+      </LinearGradient>
+
+      {/* Form section */}
+      <View style={[styles.formSection, { backgroundColor: isDark ? '#0f172a' : '#ffffff' }]}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.keyboardView}
+        >
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* Welcome text */}
+            <Animated.View
+              entering={FadeInDown.delay(150).springify()}
+              style={styles.header}
             >
-              {/* Logo & Title */}
-              <Animated.View
-                entering={FadeInDown.delay(100).springify()}
-                style={styles.header}
-              >
-                <View style={styles.logoContainer}>
-                  <LinearGradient
-                    colors={['#3b82f6', '#60a5fa']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.logoGradient}
-                  >
-                    <Ionicons name="construct" size={40} color="white" />
-                  </LinearGradient>
-                </View>
-                <Text style={styles.title}>FieldSmartPro</Text>
-                <Text style={styles.subtitle}>Welcome back! Sign in to continue</Text>
-              </Animated.View>
+              <Text style={[styles.welcomeTitle, { color: isDark ? '#f1f5f9' : '#1e293b' }]}>Welcome Back</Text>
+              <Text style={styles.subtitle}>Sign in to your account</Text>
+            </Animated.View>
 
               {/* Login Form */}
               <Animated.View
@@ -388,9 +399,9 @@ export default function LoginScreen() {
                 style={styles.demoSection}
               >
                 {[
-                  { email: 'mike@fieldsmartpro.local', role: 'Technician', icon: 'construct' },
-                  { email: 'sarah@fieldsmartpro.local', role: 'Dispatcher', icon: 'headset' },
-                  { email: 'admin@fieldsmartpro.local', role: 'Admin', icon: 'shield-checkmark' },
+                  { email: 'mike@iworks.local', role: 'Technician', icon: 'construct' },
+                  { email: 'sarah@iworks.local', role: 'Dispatcher', icon: 'headset' },
+                  { email: 'admin@iworks.local', role: 'Admin', icon: 'shield-checkmark' },
                 ].map((demo, index) => (
                   <TouchableOpacity
                     key={demo.email}
@@ -427,8 +438,7 @@ export default function LoginScreen() {
               </Animated.View>
             </ScrollView>
           </KeyboardAvoidingView>
-        </SafeAreaView>
-      </LinearGradient>
+        </View>
     </View>
   );
 }
@@ -436,6 +446,44 @@ export default function LoginScreen() {
 const createStyles = (isDark: boolean) => StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: isDark ? '#0f172a' : '#ffffff',
+  },
+  headerGradient: {
+    paddingBottom: 50,
+  },
+  brandSection: {
+    alignItems: 'center',
+    paddingTop: 50,
+    paddingBottom: 30,
+  },
+  brandIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  brandName: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#ffffff',
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  brandTagline: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: 'rgba(255, 255, 255, 0.85)',
+    letterSpacing: 1,
+  },
+  formSection: {
+    flex: 1,
+    marginTop: -30,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    paddingTop: 24,
   },
   gradient: {
     flex: 1,
@@ -449,26 +497,17 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 24,
-    paddingVertical: 40,
+    paddingVertical: 20,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 24,
   },
-  logoContainer: {
-    marginBottom: 20,
-  },
-  logoGradient: {
-    width: 80,
-    height: 80,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#3b82f6',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
+  welcomeTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    marginBottom: 8,
+    textAlign: 'center',
   },
   title: {
     fontSize: 32,

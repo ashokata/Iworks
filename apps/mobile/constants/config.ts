@@ -14,7 +14,7 @@ export const API_CONFIG = {
 
 // App Configuration
 export const APP_CONFIG = {
-  NAME: 'FieldSmartPro',
+  NAME: 'iWorks',
   VERSION: '1.0.0',
   // Default tenant for development
   DEFAULT_TENANT_ID: process.env.EXPO_PUBLIC_TENANT_ID || 'local-tenant',

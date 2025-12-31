@@ -14,7 +14,7 @@ import { modelClasses } from './models';
 const adapter = new SQLiteAdapter({
   schema,
   // Database file name
-  dbName: 'fieldsmartpro',
+  dbName: 'iworks',
   // Enable JSI for better performance (React Native only)
   jsi: true,
   // Optional: migrations for schema updates

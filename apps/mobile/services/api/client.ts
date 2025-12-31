@@ -8,7 +8,7 @@ const REFRESH_TOKEN_KEY = 'refresh_token';
 const TENANT_ID_KEY = 'tenant_id';
 
 /**
- * API Client for FieldSmartPro Mobile App
+ * API Client for iWorks Mobile App
  * Handles authentication, request/response interceptors, and error handling
  */
 class ApiClient {

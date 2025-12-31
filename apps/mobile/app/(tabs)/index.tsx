@@ -21,6 +21,7 @@ interface DisplayJob {
   priority: string;
   customer: { name: string; phone: string };
   time: string;
+  date: string; // ISO date string for calendar display
   address: string;
   estimatedDuration: number;
   jobType: { name: string; color: string };
@@ -39,6 +40,11 @@ function transformJob(job: ApiJob): DisplayJob {
     ? format(new Date(job.scheduledStart), 'h:mm a')
     : 'Unscheduled';
 
+  // Use scheduledStart for date, fallback to today if not set
+  const date = job.scheduledStart 
+    ? new Date(job.scheduledStart).toISOString()
+    : new Date().toISOString();
+
   return {
     id: job.id,
     jobNumber: job.jobNumber || 'N/A',
@@ -50,6 +56,7 @@ function transformJob(job: ApiJob): DisplayJob {
       phone: job.customer?.mobilePhone || job.customer?.homePhone || job.customer?.workPhone || '' 
     },
     time,
+    date,
     address,
     estimatedDuration: job.estimatedDuration || 60,
     jobType: { 
