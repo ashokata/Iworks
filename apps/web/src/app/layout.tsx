@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
+import { ClerkProvider } from '@clerk/nextjs';
 import './globals.css';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { TenantProvider } from '@/contexts/TenantContext';
@@ -40,15 +41,17 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="InField Works" />
       </head>
       <body className={inter.className}>
-        <AuthProvider>
-          <TenantProvider>
-            <QueryProvider>
-              <SidebarLayout>
-                {children}
-              </SidebarLayout>
-            </QueryProvider>
-          </TenantProvider>
-        </AuthProvider>
+        <ClerkProvider>
+          <AuthProvider>
+            <TenantProvider>
+              <QueryProvider>
+                <SidebarLayout>
+                  {children}
+                </SidebarLayout>
+              </QueryProvider>
+            </TenantProvider>
+          </AuthProvider>
+        </ClerkProvider>
       </body>
     </html>
   );

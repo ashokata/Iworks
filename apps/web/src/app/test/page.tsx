@@ -10,6 +10,24 @@ export default function TestPage() {
   
   return (
     <div className="container mx-auto px-4 py-8">
+      {/* Clerk POC Alert */}
+      <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+        <div className="flex items-start">
+          <svg className="w-5 h-5 text-green-600 mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+          <div className="flex-grow">
+            <h3 className="font-medium text-green-900 mb-1">New: Clerk Authentication POC</h3>
+            <p className="text-sm text-green-800">
+              We're testing Clerk as a new authentication provider.{' '}
+              <a href="/auth-comparison" className="font-medium underline hover:text-green-900">
+                View the authentication comparison →
+              </a>
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold mb-2">Field Service Entity Model</h1>

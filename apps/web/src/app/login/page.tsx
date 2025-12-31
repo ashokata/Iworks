@@ -248,6 +248,22 @@ export default function LoginPage() {
                 </a>
               </p>
             </div>
+
+            {/* Clerk POC Link */}
+            <div className="mt-4 text-center">
+              <p className="text-xs text-gray-500 mb-2">
+                Testing new authentication?
+              </p>
+              <a
+                href="/clerk-sign-in"
+                className="inline-flex items-center text-sm font-medium text-green-600 hover:text-green-700 transition-colors"
+              >
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                Try Clerk Authentication (Beta)
+              </a>
+            </div>
           </form>
         </div>
       </div>

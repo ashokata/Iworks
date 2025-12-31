@@ -39,7 +39,8 @@
       "Bash(rm:*)",
       "Bash(ls:*)",
       "Bash(copy:*)",
-      "Bash(cp:*)"
+      "Bash(cp:*)",
+      "Bash(git checkout:*)"
     ]
   }
 }
