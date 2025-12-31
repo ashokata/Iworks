@@ -38,36 +38,70 @@ export default function OnboardingPage() {
         throw new Error('Organization creation not available');
       }
 
-      // Create the organization (this will be the tenant)
-      const org = await createOrganization({
-        name: orgData.name,
-        slug: orgData.slug,
-        publicMetadata: {
-          industry: orgData.industry,
-          size: orgData.size,
-          plan: 'trial', // Start with trial plan
-          createdAt: new Date().toISOString(),
-        },
-      });
+      // Check for organization limit error
+      try {
+        // Create the organization (this will be the tenant)
+        const org = await createOrganization({
+          name: orgData.name,
+          slug: orgData.slug,
+          publicMetadata: {
+            industry: orgData.industry,
+            size: orgData.size,
+            plan: 'trial', // Start with trial plan
+            createdAt: new Date().toISOString(),
+          },
+        });
 
-      // Set the newly created organization as active
-      if (setActive) {
-        await setActive({ organization: org });
+        // Set the newly created organization as active
+        if (setActive) {
+          await setActive({ organization: org });
+        }
+
+        // Update user metadata with tenant info
+        await user?.update({
+          publicMetadata: {
+            onboardingCompleted: true,
+            defaultOrgId: org.id,
+          },
+        });
+
+        // Redirect to dashboard
+        router.push('/dashboard');
+      } catch (orgError: any) {
+        // Handle organization limit error
+        if (orgError.message?.includes('exceeded the maximum number')) {
+          console.warn('Organization limit reached, using user metadata as fallback');
+
+          // Fallback: Store tenant data in user metadata instead
+          await user?.update({
+            publicMetadata: {
+              onboardingCompleted: true,
+              tenantData: {
+                name: orgData.name,
+                slug: orgData.slug,
+                industry: orgData.industry,
+                size: orgData.size,
+                plan: 'trial',
+                createdAt: new Date().toISOString(),
+              },
+              // For POC, simulate tenant ID
+              tenantId: `tenant-${orgData.slug}-${Date.now()}`,
+            },
+          });
+
+          setError('Organization limit reached. Using alternative storage for demo purposes.');
+
+          // Still redirect after a delay
+          setTimeout(() => {
+            router.push('/dashboard');
+          }, 2000);
+        } else {
+          throw orgError;
+        }
       }
-
-      // Update user metadata with tenant info
-      await user?.update({
-        publicMetadata: {
-          onboardingCompleted: true,
-          defaultOrgId: org.id,
-        },
-      });
-
-      // Redirect to dashboard
-      router.push('/dashboard');
     } catch (err: any) {
-      console.error('Error creating organization:', err);
-      setError(err.message || 'Failed to create organization');
+      console.error('Error in onboarding:', err);
+      setError(err.message || 'Failed to complete onboarding');
       setLoading(false);
     }
   };
