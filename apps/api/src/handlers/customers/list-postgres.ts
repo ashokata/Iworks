@@ -38,7 +38,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     console.log('[PG-List] Query params:', { limit, offset, search });
 
-    // Use raw SQL to avoid schema mismatch
+    // Use raw SQL that works with both simplified and full schema
     let customers: any[];
     let total: number;
 
@@ -47,8 +47,8 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       const searchPattern = `%${search.toLowerCase()}%`;
       customers = await prisma.$queryRawUnsafe(`
         SELECT 
-          c.id, c."tenantId", c."firstName", c."lastName", c.email, c.phone, 
-          c.address as inline_address, c.city as inline_city, c.state as inline_state, c."zipCode" as inline_zip,
+          c.id, c."tenantId", c."firstName", c."lastName", c."companyName", c.email, 
+          c."mobilePhone", c."homePhone", c."workPhone",
           c.notes, c."createdAt", c."updatedAt",
           a.id as addr_id, a.type as addr_type, a.street as addr_street, a."streetLine2" as addr_street2,
           a.city as addr_city, a.state as addr_state, a.zip as addr_zip, a.country as addr_country
@@ -56,7 +56,6 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         LEFT JOIN (
           SELECT DISTINCT ON ("customerId") *
           FROM addresses
-          WHERE "tenantId" = $1
           ORDER BY "customerId", 
             CASE WHEN type = 'PRIMARY' THEN 0 WHEN type = 'BILLING' THEN 1 ELSE 2 END,
             "createdAt" DESC
@@ -65,12 +64,13 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         AND (
           LOWER(c."firstName") LIKE $2 
           OR LOWER(c."lastName") LIKE $2 
+          OR LOWER(c."companyName") LIKE $2 
           OR LOWER(c.email) LIKE $2 
-          OR c.phone LIKE $2
+          OR c."mobilePhone" LIKE $2
         )
         ORDER BY c."createdAt" DESC
         LIMIT $3 OFFSET $4
-      `, tenantId, searchPattern, limit, offset);
+      `, tenantId, searchPattern, limit, offset) as any[];
 
       const countResult = await prisma.$queryRawUnsafe(`
         SELECT COUNT(*) as count FROM customers 
@@ -78,8 +78,9 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         AND (
           LOWER("firstName") LIKE $2 
           OR LOWER("lastName") LIKE $2 
+          OR LOWER("companyName") LIKE $2 
           OR LOWER(email) LIKE $2 
-          OR phone LIKE $2
+          OR "mobilePhone" LIKE $2
         )
       `, tenantId, searchPattern) as any[];
       total = parseInt(countResult[0]?.count || '0', 10);
@@ -87,8 +88,8 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       // List all customers with addresses
       customers = await prisma.$queryRawUnsafe(`
         SELECT 
-          c.id, c."tenantId", c."firstName", c."lastName", c.email, c.phone, 
-          c.address as inline_address, c.city as inline_city, c.state as inline_state, c."zipCode" as inline_zip,
+          c.id, c."tenantId", c."firstName", c."lastName", c."companyName", c.email, 
+          c."mobilePhone", c."homePhone", c."workPhone",
           c.notes, c."createdAt", c."updatedAt",
           a.id as addr_id, a.type as addr_type, a.street as addr_street, a."streetLine2" as addr_street2,
           a.city as addr_city, a.state as addr_state, a.zip as addr_zip, a.country as addr_country
@@ -96,7 +97,6 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         LEFT JOIN (
           SELECT DISTINCT ON ("customerId") *
           FROM addresses
-          WHERE "tenantId" = $1
           ORDER BY "customerId", 
             CASE WHEN type = 'PRIMARY' THEN 0 WHEN type = 'BILLING' THEN 1 ELSE 2 END,
             "createdAt" DESC
@@ -104,7 +104,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         WHERE c."tenantId" = $1 
         ORDER BY c."createdAt" DESC
         LIMIT $2 OFFSET $3
-      `, tenantId, limit, offset);
+      `, tenantId, limit, offset) as any[];
 
       const countResult = await prisma.$queryRawUnsafe(`
         SELECT COUNT(*) as count FROM customers WHERE "tenantId" = $1
@@ -116,9 +116,8 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     // Format response for frontend compatibility
     const formattedCustomers = customers.map(customer => {
-      // Prefer linked address over inline address
-      const hasLinkedAddress = customer.addr_id !== null;
-      const address = hasLinkedAddress ? {
+      // Get address from linked address
+      const address = customer.addr_id ? {
         id: customer.addr_id,
         type: customer.addr_type,
         street: customer.addr_street,
@@ -128,12 +127,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         state: customer.addr_state,
         zip: customer.addr_zip,
         country: customer.addr_country,
-      } : (customer.inline_address ? {
-        street: customer.inline_address,
-        city: customer.inline_city,
-        state: customer.inline_state,
-        zip: customer.inline_zip,
-      } : null);
+      } : null;
 
       return {
         id: customer.id,
@@ -142,11 +136,14 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         lastName: customer.lastName,
         first_name: customer.firstName,
         last_name: customer.lastName,
-        display_name: `${customer.firstName || ''} ${customer.lastName || ''}`.trim() || 'Unknown',
+        companyName: customer.companyName,
+        display_name: customer.companyName || `${customer.firstName || ''} ${customer.lastName || ''}`.trim() || 'Unknown',
         email: customer.email,
-        phone: customer.phone,
-        mobilePhone: customer.phone,
-        mobile_number: customer.phone,
+        phone: customer.mobilePhone,
+        mobilePhone: customer.mobilePhone,
+        homePhone: customer.homePhone,
+        workPhone: customer.workPhone,
+        mobile_number: customer.mobilePhone,
         address,
         notes: customer.notes,
         tenantId: customer.tenantId,

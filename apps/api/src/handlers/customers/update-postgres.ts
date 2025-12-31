@@ -10,17 +10,25 @@ const updateCustomerSchema = z.object({
   last_name: z.string().optional(),
   display_name: z.string().optional(),
   displayName: z.string().optional(),
+  companyName: z.string().optional(),
+  company_name: z.string().optional(),
   email: z.string().email().optional().or(z.literal('')),
   phone: z.string().optional(),
   mobilePhone: z.string().optional(),
+  homePhone: z.string().optional(),
+  workPhone: z.string().optional(),
   mobile_number: z.string().optional(),
+  home_number: z.string().optional(),
+  work_number: z.string().optional(),
   notes: z.string().optional(),
+  // Address fields (for backward compatibility, but addresses are in separate table now)
   street: z.string().optional(),
   address: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
   zip: z.string().optional(),
   zipCode: z.string().optional(),
+  addresses: z.array(z.any()).optional(),
 }).passthrough();
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
@@ -108,17 +116,16 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     }
 
     const email = body.email || '';
-    const phone = body.mobilePhone || body.mobile_number || body.phone || '';
-    const address = body.street || body.address || '';
-    const city = body.city || '';
-    const state = body.state || '';
-    const zipCode = body.zip || body.zipCode || '';
+    const mobilePhone = body.mobilePhone || body.mobile_number || body.phone || '';
+    const homePhone = body.homePhone || body.home_number || '';
+    const workPhone = body.workPhone || body.work_number || '';
     const notes = body.notes;
+    const companyName = body.companyName || body.company_name;
 
     // Check if customer exists using raw SQL
     const existingCustomers = await prisma.$queryRawUnsafe(`
-      SELECT id, "firstName", "lastName", email, phone, address, city, state, "zipCode", notes
-      FROM customers 
+      SELECT id, "firstName", "lastName", "companyName", email, "mobilePhone", "homePhone", "workPhone", notes
+      FROM customers
       WHERE id = $1 AND "tenantId" = $2
       LIMIT 1
     `, customerId, tenantId) as any[];
@@ -158,24 +165,22 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       UPDATE customers SET
         "firstName" = COALESCE($1, "firstName"),
         "lastName" = COALESCE($2, "lastName"),
-        email = COALESCE($3, email),
-        phone = COALESCE($4, phone),
-        address = COALESCE($5, address),
-        city = COALESCE($6, city),
-        state = COALESCE($7, state),
-        "zipCode" = COALESCE($8, "zipCode"),
-        notes = COALESCE($9, notes),
+        "companyName" = COALESCE($3, "companyName"),
+        email = COALESCE($4, email),
+        "mobilePhone" = COALESCE($5, "mobilePhone"),
+        "homePhone" = COALESCE($6, "homePhone"),
+        "workPhone" = COALESCE($7, "workPhone"),
+        notes = COALESCE($8, notes),
         "updatedAt" = NOW()
-      WHERE id = $10 AND "tenantId" = $11
-    `, 
+      WHERE id = $9 AND "tenantId" = $10
+    `,
       firstName || null,
       lastName || null,
+      companyName || null,
       email || null,
-      phone || null,
-      address || null,
-      city || null,
-      state || null,
-      zipCode || null,
+      mobilePhone || null,
+      homePhone || null,
+      workPhone || null,
       notes !== undefined ? notes : null,
       customerId,
       tenantId
@@ -185,14 +190,32 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     // Fetch updated customer
     const updatedCustomers = await prisma.$queryRawUnsafe(`
-      SELECT id, "tenantId", "firstName", "lastName", email, phone, address, city, state, "zipCode", notes,
+      SELECT id, "tenantId", "firstName", "lastName", "companyName", email,
+             "mobilePhone", "homePhone", "workPhone", notes,
              "createdAt", "updatedAt"
-      FROM customers 
+      FROM customers
       WHERE id = $1 AND "tenantId" = $2
       LIMIT 1
     `, customerId, tenantId) as any[];
 
     const customer = updatedCustomers[0];
+
+    // Get linked addresses from addresses table
+    const addresses = await prisma.$queryRawUnsafe(`
+      SELECT
+        id, type, name, street, "streetLine2", city, state, zip, country,
+        "accessNotes", "gateCode", latitude, longitude, "createdAt", "updatedAt"
+      FROM addresses
+      WHERE "customerId" = $1
+      ORDER BY
+        CASE WHEN type = 'PRIMARY' THEN 0
+             WHEN type = 'BILLING' THEN 1
+             ELSE 2 END,
+        "createdAt" DESC
+    `, customerId) as any[];
+
+    // Find primary address for backward compatibility
+    const primaryAddress = addresses?.find((a: any) => a.type === 'PRIMARY') || addresses?.[0];
 
     // Format response for frontend compatibility
     const response = {
@@ -203,17 +226,48 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         lastName: customer.lastName,
         first_name: customer.firstName,
         last_name: customer.lastName,
-        display_name: `${customer.firstName || ''} ${customer.lastName || ''}`.trim() || 'Unknown',
+        companyName: customer.companyName,
+        display_name: customer.companyName || `${customer.firstName || ''} ${customer.lastName || ''}`.trim() || 'Unknown',
         email: customer.email,
-        phone: customer.phone,
-        mobilePhone: customer.phone,
-        mobile_number: customer.phone,
-        address: customer.address ? {
-          street: customer.address,
-          city: customer.city,
-          state: customer.state,
-          zip: customer.zipCode,
+        phone: customer.mobilePhone,
+        mobilePhone: customer.mobilePhone,
+        homePhone: customer.homePhone,
+        workPhone: customer.workPhone,
+        mobile_number: customer.mobilePhone,
+        // Primary address for backward compatibility
+        address: primaryAddress ? {
+          id: primaryAddress.id,
+          type: primaryAddress.type,
+          name: primaryAddress.name,
+          street: primaryAddress.street,
+          street2: primaryAddress.streetLine2,
+          streetLine2: primaryAddress.streetLine2,
+          city: primaryAddress.city,
+          state: primaryAddress.state,
+          zip: primaryAddress.zip,
+          country: primaryAddress.country,
+          accessNotes: primaryAddress.accessNotes,
+          gateCode: primaryAddress.gateCode,
         } : null,
+        // All addresses array
+        addresses: addresses?.map((addr: any) => ({
+          id: addr.id,
+          type: addr.type,
+          name: addr.name,
+          street: addr.street,
+          street2: addr.streetLine2,
+          streetLine2: addr.streetLine2,
+          city: addr.city,
+          state: addr.state,
+          zip: addr.zip,
+          country: addr.country,
+          accessNotes: addr.accessNotes,
+          gateCode: addr.gateCode,
+          latitude: addr.latitude,
+          longitude: addr.longitude,
+          createdAt: addr.createdAt,
+          updatedAt: addr.updatedAt,
+        })) || [],
         notes: customer.notes,
         tenantId: customer.tenantId,
         createdAt: customer.createdAt,

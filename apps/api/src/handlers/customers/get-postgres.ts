@@ -42,10 +42,11 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     console.log('[PG-Get] Customer ID:', customerId);
 
-    // Get customer using raw SQL
+    // Get customer using raw SQL (compatible with both schemas)
     const customers = await prisma.$queryRawUnsafe(`
       SELECT 
-        id, "tenantId", "firstName", "lastName", email, phone, address, city, state, "zipCode", notes,
+        id, "tenantId", "firstName", "lastName", "companyName", email, 
+        "mobilePhone", "homePhone", "workPhone", notes,
         "createdAt", "updatedAt"
       FROM customers 
       WHERE id = $1 AND "tenantId" = $2
@@ -69,13 +70,13 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         id, type, name, street, "streetLine2", city, state, zip, country,
         "accessNotes", "gateCode", latitude, longitude, "createdAt", "updatedAt"
       FROM addresses 
-      WHERE "customerId" = $1 AND "tenantId" = $2
+      WHERE "customerId" = $1
       ORDER BY 
         CASE WHEN type = 'PRIMARY' THEN 0 
              WHEN type = 'BILLING' THEN 1 
              ELSE 2 END,
         "createdAt" DESC
-    `, customerId, tenantId) as any[];
+    `, customerId) as any[];
 
     console.log('[PG-Get] Found', addresses?.length || 0, 'addresses for customer');
 
@@ -91,18 +92,14 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         lastName: customer.lastName,
         first_name: customer.firstName,
         last_name: customer.lastName,
-        display_name: `${customer.firstName || ''} ${customer.lastName || ''}`.trim() || 'Unknown',
+        companyName: customer.companyName,
+        display_name: customer.companyName || `${customer.firstName || ''} ${customer.lastName || ''}`.trim() || 'Unknown',
         email: customer.email,
-        phone: customer.phone,
-        mobilePhone: customer.phone,
-        mobile_number: customer.phone,
-        // Legacy inline address (from customers table)
-        inlineAddress: customer.address ? {
-          street: customer.address,
-          city: customer.city,
-          state: customer.state,
-          zip: customer.zipCode,
-        } : null,
+        phone: customer.mobilePhone,
+        mobilePhone: customer.mobilePhone,
+        homePhone: customer.homePhone,
+        workPhone: customer.workPhone,
+        mobile_number: customer.mobilePhone,
         // Primary address for backward compatibility
         address: primaryAddress ? {
           id: primaryAddress.id,
@@ -117,12 +114,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
           country: primaryAddress.country,
           accessNotes: primaryAddress.accessNotes,
           gateCode: primaryAddress.gateCode,
-        } : (customer.address ? {
-          street: customer.address,
-          city: customer.city,
-          state: customer.state,
-          zip: customer.zipCode,
-        } : null),
+        } : null,
         // All addresses array
         addresses: addresses?.map((addr: any) => ({
           id: addr.id,
