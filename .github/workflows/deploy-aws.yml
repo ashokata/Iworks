@@ -54,16 +54,16 @@ jobs:
         run: npm ci
 
       - name: Generate Prisma Client
-        run: npm run generate --workspace=@fieldsmartpro/api
+        run: cd apps/api && npx prisma generate
 
       - name: Build API
-        run: npm run build --workspace=@fieldsmartpro/api
+        run: cd apps/api && npm run build
 
       - name: Build Infrastructure
-        run: npm run build --workspace=@fieldsmartpro/infrastructure
+        run: cd infrastructure && npm run build
 
       - name: Deploy with CDK
-        run: npm run deploy --workspace=@fieldsmartpro/infrastructure
+        run: cd infrastructure && npm run deploy
         env:
           CDK_DEFAULT_ACCOUNT: ${{ secrets.AWS_ACCOUNT_ID }}
           CDK_DEFAULT_REGION: ${{ env.AWS_REGION }}
