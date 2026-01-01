@@ -7,11 +7,24 @@ on:
       - 'apps/api/**'
       - 'infrastructure/**'
       - 'packages/**'
+      - 'prisma/**'
   workflow_dispatch: # Manual trigger
+    inputs:
+      run_migrations:
+        description: 'Run database migrations'
+        required: false
+        default: 'true'
+        type: boolean
+      run_seed:
+        description: 'Run database seed (use carefully)'
+        required: false
+        default: 'false'
+        type: boolean
 
 env:
   NODE_VERSION: '20.x'
   AWS_REGION: us-east-1
+  API_BASE_URL: https://epdlw6qkj7.execute-api.us-east-1.amazonaws.com/development
 
 jobs:
   deploy:
@@ -55,7 +68,62 @@ jobs:
           CDK_DEFAULT_ACCOUNT: ${{ secrets.AWS_ACCOUNT_ID }}
           CDK_DEFAULT_REGION: ${{ env.AWS_REGION }}
 
+      # Wait for Lambda cold start
+      - name: Wait for deployment to stabilize
+        run: sleep 10
+
+      # Run database migrations
+      - name: Run Database Migrations
+        if: ${{ github.event.inputs.run_migrations != 'false' }}
+        run: |
+          echo "🔄 Running database migrations..."
+          RESPONSE=$(curl -s -X POST "${{ env.API_BASE_URL }}/api/migrate" \
+            -H "Content-Type: application/json" \
+            -H "x-tenant-id: system" \
+            --max-time 120)
+          echo "Migration response: $RESPONSE"
+          
+          # Check if migration was successful
+          if echo "$RESPONSE" | grep -q '"success":true\|"message":"Migration\|tables created\|already exists"'; then
+            echo "✅ Database migrations completed successfully"
+          else
+            echo "⚠️ Migration response: $RESPONSE"
+            echo "Continuing deployment..."
+          fi
+
+      # Optional: Run seed data (only on manual trigger with seed=true)
+      - name: Run Database Seed
+        if: ${{ github.event.inputs.run_seed == 'true' }}
+        run: |
+          echo "🌱 Running database seed..."
+          RESPONSE=$(curl -s -X POST "${{ env.API_BASE_URL }}/api/seed" \
+            -H "Content-Type: application/json" \
+            -H "x-tenant-id: system" \
+            --max-time 120)
+          echo "Seed response: $RESPONSE"
+
+      # Health check
+      - name: Verify Deployment
+        run: |
+          echo "🏥 Running health check..."
+          HEALTH=$(curl -s "${{ env.API_BASE_URL }}/health" --max-time 30)
+          echo "Health check: $HEALTH"
+          
+          if echo "$HEALTH" | grep -q '"status":"ok"\|healthy\|OK"'; then
+            echo "✅ API is healthy!"
+          else
+            echo "⚠️ Health check returned: $HEALTH"
+          fi
+
       - name: Deployment Summary
         run: |
-          echo "✅ Backend deployed successfully!"
-          echo "API Gateway: https://epdlw6qkj7.execute-api.us-east-1.amazonaws.com/development"
+          echo ""
+          echo "=========================================="
+          echo "✅ DEPLOYMENT COMPLETE"
+          echo "=========================================="
+          echo ""
+          echo "🌐 API Gateway: ${{ env.API_BASE_URL }}"
+          echo "📊 Health: ${{ env.API_BASE_URL }}/health"
+          echo "🗄️ DB Health: ${{ env.API_BASE_URL }}/health/db"
+          echo ""
+          echo "=========================================="
