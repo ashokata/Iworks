@@ -7,8 +7,7 @@
 process.env.NODE_ENV = 'test';
 process.env.DATABASE_URL = process.env.TEST_DATABASE_URL || 'postgresql://test:test@localhost:5433/fieldsmartpro_test';
 
-// Set test timeout
-jest.setTimeout(10000);
+// Test timeout is configured in jest.config.js (testTimeout: 10000)
 
 // Mock console methods to reduce noise in test output (optional)
 // Uncomment if you want cleaner test output
