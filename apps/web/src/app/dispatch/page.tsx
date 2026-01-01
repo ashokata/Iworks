@@ -1,402 +1,716 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ScheduledJob, Technician, DispatchRecommendation } from '@/types';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import MapView from '@/components/Map/MapView';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
+import { jobService } from '@/services/jobService';
+import { employeeService } from '@/services/employeeService';
+import { Job } from '@/types/database.types';
+import { Employee } from '@/services/employeeService';
+import { 
+  ChevronLeftIcon, 
+  ChevronRightIcon,
+  FunnelIcon,
+  MagnifyingGlassIcon,
+  EllipsisVerticalIcon,
+  CheckIcon,
+  XMarkIcon,
+} from '@heroicons/react/24/outline';
+import { format, addDays, startOfWeek, endOfWeek, isSameDay, parseISO } from 'date-fns';
 
-// Mock data
-const mockTechnicians: Technician[] = [
-  {
-    id: 'tech1',
-    name: 'John Smith',
-    email: 'john@infieldworks.com',
-    phone: '555-0101',
-    skills: ['plumbing', 'hvac', 'electrical'],
-    location: { lat: 40.7128, lng: -74.0060, address: 'Manhattan, NY' },
-    availability: [],
-    color: '#3b82f6',
-  },
-  {
-    id: 'tech2',
-    name: 'Sarah Johnson',
-    email: 'sarah@infieldworks.com',
-    phone: '555-0102',
-    skills: ['electrical', 'general'],
-    location: { lat: 40.7589, lng: -73.9851, address: 'Times Square, NY' },
-    availability: [],
-    color: '#10b981',
-  },
-  {
-    id: 'tech3',
-    name: 'Mike Wilson',
-    email: 'mike@infieldworks.com',
-    phone: '555-0103',
-    skills: ['plumbing', 'hvac'],
-    location: { lat: 40.7484, lng: -73.9857, address: 'Empire State, NY' },
-    availability: [],
-    color: '#f59e0b',
-  },
-];
+interface TaskCard {
+  id: string;
+  title: string;
+  customer: string;
+  status: string;
+  statusColor: string;
+  roomNumber?: string;
+  additionalTaskCount: number;
+}
 
-export default function DispatchPage() {
-  const [technicians, setTechnicians] = useState<Technician[]>(mockTechnicians);
-  const [jobs, setJobs] = useState<any[]>([]);
-  const [selectedJob, setSelectedJob] = useState<any | null>(null);
-  const [recommendations, setRecommendations] = useState<DispatchRecommendation[]>([]);
-  const [isAutoDispatching, setIsAutoDispatching] = useState(false);
+interface DayColumn {
+  date: Date;
+  dateLabel: string;
+  dayName: string;
+  isToday: boolean;
+}
 
-  // Mock jobs
+export default function DispatchCalendarPage() {
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const router = useRouter();
+  
+  // State
+  const [currentWeekStart, setCurrentWeekStart] = useState<Date>(startOfWeek(new Date(), { weekStartsOn: 0 }));
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedTask, setSelectedTask] = useState<string | null>(null);
+  const [draggedJob, setDraggedJob] = useState<{ jobId: string; sourceEmployeeId: string } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({
+    task: '',
+    status: '',
+    customer: '',
+    createdBy: '',
+    taskStart: '',
+    lastUpdate: '',
+  });
+
+  // Check authentication
   useEffect(() => {
-    const mockJobs = [
-      {
-        id: 'job-1',
-        tenantId: 'tenant1',
-        jobNumber: 'JOB-001',
-        customerId: 'cust-1',
-        addressId: 'addr-1',
-        title: 'AC Repair - Urgent',
-        description: 'Air conditioning not working, customer reports high temperature',
-        status: 'SCHEDULED' as const,
-        priority: 'HIGH' as const,
-        source: 'MANUAL' as const,
-        estimatedDuration: 120,
-        isCallback: false,
-        scheduledStart: new Date().toISOString(),
-        scheduledEnd: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
-        dispatchStatus: 'pending' as const,
-        isEmergency: true,
-      },
-      {
-        id: 'job-2',
-        tenantId: 'tenant1',
-        jobNumber: 'JOB-002',
-        customerId: 'cust-2',
-        addressId: 'addr-2',
-        title: 'Plumbing Inspection',
-        description: 'Regular maintenance check',
-        status: 'SCHEDULED' as const,
-        priority: 'LOW' as const,
-        source: 'MANUAL' as const,
-        estimatedDuration: 120,
-        isCallback: false,
-        scheduledStart: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
-        scheduledEnd: new Date(Date.now() + 5 * 60 * 60 * 1000).toISOString(),
-        dispatchStatus: 'pending' as const,
-        isEmergency: false,
-      },
-    ];
-    setJobs(mockJobs as any);
-  }, []);
+    if (!authLoading && !isAuthenticated) {
+      router.push('/login');
+    }
+  }, [isAuthenticated, authLoading, router]);
 
-  // Auto-dispatch algorithm (simplified - would connect to Mendix backend)
-  const calculateRecommendations = (job: any): DispatchRecommendation[] => {
-    return technicians
-      .map(tech => {
-        let score = 100;
-        const reasons: string[] = [];
+  // Auto-dismiss toast after 5 seconds
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
 
-        // Skill matching
-        const requiredSkills = job.description?.toLowerCase() || '';
-        const hasMatchingSkill = tech.skills.some(skill =>
-          requiredSkills.includes(skill.toLowerCase())
-        );
-        if (hasMatchingSkill) {
-          score += 30;
-          reasons.push('Has required skills');
-        } else {
-          score -= 20;
-          reasons.push('Missing some skills');
-        }
+  // Fetch employees
+  const { data: employees = [], isLoading: employeesLoading } = useQuery<Employee[]>({
+    queryKey: ['employees'],
+    queryFn: () => employeeService.getAllEmployees(),
+    enabled: isAuthenticated,
+  });
 
-        // Distance calculation (mock - would use actual geocoding)
-        const distance = Math.random() * 10; // km
-        if (distance < 3) {
-          score += 20;
-          reasons.push('Very close to job site');
-        } else if (distance < 5) {
-          score += 10;
-          reasons.push('Close to job site');
-        } else {
-          score -= 5;
-          reasons.push('Further from job site');
-        }
+  // Fetch jobs for the week
+  const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 0 });
+  const { data: jobs = [], isLoading: jobsLoading, refetch: refetchJobs } = useQuery<Job[]>({
+    queryKey: ['dispatch-jobs', currentWeekStart.toISOString()],
+    queryFn: () => jobService.getAllJobs({
+      scheduledFrom: currentWeekStart.toISOString(),
+      scheduledTo: weekEnd.toISOString(),
+    }),
+    enabled: isAuthenticated,
+  });
 
-        // Availability (mock - would check actual calendar)
-        const availability = Math.random() > 0.3;
-        if (availability) {
-          score += 15;
-          reasons.push('Available now');
-        } else {
-          score -= 30;
-          reasons.push('Limited availability');
-        }
+  // Generate week columns
+  const weekColumns: DayColumn[] = Array.from({ length: 7 }, (_, i) => {
+    const date = addDays(currentWeekStart, i);
+    return {
+      date,
+      dateLabel: format(date, 'd'),
+      dayName: format(date, 'EEEE'),
+      isToday: isSameDay(date, new Date()),
+    };
+  });
 
-        // Current workload (mock)
-        const currentJobs = jobs.filter(j => j.technicianId === tech.id).length;
-        if (currentJobs < 2) {
-          score += 10;
-          reasons.push('Light workload');
-        } else if (currentJobs < 4) {
-          reasons.push('Moderate workload');
-        } else {
-          score -= 15;
-          reasons.push('Heavy workload');
-        }
-
-        // Emergency priority
-        if (job.isEmergency && hasMatchingSkill) {
-          score += 25;
-          reasons.push('Qualified for emergency');
-        }
-
-        return {
-          technicianId: tech.id,
-          technician: tech,
-          score: Math.max(0, Math.min(100, score)),
-          reasons,
-          estimatedTravelTime: Math.floor(distance * 3), // minutes
-          distance,
-          availability,
-        };
-      })
-      .sort((a, b) => b.score - a.score);
+  // Navigate weeks
+  const goToPreviousWeek = () => {
+    setCurrentWeekStart(addDays(currentWeekStart, -7));
   };
 
-  const handleSelectJob = (job: ScheduledJob) => {
-    setSelectedJob(job);
-    setRecommendations(calculateRecommendations(job));
+  const goToNextWeek = () => {
+    setCurrentWeekStart(addDays(currentWeekStart, 7));
   };
 
-  const handleAutoDispatch = async () => {
-    setIsAutoDispatching(true);
+  const goToToday = () => {
+    setCurrentWeekStart(startOfWeek(new Date(), { weekStartsOn: 0 }));
+  };
 
-    // Simulate API call to Mendix backend
-    await new Promise(resolve => setTimeout(resolve, 1500));
+  // Drag and Drop Handlers
+  const handleDragStart = (e: React.DragEvent, jobId: string, sourceEmployeeId: string) => {
+    setDraggedJob({ jobId, sourceEmployeeId });
+    setIsDragging(true);
 
-    const unassignedJobs = jobs.filter(j => !j.technicianId);
+    // Create custom drag preview
+    const job = jobs.find(j => j.id === jobId);
+    if (job) {
+      const dragPreview = document.createElement('div');
+      dragPreview.style.cssText = `
+        position: absolute;
+        top: -1000px;
+        left: -1000px;
+        padding: 12px 16px;
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        min-width: 200px;
+        max-width: 250px;
+        pointer-events: none;
+        z-index: 9999;
+      `;
+      
+      dragPreview.innerHTML = `
+        <div style="font-size: 14px; font-weight: 600; color: #111827; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+          ${job.title || 'Untitled Job'}
+        </div>
+        <div style="font-size: 13px; color: #6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+          ${job.customer?.displayName || 'No customer'}
+        </div>
+      `;
+      
+      document.body.appendChild(dragPreview);
+      e.dataTransfer.setDragImage(dragPreview, 125, 30);
+      
+      // Remove preview after drag starts
+      setTimeout(() => {
+        document.body.removeChild(dragPreview);
+      }, 0);
+    }
+  };
 
-    unassignedJobs.forEach(job => {
-      const recs = calculateRecommendations(job);
-      if (recs.length > 0) {
-        const best = recs[0];
-        job.technicianId = best.technicianId;
-        job.dispatchStatus = 'dispatched';
+  const handleDragEnd = () => {
+    setDraggedJob(null);
+    setIsDragging(false);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetEmployeeId: string, targetDate: Date) => {
+    e.preventDefault();
+    
+    if (!draggedJob) return;
+
+    const { jobId, sourceEmployeeId } = draggedJob;
+    
+    try {
+      // Set scheduled date to the target date
+      const scheduledStart = new Date(targetDate);
+      scheduledStart.setHours(9, 0, 0, 0); // Default 9 AM start
+      const scheduledEnd = new Date(scheduledStart);
+      scheduledEnd.setHours(17, 0, 0, 0); // Default 5 PM end
+
+      console.log('Attempting to update job:', jobId);
+      console.log('Target employee:', targetEmployeeId);
+      console.log('Scheduled start:', scheduledStart.toISOString());
+
+      // Try to update job with new schedule and status
+      try {
+        await jobService.updateJob(jobId, {
+          scheduledStart: scheduledStart.toISOString(),
+          scheduledEnd: scheduledEnd.toISOString(),
+          status: 'DISPATCHED',
+        });
+        console.log('Job updated successfully');
+      } catch (updateError: any) {
+        console.error('Job update failed:', updateError);
+        throw new Error('Unable to update job schedule. Backend API may not be running.');
       }
+
+      // Try to handle employee assignment if different
+      if (sourceEmployeeId !== targetEmployeeId && targetEmployeeId) {
+        try {
+          // Remove old assignment if exists
+          if (sourceEmployeeId && sourceEmployeeId.trim() !== '') {
+            try {
+              await jobService.unassignEmployee(jobId, sourceEmployeeId);
+              console.log('Old employee unassigned successfully');
+            } catch (unassignError: any) {
+              console.warn('Could not remove old assignment:', unassignError);
+              // Continue anyway - might not have existed
+            }
+          }
+          
+          // Add new assignment
+          await jobService.assignEmployee(jobId, targetEmployeeId, 'PRIMARY');
+          console.log('New employee assigned successfully');
+        } catch (assignError: any) {
+          console.warn('Assignment failed:', assignError);
+        }
+      }
+
+      // Refetch jobs to update UI
+      await refetchJobs();
+      
+      setToast({ message: 'Job scheduled successfully!', type: 'success' });
+    } catch (error: any) {
+      console.error('Error in handleDrop:', error);
+      setToast({ 
+        message: error.message || 'Failed to assign job. Please ensure the backend API is running.', 
+        type: 'error' 
+      });
+    } finally {
+      handleDragEnd();
+    }
+  };
+
+  const handleDropToTaskTable = async (e: React.DragEvent) => {
+    e.preventDefault();
+    
+    if (!draggedJob) return;
+
+    const { jobId, sourceEmployeeId } = draggedJob;
+    
+    try {
+      console.log('Moving job back to task table:', jobId);
+
+      // Remove employee assignment
+      if (sourceEmployeeId && sourceEmployeeId.trim() !== '') {
+        try {
+          await jobService.unassignEmployee(jobId, sourceEmployeeId);
+          console.log('Employee unassigned successfully');
+        } catch (unassignError: any) {
+          console.warn('Could not remove assignment:', unassignError);
+        }
+      }
+
+      // Update job to unscheduled status and clear dates
+      await jobService.updateJob(jobId, {
+        status: 'UNSCHEDULED',
+        scheduledStart: null,
+        scheduledEnd: null,
+      });
+      console.log('Job unscheduled successfully');
+
+      // Refetch jobs to update UI
+      await refetchJobs();
+      
+      setToast({ message: 'Job moved back to task table!', type: 'success' });
+    } catch (error: any) {
+      console.error('Error moving to task table:', error);
+      setToast({ 
+        message: error.message || 'Failed to move job. Please try again.', 
+        type: 'error' 
+      });
+    } finally {
+      handleDragEnd();
+    }
+  };
+
+  // Group jobs by employee and date
+  const getJobsForEmployeeAndDate = (employeeId: string, date: Date): TaskCard[] => {
+    const dayJobs = jobs.filter(job => {
+      if (!job.scheduledStart) return false;
+      const jobDate = parseISO(job.scheduledStart);
+      const hasEmployee = job.assignments?.some(a => a.employeeId === employeeId);
+      return isSameDay(jobDate, date) && hasEmployee;
     });
 
-    setJobs([...jobs]);
-    setIsAutoDispatching(false);
+    if (dayJobs.length === 0) return [];
+
+    // Show first job as card, count rest
+    const firstJob = dayJobs[0];
+    const customer = firstJob.customer?.displayName || 'No customer';
+    
+    return [{
+      id: firstJob.id,
+      title: firstJob.title || 'Untitled',
+      customer: customer,
+      status: getStatusLabel(firstJob.status),
+      statusColor: getStatusColor(firstJob.status),
+      roomNumber: undefined, // We'll add this later
+      additionalTaskCount: dayJobs.length > 1 ? dayJobs.length - 1 : 0,
+    }];
   };
 
-  const handleManualAssign = (jobId: string, technicianId: string) => {
-    setJobs(jobs.map(j =>
-      j.id === jobId
-        ? { ...j, technicianId, dispatchStatus: 'dispatched' as const }
-        : j
-    ));
-    setSelectedJob(null);
+  // Get status label and color
+  const getStatusLabel = (status: string): string => {
+    const statusMap: { [key: string]: string } = {
+      'UNSCHEDULED': 'Pending',
+      'SCHEDULED': 'Waiting',
+      'DISPATCHED': 'Dispatched',
+      'IN_PROGRESS': 'In Progress',
+      'COMPLETED': 'Completed',
+      'ON_HOLD': 'Pending',
+    };
+    return statusMap[status] || status;
   };
 
-  const pendingJobs = jobs.filter(j => j.dispatchStatus === 'pending');
-  const dispatchedJobs = jobs.filter(j => j.dispatchStatus === 'dispatched');
+  const getStatusColor = (status: string): string => {
+    const colorMap: { [key: string]: string } = {
+      'UNSCHEDULED': 'bg-red-100 text-red-800',
+      'SCHEDULED': 'bg-yellow-100 text-yellow-800',
+      'DISPATCHED': 'bg-blue-100 text-blue-800',
+      'IN_PROGRESS': 'bg-purple-100 text-purple-800',
+      'COMPLETED': 'bg-green-100 text-green-800',
+      'ON_HOLD': 'bg-red-100 text-red-800',
+    };
+    return colorMap[status] || 'bg-gray-100 text-gray-800';
+  };
+
+  // Filter active dispatch-enabled employees
+  const activeEmployees = employees.filter(emp => 
+    emp.isDispatchEnabled && !emp.isArchived
+  );
+
+  // Filter unassigned/unscheduled jobs for task detail table
+  const unassignedJobs = jobs.filter(job => 
+    !job.assignments || job.assignments.length === 0 || job.status === 'UNSCHEDULED'
+  );
+
+  // Apply filters to unassigned jobs
+  const filteredJobs = unassignedJobs.filter(job => {
+    const matchTask = !filters.task || job.title?.toLowerCase().includes(filters.task.toLowerCase());
+    const matchStatus = !filters.status || getStatusLabel(job.status).toLowerCase().includes(filters.status.toLowerCase());
+    const matchCustomer = !filters.customer || 
+      job.customer?.displayName?.toLowerCase().includes(filters.customer.toLowerCase());
+    const matchTaskStart = !filters.taskStart || 
+      (job.scheduledStart && format(parseISO(job.scheduledStart), 'MMM d, yyyy').toLowerCase().includes(filters.taskStart.toLowerCase()));
+    const matchLastUpdate = !filters.lastUpdate || 
+      (job.updatedAt && format(parseISO(job.updatedAt), 'MMM d, yyyy').toLowerCase().includes(filters.lastUpdate.toLowerCase()));
+    
+    return matchTask && matchStatus && matchCustomer && matchTaskStart && matchLastUpdate;
+  });
+
+  // Loading state
+  if (authLoading || employeesLoading || jobsLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-[#1a2a6c] to-[#1e40af] text-white p-3 shadow-lg">
-        <div className="flex items-center justify-between max-w-7xl mx-auto">
-          <div className="flex items-center space-x-4">
-            <div>
-              <h1 className="text-2xl font-bold">Smart Dispatch</h1>
-              <p className="text-sm text-blue-100">AI-powered job assignment and route optimization</p>
-            </div>
-          </div>
-          <div className="flex items-center space-x-3">
-            <Button
-              onClick={handleAutoDispatch}
-              disabled={isAutoDispatching || pendingJobs.length === 0}
-              className="bg-white text-[#1a2a6c] hover:bg-gray-100"
-            >
-              {isAutoDispatching ? (
-                <>
-                  <svg className="animate-spin w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Dispatching...
-                </>
+      {/* Toast Notification */}
+      {toast && (
+        <div className="fixed top-6 right-6 z-50 animate-slide-in-right">
+          <div className={`flex items-start gap-4 px-5 py-4 rounded-xl shadow-2xl backdrop-blur-sm min-w-[420px] border ${
+            toast.type === 'error' 
+              ? 'bg-red-50/95 border-red-200'
+              : 'bg-emerald-50/95 border-emerald-200'
+          }`}>
+            <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center shadow-lg ${
+              toast.type === 'error'
+                ? 'bg-gradient-to-br from-red-500 to-red-600'
+                : 'bg-gradient-to-br from-emerald-500 to-green-600'
+            }`}>
+              {toast.type === 'error' ? (
+                <XMarkIcon className="h-6 w-6 text-white" />
               ) : (
-                <>
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                  Auto Dispatch All
-                </>
+                <CheckIcon className="h-6 w-6 text-white" />
               )}
-            </Button>
+            </div>
+            <div className="flex-1 pt-1">
+              <p className={`text-sm font-bold ${
+                toast.type === 'error' ? 'text-red-900' : 'text-emerald-900'
+              }`}>
+                {toast.type === 'error' ? 'Error Occurred' : 'Success!'}
+              </p>
+              <p className={`text-sm mt-1.5 ${
+                toast.type === 'error' ? 'text-red-700' : 'text-emerald-700'
+              }`}>
+                {toast.message}
+              </p>
+            </div>
+            <button
+              onClick={() => setToast(null)}
+              className="flex-shrink-0 text-gray-400 hover:text-gray-700 transition-all hover:rotate-90 duration-300"
+            >
+              <XMarkIcon className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
+        <div className="px-6 py-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-xl font-semibold text-gray-900">Dispatch Calendar</h1>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {format(currentWeekStart, 'MMMM d')} - {format(weekEnd, 'MMMM d, yyyy')}
+              </p>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              {/* Week Navigation */}
+              <div className="flex items-center space-x-1">
+                <button
+                  onClick={goToPreviousWeek}
+                  className="p-1.5 rounded-md hover:bg-gray-100"
+                >
+                  <ChevronLeftIcon className="h-4 w-4 text-gray-600" />
+                </button>
+                <button
+                  onClick={goToToday}
+                  className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                  Today
+                </button>
+                <button
+                  onClick={goToNextWeek}
+                  className="p-1.5 rounded-md hover:bg-gray-100"
+                >
+                  <ChevronRightIcon className="h-4 w-4 text-gray-600" />
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto p-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Map */}
-          <div className="lg:col-span-2">
-            <Card className="p-0 overflow-hidden h-[600px]">
-              <MapView
-                technicians={technicians}
-                jobs={jobs}
-                onJobClick={handleSelectJob}
-                showRoutes={true}
-              />
-            </Card>
-
-            {/* Stats */}
-            <div className="grid grid-cols-4 gap-4 mt-4">
-              <Card className="p-4 text-center">
-                <div className="text-3xl font-bold text-blue-600">{technicians.length}</div>
-                <div className="text-sm text-gray-600 mt-1">Active Technicians</div>
-              </Card>
-              <Card className="p-4 text-center">
-                <div className="text-3xl font-bold text-orange-600">{pendingJobs.length}</div>
-                <div className="text-sm text-gray-600 mt-1">Pending Jobs</div>
-              </Card>
-              <Card className="p-4 text-center">
-                <div className="text-3xl font-bold text-green-600">{dispatchedJobs.length}</div>
-                <div className="text-sm text-gray-600 mt-1">Dispatched</div>
-              </Card>
-              <Card className="p-4 text-center">
-                <div className="text-3xl font-bold text-red-600">
-                  {jobs.filter(j => j.isEmergency).length}
-                </div>
-                <div className="text-sm text-gray-600 mt-1">Emergency</div>
-              </Card>
+      {/* Calendar Grid */}
+      <div className="px-6 pt-3 pb-2">
+        <div className="bg-white rounded-lg shadow overflow-hidden" style={{ maxHeight: '40vh', display: 'flex', flexDirection: 'column' }}>
+          {/* Calendar Header - Days */}
+          <div className="grid grid-cols-8 border-b border-gray-200 bg-gray-50 flex-shrink-0">
+            <div className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Employees ({activeEmployees.length})
             </div>
+            {weekColumns.map((col, idx) => (
+              <div
+                key={idx}
+                className={`px-2 py-2 text-center text-xs font-medium uppercase tracking-wider ${
+                  col.isToday ? 'bg-red-50 text-red-600' : 'text-gray-500'
+                }`}
+              >
+                <div className="font-semibold text-xs">{col.dayName}</div>
+                <div className={`text-xl mt-0.5 ${col.isToday ? 'text-red-600' : 'text-gray-900'}`}>
+                  {col.dateLabel}
+                  {col.isToday && <div className="w-1 h-1 bg-red-600 rounded-full mx-auto mt-0.5"></div>}
+                </div>
+              </div>
+            ))}
           </div>
 
-          {/* Sidebar */}
-          <div className="space-y-4">
-            {/* Pending Jobs */}
-            <Card className="p-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-lg flex items-center">
-                  <svg className="w-5 h-5 mr-2 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  Pending Jobs
-                </h3>
-                <span className="bg-orange-100 text-orange-800 text-xs font-semibold px-2 py-1 rounded">
-                  {pendingJobs.length}
-                </span>
-              </div>
-
-              <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                {pendingJobs.length === 0 ? (
-                  <p className="text-sm text-gray-500 text-center py-8">All jobs dispatched!</p>
-                ) : (
-                  pendingJobs.map(job => (
+          {/* Calendar Body - Employee Rows */}
+          <div className="divide-y divide-gray-200 overflow-y-auto flex-1">
+            {activeEmployees.map((employee) => (
+              <div key={employee.id} className="grid grid-cols-8 hover:bg-gray-50 w-full">
+                {/* Employee Column */}
+                <div className="px-3 py-2 flex items-center space-x-2 border-r border-gray-200">
+                  <div className="flex-shrink-0">
                     <div
-                      key={job.id}
-                      onClick={() => handleSelectJob(job)}
-                      className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                        selectedJob?.id === job.id
-                          ? 'border-blue-500 bg-blue-50'
-                          : job.isEmergency
-                          ? 'border-red-200 bg-red-50 hover:border-red-300'
-                          : 'border-gray-200 bg-white hover:border-gray-300'
+                      className="h-8 w-8 rounded-full flex items-center justify-center text-white text-xs font-semibold"
+                      style={{ backgroundColor: employee.colorHex || '#3B82F6' }}
+                    >
+                      {employee.firstName?.[0]}{employee.lastName?.[0]}
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-gray-900 truncate">
+                      {employee.firstName} {employee.lastName}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Day Columns */}
+                {weekColumns.map((col, idx) => {
+                  const tasks = getJobsForEmployeeAndDate(employee.id, col.date);
+                  return (
+                    <div
+                      key={idx}
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleDrop(e, employee.id, col.date)}
+                      className={`px-1.5 py-1.5 border-r border-gray-200 min-h-[70px] transition-colors ${
+                        isDragging ? 'hover:bg-blue-50' : ''
                       }`}
                     >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="font-medium text-sm flex items-center">
-                            {job.title}
-                            {job.isEmergency && (
-                              <span className="ml-2 text-xs bg-red-500 text-white px-2 py-0.5 rounded">
-                                URGENT
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-xs text-gray-600 mt-1">{job.location}</div>
-                          <div className="flex items-center gap-2 mt-2">
-                            <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">
-                              {job.priority}
-                            </span>
+                      {tasks.map((task) => (
+                        <div
+                          key={task.id}
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, task.id, employee.id)}
+                          onDragEnd={handleDragEnd}
+                          className="mb-1.5 last:mb-0 cursor-move"
+                          onClick={() => setSelectedTask(task.id)}
+                        >
+                          <div className="bg-white border border-gray-200 rounded p-1.5 hover:shadow-md transition-shadow">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-semibold text-gray-900 truncate leading-tight">
+                                  {task.title}
+                                </p>
+                                <p className="text-[10px] text-gray-500 truncate mt-0.5">
+                                  {task.customer}
+                                </p>
+                                {task.additionalTaskCount > 0 && (
+                                  <p className="text-[10px] text-blue-600 font-medium mt-0.5">
+                                    +{task.additionalTaskCount} Task{task.additionalTaskCount > 1 ? 's' : ''}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      ))}
                     </div>
-                  ))
-                )}
+                  );
+                })}
               </div>
-            </Card>
+            ))}
+          </div>
+        </div>
+      </div>
 
-            {/* Recommendations */}
-            {selectedJob && recommendations.length > 0 && (
-              <Card className="p-4">
-                <h3 className="font-semibold text-lg mb-4 flex items-center">
-                  <svg className="w-5 h-5 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  Recommended Technicians
-                </h3>
-
-                <div className="space-y-3 max-h-[300px] overflow-y-auto">
-                  {recommendations.map((rec, index) => (
-                    <div
-                      key={rec.technicianId}
-                      className="p-3 rounded-lg border bg-white hover:shadow-md transition-shadow"
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center">
-                          <div
-                            className="w-3 h-3 rounded-full mr-2"
-                            style={{ backgroundColor: rec.technician.color }}
-                          />
-                          <span className="font-medium text-sm">{rec.technician.name}</span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          {index === 0 && (
-                            <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded font-semibold">
-                              BEST MATCH
-                            </span>
-                          )}
-                          <div className="text-sm font-semibold text-blue-600">
-                            {rec.score}%
-                          </div>
-                        </div>
+      {/* Task Detail Panel (Bottom) */}
+      <div className="px-6 pt-2 pb-6">
+        <div 
+          className="bg-white rounded-lg shadow"
+          onDragOver={handleDragOver}
+          onDrop={handleDropToTaskTable}
+          style={{ maxHeight: '30vh', display: 'flex', flexDirection: 'column' }}
+        >
+          <div className="px-4 py-2 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+            <div>
+              <h2 className="text-base font-semibold text-gray-900">Task Details</h2>
+              {isDragging && (
+                <p className="text-xs text-gray-500 mt-0.5">Drop here to unassign and move back to task list</p>
+              )}
+            </div>
+            <button
+              onClick={() => {
+                if (showFilters) {
+                  // Reset filters when hiding
+                  setFilters({
+                    task: '',
+                    status: '',
+                    customer: '',
+                    createdBy: '',
+                    taskStart: '',
+                    lastUpdate: '',
+                  });
+                }
+                setShowFilters(!showFilters);
+              }}
+              className={`p-1.5 rounded-md transition-colors ${
+                showFilters ? 'bg-blue-100 text-blue-600' : 'hover:bg-gray-100 text-gray-600'
+              }`}
+              title="Toggle filters"
+            >
+              <FunnelIcon className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="overflow-y-auto flex-1">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50 sticky top-0 z-10">
+                <tr>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Task
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Customer
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Created by
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Task Start
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Last Update
+                  </th>
+                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+                {/* Filter Row */}
+                {showFilters && (
+                  <tr className="bg-white border-b border-gray-200">
+                    <th className="px-4 py-2">
+                      <input
+                        type="text"
+                        placeholder="Filter task..."
+                        value={filters.task}
+                        onChange={(e) => setFilters({...filters, task: e.target.value})}
+                        className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </th>
+                    <th className="px-4 py-2">
+                      <input
+                        type="text"
+                        placeholder="Filter status..."
+                        value={filters.status}
+                        onChange={(e) => setFilters({...filters, status: e.target.value})}
+                        className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </th>
+                    <th className="px-4 py-2">
+                      <input
+                        type="text"
+                        placeholder="Filter customer..."
+                        value={filters.customer}
+                        onChange={(e) => setFilters({...filters, customer: e.target.value})}
+                        className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </th>
+                    <th className="px-4 py-2">
+                      <input
+                        type="text"
+                        placeholder="Filter created by..."
+                        value={filters.createdBy}
+                        onChange={(e) => setFilters({...filters, createdBy: e.target.value})}
+                        className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </th>
+                    <th className="px-4 py-2">
+                      <input
+                        type="text"
+                        placeholder="Filter date..."
+                        value={filters.taskStart}
+                        onChange={(e) => setFilters({...filters, taskStart: e.target.value})}
+                        className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </th>
+                    <th className="px-4 py-2">
+                      <input
+                        type="text"
+                        placeholder="Filter date..."
+                        value={filters.lastUpdate}
+                        onChange={(e) => setFilters({...filters, lastUpdate: e.target.value})}
+                        className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </th>
+                    <th className="px-4 py-2">
+                      {/* Empty for actions column */}
+                    </th>
+                  </tr>
+                )}
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredJobs.slice(0, 10).map((job) => {
+                  const currentAssignedEmployeeId = job.assignments?.[0]?.employeeId || '';
+                  return (
+                  <tr 
+                    key={job.id} 
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, job.id, currentAssignedEmployeeId)}
+                    onDragEnd={handleDragEnd}
+                    className="hover:bg-gray-50 cursor-move"
+                  >
+                    <td className="px-4 py-2.5 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">{job.title}</div>
+                    </td>
+                    <td className="px-4 py-2.5 whitespace-nowrap">
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(job.status)}`}>
+                        {getStatusLabel(job.status)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {job.customer?.displayName || 'No customer'}
                       </div>
-
-                      <div className="space-y-1 mb-3">
-                        {rec.reasons.map((reason, i) => (
-                          <div key={i} className="text-xs text-gray-600 flex items-center">
-                            <svg className="w-3 h-3 mr-1 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
-                            {reason}
-                          </div>
-                        ))}
-                        <div className="text-xs text-gray-500 mt-2">
-                          📍 {rec.distance.toFixed(1)} km • ⏱️ {rec.estimatedTravelTime} min travel
+                    </td>
+                    <td className="px-4 py-2.5 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="h-7 w-7 rounded-full bg-blue-500 flex items-center justify-center text-xs font-semibold text-white">
+                          DA
                         </div>
+                        <div className="ml-2 text-sm text-gray-900">Admin</div>
                       </div>
-
-                      <Button
-                        onClick={() => handleManualAssign(selectedJob.id, rec.technicianId)}
-                        size="sm"
-                        className={`w-full ${
-                          index === 0 ? 'bg-green-600 hover:bg-green-700' : ''
-                        }`}
-                      >
-                        Assign to {rec.technician.name.split(' ')[0]}
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            )}
+                    </td>
+                    <td className="px-4 py-2.5 whitespace-nowrap text-sm text-gray-500">
+                      {job.scheduledStart ? format(parseISO(job.scheduledStart), 'MMM d, yyyy') : '-'}
+                    </td>
+                    <td className="px-4 py-2.5 whitespace-nowrap text-sm text-gray-500">
+                      {job.updatedAt ? format(parseISO(job.updatedAt), 'MMM d, yyyy') : '-'}
+                    </td>
+                    <td className="px-4 py-2.5 whitespace-nowrap text-right text-sm font-medium">
+                      <button className="text-gray-400 hover:text-gray-600">
+                        <EllipsisVerticalIcon className="h-5 w-5" />
+                      </button>
+                    </td>
+                  </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>

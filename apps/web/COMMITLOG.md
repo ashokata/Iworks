@@ -4,6 +4,78 @@ All commits to this project are documented in this file.
 
 ---
 
+## 📦 Commit #39 - 2026-01-01 2:14 PM (IST)
+
+**Developer:** Logeshwaran S
+**Type:** Feature / UI Enhancement
+
+### 📝 Commit Message
+```
+feat: implement drag-and-drop dispatch calendar with inline filtering
+
+Implemented a comprehensive drag-and-drop dispatch system for job assignment
+with bi-directional task movement, backend API support, and optimized UI.
+
+Features:
+- Drag tasks from task table to calendar cells to assign employees
+- Drag tasks from calendar back to task table to unassign
+- Drag tasks between employees to reassign
+- Custom drag preview showing job title and customer name
+- Toast notifications for success/error feedback with auto-dismiss
+
+Backend API:
+- PUT /jobs/:id - Update job schedule and status
+- POST /jobs/:id/assignments - Create employee assignments
+- DELETE /jobs/:id/assignments/:employeeId - Remove assignments
+- Auto-update dispatchedAt, actualStart, completedAt timestamps
+
+UI Enhancements:
+- Replaced top search bar with inline filter toggle system
+- Added column-specific filters (Task, Status, Customer, Created by, etc.)
+- Real-time filtering with reset on close
+- Replaced "Assigned to" column with "Customer" column
+- Removed selection checkboxes from task table
+- Optimized spacing throughout (calendar 40vh, task table 30vh)
+- Compact padding and responsive layout
+
+Database Updates:
+- Job: scheduledStart/End, status, dispatchedAt
+- JobAssignment: INSERT/DELETE for employee assignments
+```
+
+### ✨ Changes
+
+**Frontend:**
+- ✅ `apps/web/src/app/dispatch/page.tsx` - Complete drag-and-drop implementation with custom preview
+- ✅ `apps/web/src/app/dispatch/page.tsx` - Inline filter system with toggle and reset functionality
+- ✅ `apps/web/src/app/dispatch/page.tsx` - Replaced "Assigned to" column with "Customer" column
+- ✅ `apps/web/src/app/dispatch/page.tsx` - Toast notification system (success/error)
+- ✅ `apps/web/src/app/dispatch/page.tsx` - Optimized layout spacing (calendar 40vh, task table 30vh)
+
+**Backend:**
+- ✅ `apps/api/src/index.ts` - PUT /jobs/:id endpoint for job updates
+- ✅ `apps/api/src/index.ts` - POST /jobs/:id/assignments endpoint for employee assignments
+- ✅ `apps/api/src/index.ts` - DELETE /jobs/:id/assignments/:employeeId endpoint to remove assignments
+
+**Services:**
+- ✅ `apps/web/src/services/jobService.ts` - Added updateJob, assignEmployee, unassignEmployee methods
+
+**Problem Solved:**
+- Enabled drag-and-drop job assignment between task table and calendar
+- Provided visual feedback with toast notifications
+- Implemented bi-directional task movement (calendar ↔ task table)
+- Added flexible inline filtering system
+- Optimized UI for better space utilization
+
+**Technical Details:**
+- Uses native HTML5 drag-and-drop API with custom drag image
+- Updates Job table (scheduledStart/End, status, dispatchedAt)
+- Creates/deletes JobAssignment records for employee assignments
+- Real-time filtering with debounced inputs
+- Responsive grid layout with scroll containers
+
+---
+
 ## 📦 Commit #38 - 2025-12-31 11:15 PM (IST)
 
 **Developer:** Veera Kuppili

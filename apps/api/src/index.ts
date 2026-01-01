@@ -953,6 +953,162 @@ app.post('/jobs', async (req, res) => {
   }
 });
 
+// PUT /jobs/:id - Update a job
+app.put('/jobs/:id', async (req, res) => {
+  try {
+    const tenantId = req.headers['x-tenant-id'] as string;
+    const { id } = req.params;
+
+    if (!tenantId) {
+      return res.status(400).json({ error: 'x-tenant-id header is required' });
+    }
+
+    const prisma = getPrismaClient();
+    
+    // Build update data from request body
+    const updateData: any = {};
+    
+    if (req.body.title !== undefined) updateData.title = req.body.title;
+    if (req.body.description !== undefined) updateData.description = req.body.description;
+    if (req.body.status !== undefined) updateData.status = req.body.status;
+    if (req.body.priority !== undefined) updateData.priority = req.body.priority;
+    if (req.body.scheduledStart !== undefined) updateData.scheduledStart = req.body.scheduledStart;
+    if (req.body.scheduledEnd !== undefined) updateData.scheduledEnd = req.body.scheduledEnd;
+    if (req.body.estimatedDuration !== undefined) updateData.estimatedDuration = req.body.estimatedDuration;
+    if (req.body.customerId !== undefined) updateData.customerId = req.body.customerId;
+    if (req.body.addressId !== undefined) updateData.addressId = req.body.addressId;
+    if (req.body.jobTypeId !== undefined) updateData.jobTypeId = req.body.jobTypeId;
+    
+    // Set dispatchedAt when status changes to DISPATCHED
+    if (req.body.status === 'DISPATCHED' && !updateData.dispatchedAt) {
+      updateData.dispatchedAt = new Date();
+    }
+    
+    // Set actualStart when status changes to IN_PROGRESS
+    if (req.body.status === 'IN_PROGRESS' && !updateData.actualStart) {
+      updateData.actualStart = new Date();
+    }
+    
+    // Set completedAt and actualEnd when status changes to COMPLETED
+    if (req.body.status === 'COMPLETED') {
+      if (!updateData.completedAt) updateData.completedAt = new Date();
+      if (!updateData.actualEnd) updateData.actualEnd = new Date();
+    }
+
+    const job = await prisma.job.update({
+      where: { id, tenantId },
+      data: updateData,
+      include: {
+        customer: true,
+        address: true,
+        jobType: true,
+        assignments: {
+          include: {
+            employee: {
+              include: {
+                user: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    res.json({ job });
+  } catch (error: any) {
+    console.error('[API] Update job error:', error);
+    if (error.code === 'P2025') {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /jobs/:jobId/assignments - Assign employee to job
+app.post('/jobs/:jobId/assignments', async (req, res) => {
+  try {
+    const tenantId = req.headers['x-tenant-id'] as string;
+    const { jobId } = req.params;
+    const { employeeId, role = 'PRIMARY' } = req.body;
+
+    if (!tenantId) {
+      return res.status(400).json({ error: 'x-tenant-id header is required' });
+    }
+
+    if (!employeeId) {
+      return res.status(400).json({ error: 'employeeId is required' });
+    }
+
+    const prisma = getPrismaClient();
+
+    // Check if assignment already exists
+    const existing = await prisma.jobAssignment.findUnique({
+      where: {
+        jobId_employeeId: {
+          jobId,
+          employeeId,
+        },
+      },
+    });
+
+    if (existing) {
+      return res.status(409).json({ error: 'Employee already assigned to this job' });
+    }
+
+    // Create assignment
+    const assignment = await prisma.jobAssignment.create({
+      data: {
+        jobId,
+        employeeId,
+        role,
+      },
+      include: {
+        employee: {
+          include: {
+            user: true,
+          },
+        },
+      },
+    });
+
+    res.status(201).json({ assignment });
+  } catch (error: any) {
+    console.error('[API] Create job assignment error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE /jobs/:jobId/assignments/:employeeId - Remove employee from job
+app.delete('/jobs/:jobId/assignments/:employeeId', async (req, res) => {
+  try {
+    const tenantId = req.headers['x-tenant-id'] as string;
+    const { jobId, employeeId } = req.params;
+
+    if (!tenantId) {
+      return res.status(400).json({ error: 'x-tenant-id header is required' });
+    }
+
+    const prisma = getPrismaClient();
+
+    await prisma.jobAssignment.delete({
+      where: {
+        jobId_employeeId: {
+          jobId,
+          employeeId,
+        },
+      },
+    });
+
+    res.status(204).send();
+  } catch (error: any) {
+    console.error('[API] Delete job assignment error:', error);
+    if (error.code === 'P2025') {
+      return res.status(404).json({ error: 'Assignment not found' });
+    }
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ============================================================================
 // CHAT ROUTES
 // ============================================================================
@@ -1024,7 +1180,13 @@ app.listen(PORT, () => {
   console.log(`   DELETE /employees/:id - Archive employee`);
   console.log(`   `);
   console.log(`   🔧 Jobs:`);
-  console.log(`   POST /jobs        - Create job`);
+  console.log(`   POST   /jobs              - Create job`);
+  console.log(`   GET    /jobs              - List jobs`);
+  console.log(`   GET    /jobs/:id          - Get job`);
+  console.log(`   PUT    /jobs/:id          - Update job`);
+  console.log(`   PATCH  /jobs/:id/status   - Update job status`);
+  console.log(`   POST   /jobs/:id/assignments - Assign employee`);
+  console.log(`   DELETE /jobs/:id/assignments/:employeeId - Remove assignment`);
   console.log(`   `);
   console.log(`   💬 Chat:`);
   console.log(`   POST /chat        - Chat endpoint`);
