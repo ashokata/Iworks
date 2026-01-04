@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { customerService } from '@/services/customerService';
 import { employeeService } from '@/services/employeeService';
 import { appointmentService } from '@/services/appointmentService';
@@ -20,6 +20,7 @@ type ViewMode = 'day' | 'week' | 'month';
 export default function AppointmentsPage() {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [viewMode, setViewMode] = useState<ViewMode>('week');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
@@ -42,6 +43,22 @@ export default function AppointmentsPage() {
   const [notes, setNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
+  const [showAddressModal, setShowAddressModal] = useState(false);
+  const [newAddress, setNewAddress] = useState({
+    street: '',
+    city: '',
+    state: '',
+    zip: '',
+    type: 'SERVICE' as const
+  });
+  const [pendingAddresses, setPendingAddresses] = useState<Array<{
+    id: string;
+    street: string;
+    city: string;
+    state: string;
+    zip: string;
+    type: 'SERVICE';
+  }>>([]);
   
   // Ref for scrollable container
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -65,7 +82,7 @@ export default function AppointmentsPage() {
   }, [viewMode]);
 
   // Fetch customers (verified only)
-  const { data: customersData, isLoading: isLoadingCustomers } = useQuery({
+  const { data: customersData, isLoading: isLoadingCustomers, refetch: refetchCustomers } = useQuery({
     queryKey: ['customers'],
     queryFn: () => customerService.getAllCustomers(),
     enabled: isAuthenticated,
@@ -90,6 +107,29 @@ export default function AppointmentsPage() {
   const activeEmployees = employeesData || [];
   const appointments = appointmentsData || [];
 
+  // Get selected customer
+  const selectedCustomer = verifiedCustomers.find((c) => c.id === customerId);
+
+  // Get customer addresses (only SERVICE type) + pending addresses
+  const customerAddresses = React.useMemo(() => {
+    console.log('[Calendar] Computing customerAddresses for customer:', selectedCustomer?.id);
+    console.log('[Calendar] Selected customer addresses:', selectedCustomer?.addresses);
+    console.log('[Calendar] Pending addresses:', pendingAddresses);
+    
+    const addresses = ((selectedCustomer?.addresses as any)?.data || selectedCustomer?.addresses || [])
+      .filter((addr: any) => addr.type?.toUpperCase() === 'SERVICE');
+    
+    console.log('[Calendar] Filtered SERVICE addresses:', addresses);
+    
+    const combined = [
+      ...addresses,
+      ...pendingAddresses
+    ];
+    
+    console.log('[Calendar] Combined addresses for dropdown:', combined);
+    return combined;
+  }, [selectedCustomer, pendingAddresses]);
+
   // Auto-dismiss toast after 5 seconds
   useEffect(() => {
     if (toast) {
@@ -97,6 +137,17 @@ export default function AppointmentsPage() {
       return () => clearTimeout(timer);
     }
   }, [toast]);
+
+  // Clear address when customer changes (but not when loading existing appointment)
+  useEffect(() => {
+    // Don't clear if we're editing an existing appointment
+    if (selectedAppointment) {
+      return;
+    }
+    // Clear address selection and pending addresses when customer changes
+    setAddressId('');
+    setPendingAddresses([]);
+  }, [customerId]);
 
   if (isLoading) {
     return (
@@ -252,6 +303,10 @@ export default function AppointmentsPage() {
   const handleAppointmentClick = (appointment: any, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent triggering grid click
     
+    console.log('[Calendar] Opening appointment:', appointment);
+    console.log('[Calendar] Appointment addressId:', appointment.addressId);
+    console.log('[Calendar] Appointment address:', appointment.address);
+    
     // Load appointment data into form
     setSelectedAppointment(appointment);
     setTitle(appointment.title || '');
@@ -267,18 +322,51 @@ export default function AppointmentsPage() {
     setAssignedToId(appointment.assignedToId || '');
     setNotes(appointment.notes || '');
     
+    // If appointment has an address, ensure it's available in dropdown
+    if (appointment.addressId && appointment.address) {
+      console.log('[Calendar] Checking for address in customer data...');
+      const customer = customersData?.find((c: any) => c.id === appointment.customerId);
+      console.log('[Calendar] Found customer:', customer);
+      console.log('[Calendar] Customer addresses:', customer?.addresses);
+      
+      // Handle both formats: addresses as array or addresses.data as array
+      const customerAddressList = (customer?.addresses as any)?.data || customer?.addresses || [];
+      console.log('[Calendar] Customer address list:', customerAddressList);
+      
+      const addressInList = customerAddressList.find((a: any) => a.id === appointment.addressId);
+      console.log('[Calendar] Address found in list:', addressInList);
+      
+      // If address not in customer's current address list, add to pending
+      if (!addressInList) {
+        console.log('[Calendar] Address not in list, adding to pending addresses');
+        const formattedAddress = {
+          id: appointment.address.id,
+          street: appointment.address.street,
+          city: appointment.address.city,
+          state: appointment.address.state,
+          zip: appointment.address.zip,
+          type: 'SERVICE' as const
+        };
+        setPendingAddresses([formattedAddress]);
+      } else {
+        console.log('[Calendar] Address already in customer list, clearing pending');
+        setPendingAddresses([]);
+      }
+    }
+    
     setShowAppointmentModal(true);
   };
 
   const handleSaveAppointment = async () => {
     // Validate required fields
-    if (!title || !customerId || !scheduledStart || !scheduledEnd) {
-      alert('Please fill in all required fields:\n- Title\n- Customer\n- Start Time\n- End Time');
+    if (!title || !customerId || !scheduledStart || !scheduledEnd || !addressId) {
+      alert('Please fill in all required fields:\n- Title\n- Customer\n- Start Time\n- End Time\n- Service Address');
       console.error('[Calendar Page] Validation failed:', {
         hasTitle: !!title,
         hasCustomerId: !!customerId,
         hasScheduledStart: !!scheduledStart,
         hasScheduledEnd: !!scheduledEnd,
+        hasAddressId: !!addressId,
       });
       return;
     }
@@ -300,12 +388,14 @@ export default function AppointmentsPage() {
 
     setIsSaving(true);
     try {
+      // Note: Pending addresses are already saved to the database when added via the modal,
+      // so we just use the addressId directly
       const appointmentData = {
         title,
         description: description || undefined,
         appointmentType: appointmentType || undefined,
         customerId,
-        addressId: addressId || undefined,
+        addressId: addressId,
         scheduledStart,
         scheduledEnd,
         duration: parseInt(duration),
@@ -363,6 +453,7 @@ export default function AppointmentsPage() {
     setPriority('NORMAL');
     setAssignedToId('');
     setNotes('');
+    setPendingAddresses([]);
   };
 
   const dayNames = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
@@ -1037,15 +1128,36 @@ export default function AppointmentsPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-[#1e3a8a] mb-2">
-                      Service Address
+                      Service Address <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="text"
+                    <select
                       value={addressId}
-                      onChange={(e) => setAddressId(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a] placeholder:text-gray-400"
-                      placeholder="Enter service address or address ID"
-                    />
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (value === '__add_new__') {
+                          setShowAddressModal(true);
+                          return;
+                        }
+                        setAddressId(value);
+                      }}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                      disabled={!customerId}
+                    >
+                      <option value="">
+                        {!customerId ? 'Select a customer first' : '-- Select service address --'}
+                      </option>
+                      {customerAddresses.map((address: any) => (
+                        <option key={address.id} value={address.id}>
+                          {address.street}, {address.city}, {address.state} {address.zip}
+                        </option>
+                      ))}
+                      {selectedCustomer && (
+                        <option value="__add_new__">+ Add New Service Address</option>
+                      )}
+                    </select>
+                    {!customerId && (
+                      <p className="text-xs text-gray-500 mt-1">Select a customer to see their service addresses</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1082,7 +1194,7 @@ export default function AppointmentsPage() {
               </button>
               <button
                 onClick={handleSaveAppointment}
-                disabled={isSaving || !title || !scheduledStart || !scheduledEnd || !customerId}
+                disabled={isSaving || !title || !scheduledStart || !scheduledEnd || !customerId || !addressId}
                 className="px-6 py-2.5 bg-[#1e3a8a] text-white rounded-lg text-sm font-semibold hover:bg-[#152d6b] disabled:bg-gray-300 disabled:cursor-not-allowed transition-all flex items-center"
               >
                 {isSaving ? (
@@ -1096,6 +1208,154 @@ export default function AppointmentsPage() {
                 ) : (
                   'Save Appointment'
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Service Address Modal */}
+      {showAddressModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full">
+            <div className="bg-gradient-to-r from-[#1e3a8a] to-[#1e3a8a] text-white px-6 py-4 flex items-center justify-between rounded-t-lg">
+              <h3 className="text-xl font-bold">Add Service Address</h3>
+              <button
+                onClick={() => {
+                  setShowAddressModal(false);
+                  setNewAddress({ street: '', city: '', state: '', zip: '', type: 'SERVICE' });
+                }}
+                className="text-white hover:text-gray-200 transition-colors"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Street Address <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={newAddress.street}
+                  onChange={(e) => setNewAddress({ ...newAddress, street: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                  placeholder="Enter street address"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  City <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={newAddress.city}
+                  onChange={(e) => setNewAddress({ ...newAddress, city: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                  placeholder="Enter city"
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    State <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={newAddress.state}
+                    onChange={(e) => setNewAddress({ ...newAddress, state: e.target.value.toUpperCase() })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                    placeholder="State"
+                    maxLength={2}
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    ZIP Code <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={newAddress.zip}
+                    onChange={(e) => setNewAddress({ ...newAddress, zip: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                    placeholder="ZIP"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3 rounded-b-lg">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddressModal(false);
+                  setNewAddress({ street: '', city: '', state: '', zip: '', type: 'SERVICE' });
+                }}
+                className="px-4 py-2 text-gray-700 hover:bg-gray-200 rounded-lg font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!selectedCustomer || !newAddress.street || !newAddress.city || !newAddress.state || !newAddress.zip) {
+                    setToast({ message: 'Please fill in all address fields', type: 'error' });
+                    return;
+                  }
+                  
+                  try {
+                    console.log('[Calendar] Saving new address for customer:', selectedCustomer.id);
+                    
+                    // Save address to database
+                    const { type, ...addressData } = newAddress;
+                    const createdAddress = await customerService.addAddress(selectedCustomer.id, {
+                      ...addressData,
+                      type: 'SERVICE'
+                    });
+                    
+                    console.log('[Calendar] Address created with ID:', createdAddress.id);
+                    
+                    // Create properly formatted address for pending list
+                    const formattedAddress = {
+                      id: createdAddress.id,
+                      street: addressData.street,
+                      city: addressData.city,
+                      state: addressData.state,
+                      zip: addressData.zip,
+                      type: 'SERVICE' as const
+                    };
+                    
+                    // Add to pending addresses so it shows immediately in dropdown
+                    setPendingAddresses([...pendingAddresses, formattedAddress]);
+                    
+                    // Select the newly created address
+                    setAddressId(createdAddress.id);
+                    
+                    console.log('[Calendar] Address ID set to:', createdAddress.id);
+                    console.log('[Calendar] Pending addresses updated:', [...pendingAddresses, formattedAddress]);
+                    
+                    // Close modal
+                    setShowAddressModal(false);
+                    setNewAddress({ street: '', city: '', state: '', zip: '', type: 'SERVICE' });
+                    
+                    // Refresh customer data in background for next time
+                    refetchCustomers();
+                  } catch (error: any) {
+                    console.error('[Calendar] Error saving address:', error);
+                    setToast({ 
+                      message: error.response?.data?.error || error.message || 'Failed to save address', 
+                      type: 'error' 
+                    });
+                  }
+                }}
+                disabled={!newAddress.street || !newAddress.city || !newAddress.state || !newAddress.zip}
+                className="px-4 py-2 bg-[#1e3a8a] text-white rounded-lg font-medium hover:bg-[#152d6b] disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+              >
+                Add Address
               </button>
             </div>
           </div>

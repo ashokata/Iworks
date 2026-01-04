@@ -159,6 +159,16 @@ export const getAllAppointments = async (req: Request, res: Response) => {
             lastName: true,
           }
         },
+        address: {
+          select: {
+            id: true,
+            street: true,
+            city: true,
+            state: true,
+            zip: true,
+            type: true,
+          }
+        },
       },
       orderBy: { scheduledStart: 'asc' },
     });
