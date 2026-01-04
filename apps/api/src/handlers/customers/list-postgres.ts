@@ -114,20 +114,48 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     console.log('[PG-List] Found customers:', customers.length);
 
+    // Get all addresses for all customers in one query for efficiency
+    const customerIds = customers.map(c => c.id);
+    let allAddresses: any[] = [];
+    if (customerIds.length > 0) {
+      allAddresses = await prisma.address.findMany({
+        where: {
+          customerId: { in: customerIds }
+        },
+        orderBy: [
+          { customerId: 'asc' },
+          { type: 'asc' },
+          { createdAt: 'desc' }
+        ]
+      });
+      console.log('[PG-List] Found addresses:', allAddresses.length);
+    }
+
+    // Group addresses by customerId
+    const addressesByCustomer = allAddresses.reduce((acc: any, addr: any) => {
+      if (!acc[addr.customerId]) acc[addr.customerId] = [];
+      acc[addr.customerId].push({
+        id: addr.id,
+        type: addr.type,
+        street: addr.street,
+        street2: addr.streetLine2,
+        streetLine2: addr.streetLine2,
+        city: addr.city,
+        state: addr.state,
+        zip: addr.zip,
+        country: addr.country || 'US',
+        accessNotes: addr.accessNotes,
+        gateCode: addr.gateCode,
+        createdAt: addr.createdAt,
+        updatedAt: addr.updatedAt,
+      });
+      return acc;
+    }, {});
+
     // Format response for frontend compatibility
     const formattedCustomers = customers.map(customer => {
-      // Get address from linked address
-      const address = customer.addr_id ? {
-        id: customer.addr_id,
-        type: customer.addr_type,
-        street: customer.addr_street,
-        street2: customer.addr_street2,
-        streetLine2: customer.addr_street2,
-        city: customer.addr_city,
-        state: customer.addr_state,
-        zip: customer.addr_zip,
-        country: customer.addr_country,
-      } : null;
+      // Get ALL addresses for this customer
+      const customerAddresses = addressesByCustomer[customer.id] || [];
 
       return {
         id: customer.id,
@@ -144,7 +172,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         homePhone: customer.homePhone,
         workPhone: customer.workPhone,
         mobile_number: customer.mobilePhone,
-        address,
+        addresses: customerAddresses, // Now returns ALL addresses as an array
         notes: customer.notes,
         tenantId: customer.tenantId,
         createdAt: customer.createdAt,

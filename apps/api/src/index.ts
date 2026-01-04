@@ -381,6 +381,40 @@ app.post('/customers/:customerId/addresses', async (req, res) => {
   }
 });
 
+// Find matching address for customer
+app.post('/customers/:customerId/addresses/find-matching', async (req, res) => {
+  try {
+    const tenantId = req.headers['x-tenant-id'] as string || 'local-tenant';
+    const customerId = req.params.customerId;
+    
+    console.log('[API] Finding matching address for customer:', customerId, req.body);
+    
+    const { street, city, state, zip, targetType } = req.body;
+    
+    if (!street || !city || !state || !zip || !targetType) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: street, city, state, zip, targetType' 
+      });
+    }
+    
+    const matchingAddress = await customerPostgresService.findMatchingAddress(
+      tenantId,
+      customerId,
+      { street, city, state, zip },
+      targetType as 'SERVICE' | 'BILLING' | 'PRIMARY'
+    );
+    
+    if (!matchingAddress) {
+      return res.json({ found: false, address: null });
+    }
+    
+    res.json({ found: true, address: matchingAddress });
+  } catch (error: any) {
+    console.error('[API] Find matching address error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Update address
 app.put('/customers/:customerId/addresses/:addressId', async (req, res) => {
   try {

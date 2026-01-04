@@ -554,6 +554,76 @@ class CustomerPostgresService {
 
     return primaryAddress;
   }
+
+  /**
+   * Find an existing address that matches the provided address data (excluding type)
+   * This is useful for finding if a SERVICE address already exists with same data as PRIMARY address
+   * @param tenantId - The tenant ID
+   * @param customerId - The customer ID
+   * @param addressData - The address data to match (street, city, state, zip)
+   * @param targetType - The type of address to search for (e.g., 'SERVICE')
+   * @returns The matching address or null if not found
+   */
+  async findMatchingAddress(
+    tenantId: string,
+    customerId: string,
+    addressData: {
+      street: string;
+      city: string;
+      state: string;
+      zip: string;
+    },
+    targetType: 'SERVICE' | 'BILLING' | 'PRIMARY'
+  ): Promise<Address | null> {
+    const prisma = getPrismaClient();
+
+    console.log('[PG-Customer] Finding matching address for customer:', customerId);
+    console.log('[PG-Customer] Address data:', addressData);
+    console.log('[PG-Customer] Target type:', targetType);
+
+    // Get all addresses for the customer with the specified type
+    const addresses = await prisma.address.findMany({
+      where: {
+        customerId,
+        customer: { tenantId },
+        type: targetType,
+      },
+    });
+
+    console.log('[PG-Customer] Found', addresses.length, 'addresses with type:', targetType);
+
+    // Normalize the search criteria
+    const normalizedSearch = {
+      street: (addressData.street || '').trim().toLowerCase(),
+      city: (addressData.city || '').trim().toLowerCase(),
+      state: (addressData.state || '').trim().toLowerCase(),
+      zip: (addressData.zip || '').trim(),
+    };
+
+    // Find matching address
+    const matchingAddress = addresses.find((addr) => {
+      const normalizedAddr = {
+        street: (addr.street || '').trim().toLowerCase(),
+        city: (addr.city || '').trim().toLowerCase(),
+        state: (addr.state || '').trim().toLowerCase(),
+        zip: (addr.zip || '').trim(),
+      };
+
+      const matches =
+        normalizedAddr.street === normalizedSearch.street &&
+        normalizedAddr.city === normalizedSearch.city &&
+        normalizedAddr.state === normalizedSearch.state &&
+        normalizedAddr.zip === normalizedSearch.zip;
+
+      if (matches) {
+        console.log('[PG-Customer] ✓ Found matching address:', addr.id);
+      }
+
+      return matches;
+    });
+
+    return matchingAddress || null;
+  }
 }
 
 export const customerPostgresService = new CustomerPostgresService();

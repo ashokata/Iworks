@@ -23,7 +23,7 @@ export interface ServiceRequest {
   estimateId: string | null;
   createdAt: string;
   updatedAt: string;
-  isServiceAddressSameAsPrimary?: boolean;
+  useSameAsPrimary?: boolean;
   customer: {
     id: string;
     customerNumber: string;
@@ -70,7 +70,7 @@ export interface CreateServiceRequestData {
   assignedToId?: string;
   estimateId?: string;
   notes?: string;
-  isServiceAddressSameAsPrimary?: boolean;
+  useSameAsPrimary?: boolean;
 }
 
 export interface ServiceRequestsResponse {

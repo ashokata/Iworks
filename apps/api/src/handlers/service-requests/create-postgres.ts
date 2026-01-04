@@ -44,7 +44,7 @@ export const handler = async (
       assignedToId,
       estimateId,
       notes,
-      isServiceAddressSameAsPrimary,
+      useSameAsPrimary,
     } = body;
 
     // Validate required fields
@@ -107,7 +107,7 @@ export const handler = async (
         assignedToId: assignedToId || null,
         estimateId: estimateId || null,
         notes: notes || null,
-        isServiceAddressSameAsPrimary: isServiceAddressSameAsPrimary || false,
+        useSameAsPrimary: useSameAsPrimary || false,
       },
       include: {
         customer: {

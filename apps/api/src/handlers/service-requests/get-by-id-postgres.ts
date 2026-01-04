@@ -89,6 +89,9 @@ export const handler = async (
       };
     }
 
+    console.log('[GetServiceRequest] useSameAsPrimary field:', serviceRequest.useSameAsPrimary);
+    console.log('[GetServiceRequest] Full serviceRequest keys:', Object.keys(serviceRequest));
+
     // Get voice call log if exists
     let voiceCallLog = null;
     if (serviceRequest.voiceCallId) {

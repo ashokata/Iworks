@@ -4,6 +4,57 @@ All commits to this project are documented in this file.
 
 ---
 
+## 📦 Commit #42 - 2026-01-04 11:45 PM (IST)
+
+**Developer:** Veera Kuppili  
+**Type:** Bug Fix
+
+### 📝 Commit Message
+```
+fix: rename and fix service request address checkbox field
+
+- Rename `isServiceAddressSameAsPrimary` to `useSameAsPrimary` in schema to match existing naming convention (Estimate model)
+- Update database column with ALTER TABLE to preserve existing data
+- Update all backend handlers (create, update, get-by-id) to use renamed field
+- Update TypeScript interfaces in serviceRequestService
+- Fix checkbox state not syncing to formData.useSameAsPrimary in new/edit pages
+- Add formData update when checkbox is checked in useEffect
+- Fix initial load issue in edit page that was clearing checkbox state
+- Add isInitialLoadRef to prevent useEffect from clearing data on page load
+
+Fixes issue where "Use Same as Primary Address" checkbox and serviceAddressId were not being saved/loaded correctly.
+```
+
+### ✨ Changes
+
+**Schema:**
+- ✅ `apps/api/prisma/schema.prisma` - Renamed field from `isServiceAddressSameAsPrimary` to `useSameAsPrimary` in ServiceRequest model
+
+**Backend Handlers:**
+- ✅ `apps/api/src/handlers/service-requests/create-postgres.ts` - Updated to use `useSameAsPrimary` field
+- ✅ `apps/api/src/handlers/service-requests/update-postgres.ts` - Updated to use `useSameAsPrimary` field
+- ✅ `apps/api/src/handlers/service-requests/get-by-id-postgres.ts` - Updated logs to use `useSameAsPrimary` field
+
+**Frontend Services:**
+- ✅ `apps/web/src/services/serviceRequestService.ts` - Updated TypeScript interfaces to use `useSameAsPrimary`
+
+**Frontend Pages:**
+- ✅ `apps/web/src/app/service-requests/new/page.tsx` - Added `setFormData(prev => ({ ...prev, useSameAsPrimary: true }))` when checkbox is checked
+- ✅ `apps/web/src/app/service-requests/edit/[id]/page.tsx` - Added isInitialLoadRef to prevent useEffect from clearing data on initial page load, fixed all field references to use `useSameAsPrimary`
+
+### 🐛 Bug Fixes
+- Fixed checkbox state not being stored in formData, causing submissions to always send `useSameAsPrimary: false`
+- Fixed edit page clearing checkbox and service address on initial load due to useEffect firing prematurely
+- Fixed field naming inconsistency by using existing schema naming convention from Estimate model
+
+### 🔧 Technical Details
+- Database migration performed using ALTER TABLE to rename column while preserving existing data
+- Added isInitialLoadRef to track component mount state and prevent data clearing
+- Used nullish coalescing (??) instead of logical OR (||) for proper boolean handling
+- Verified database has 13 records with useSameAsPrimary=true and all data preserved correctly
+
+---
+
 ## 📦 Commit #41 - 2026-01-04 8:27 PM (IST)
 
 **Developer:** Veera Kuppili  

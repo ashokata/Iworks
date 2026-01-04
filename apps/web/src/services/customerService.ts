@@ -524,6 +524,46 @@ export const customerService = {
       throw error;
     }
   },
+
+  /**
+   * Find a matching address for a customer
+   * This checks if an address with the same data (but potentially different type) already exists
+   * @param customerId - The customer ID
+   * @param addressData - The address data to match (street, city, state, zip)
+   * @param targetType - The type of address to search for (e.g., 'SERVICE')
+   * @returns The matching address or null if not found
+   */
+  findMatchingAddress: async (
+    customerId: string,
+    addressData: {
+      street: string;
+      city: string;
+      state: string;
+      zip: string;
+    },
+    targetType: 'SERVICE' | 'BILLING' | 'PRIMARY'
+  ): Promise<{ found: boolean; address: Address | null }> => {
+    try {
+      console.log(`[Customer Service] Finding matching address for customer: ${customerId}`, addressData, targetType);
+      
+      const response = await apiClient.post<{ found: boolean; address: Address | null }>(
+        `/customers/${customerId}/addresses/find-matching`,
+        {
+          street: addressData.street,
+          city: addressData.city,
+          state: addressData.state,
+          zip: addressData.zip,
+          targetType: targetType,
+        }
+      );
+      
+      console.log('[Customer Service] Find matching address result:', response);
+      return response;
+    } catch (error: any) {
+      console.error(`[Customer Service] Error finding matching address:`, error);
+      throw error;
+    }
+  },
   
   /**
    * Check if email already exists for the tenant

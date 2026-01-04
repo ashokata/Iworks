@@ -42,7 +42,7 @@ export const handler = async (
     const body = JSON.parse(event.body);
     console.log('[UpdateServiceRequest] ===== RECEIVED UPDATE =====');
     console.log('[UpdateServiceRequest] Full body:', JSON.stringify(body, null, 2));
-    console.log('[UpdateServiceRequest] isServiceAddressSameAsPrimary:', body.isServiceAddressSameAsPrimary);
+    console.log('[UpdateServiceRequest] useSameAsPrimary:', body.useSameAsPrimary);
     console.log('[UpdateServiceRequest] serviceAddressId:', body.serviceAddressId);
     console.log('[UpdateServiceRequest] ================================');
 
@@ -87,8 +87,8 @@ export const handler = async (
       updateData.estimateId = body.estimateId || null;
     }
     if (body.notes !== undefined) updateData.notes = body.notes || null;
-    if (body.isServiceAddressSameAsPrimary !== undefined) {
-      updateData.isServiceAddressSameAsPrimary = body.isServiceAddressSameAsPrimary;
+    if (body.useSameAsPrimary !== undefined) {
+      updateData.useSameAsPrimary = body.useSameAsPrimary;
     }
 
     console.log('[UpdateServiceRequest] ===== UPDATE DATA =====');
