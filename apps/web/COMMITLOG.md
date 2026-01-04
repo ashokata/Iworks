@@ -4,6 +4,83 @@ All commits to this project are documented in this file.
 
 ---
 
+## 📦 Commit #41 - 2026-01-04 8:27 PM (IST)
+
+**Developer:** Veera Kuppili  
+**Type:** Software Enhancement
+
+### 📝 Commit Message
+```
+refactor(service-requests): modernize add/edit pages with consistent UX
+
+- Replace 2-column sidebar layout with single-column centered design
+- Apply consistent blue color scheme (#1e3a8a) matching estimates/jobs
+- Restructure into clear card-based sections (Basic Info, Request Details, Service Address, Additional Info)
+- Replace native select dropdowns with SearchableSelect component
+- Fix customer dropdown to display email/phone instead of undefined customerNumber
+- Fix chevron icon alignment in all select dropdowns (appearance-none + custom SVG)
+- Integrate "+ Add New Service Address" option directly into SearchableSelect
+- Add primary address preview when checkbox is checked
+- Simplify header with gradient background and consistent button styling
+- Streamline toast notifications (top-right, simple design)
+- Remove unnecessary imports (Button, DocumentTextIcon, UserCircleIcon, etc.)
+- Add showValidation state for better form validation UX
+- Remove unused estimate redirect modal from edit page
+- Update loading states to use consistent spinner color
+```
+
+### ✨ Changes
+
+**New Page:**
+- ✅ `apps/web/src/app/service-requests/new/page.tsx` - Complete redesign
+  - Removed 2-column sidebar layout with preview card
+  - Implemented single-column centered design (max-w-7xl)
+  - Created 4 card-based sections: Basic Information, Request Details, Service Address, Additional Information
+  - Updated header with blue gradient (from-[#1e3a8a] to-[#1e40af]) and white text
+  - Replaced native selects with SearchableSelect for better UX
+  - Fixed customer dropdown to show email/phone instead of undefined customerNumber
+  - All select dropdowns now use appearance-none with custom SVG chevron (proper alignment)
+  - Service address uses SearchableSelect with integrated "+ Add New Service Address" option
+  - Primary address checkbox shows address preview in blue box when checked
+  - Simplified toast notifications (top-right, clean design)
+  - Removed unused Button, DocumentTextIcon, UserCircleIcon, CheckIcon, XMarkIcon, ExclamationTriangleIcon, CurrencyDollarIcon imports
+  - Added showValidation state for proper validation feedback
+  - Removed showEstimateRedirect modal and related code
+  - Updated loading states to use #1e3a8a color
+
+**Edit Page:**
+- ✅ `apps/web/src/app/service-requests/edit/[id]/page.tsx` - Matched new page design
+  - Applied same layout transformation (sidebar → single-column)
+  - Same 4 card sections with consistent styling
+  - Updated header to match new page (gradient blue, white text, status badge)
+  - Fixed customer dropdown (email/phone display)
+  - Fixed all select dropdown chevron alignment
+  - Service address section uses SearchableSelect with "+ Add New" integration
+  - Primary address checkbox with preview
+  - Simplified toast notifications
+  - Cleaned up imports (removed Button, unused icons)
+  - Added showValidation state
+  - Removed showEstimateRedirect modal
+  - Updated loading states
+
+### 🎨 UI/UX Improvements
+- Consistent color scheme: #1e3a8a (primary blue) across both pages
+- Clean card-based layout with border-blue-100 and shadow-sm
+- Section headers: text-xl font-bold text-[#1e3a8a] with border-b
+- Proper spacing: space-y-6 between sections, p-8 padding in cards
+- Responsive grid: grid-cols-1 md:grid-cols-2 gap-6 for form fields
+- Improved form labels: text-sm font-semibold text-[#1e3a8a]
+- Better validation display: showValidation state with red error messages
+- Clean buttons: gray Cancel, blue-600 Submit with hover states
+
+### 🐛 Bug Fixes
+- Fixed customer dropdown showing "(undefined)" - now displays email or phone
+- Fixed chevron icons overlapping text in select dropdowns
+- Fixed inconsistent styling between new and edit pages
+- Fixed missing primary address preview functionality
+
+---
+
 ## 📦 Commit #40 - 2026-01-04
 
 **Developer:** Ghanshyam  

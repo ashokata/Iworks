@@ -3,21 +3,12 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/Button';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { serviceRequestService } from '@/services/serviceRequestService';
 import { customerService, Customer } from '@/services/customerService';
 import { estimateService, Estimate } from '@/services/estimateService';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { 
-  DocumentTextIcon,
-  UserCircleIcon,
-  PhoneIcon,
-  CheckIcon,
-  XMarkIcon,
-  ExclamationTriangleIcon,
-  CurrencyDollarIcon,
-} from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, PlusIcon } from '@heroicons/react/24/outline';
 
 type FormData = {
   customerId: string;
@@ -54,11 +45,11 @@ export default function NewServiceRequestPage() {
 
   const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showValidation, setShowValidation] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showAddressModal, setShowAddressModal] = useState(false);
-  const [showEstimateRedirect, setShowEstimateRedirect] = useState(false);
   const [newAddress, setNewAddress] = useState({
     street: '',
     city: '',
@@ -234,21 +225,6 @@ export default function NewServiceRequestPage() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [hasUnsavedChanges]);
 
-  // Handle form input changes
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    
-    // Clear error when field is edited
-    if (errors[name]) {
-      setErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors[name];
-        return newErrors;
-      });
-    }
-  };
-
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -276,42 +252,23 @@ export default function NewServiceRequestPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [hasUnsavedChanges, isSaving, router]);
 
-  // Form validation
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {};
-    
-    if (!formData.customerId) {
-      newErrors.customerId = 'Customer is required';
-    }
-    
-    if (!formData.title.trim()) {
-      newErrors.title = 'Title is required';
-    } else if (formData.title.trim().length < 5) {
-      newErrors.title = 'Title must be at least 5 characters';
-    }
-    
-    if (!formData.description.trim()) {
-      newErrors.description = 'Description is required';
-    } else if (formData.description.trim().length < 10) {
-      newErrors.description = 'Description must be at least 10 characters';
-    }
-    
-    if (!formData.problemType) {
-      newErrors.problemType = 'Problem type is required';
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setShowValidation(true);
     
-    if (!validateForm()) {
+    const newErrors: Record<string, string> = {};
+    if (!formData.customerId) newErrors.customerId = 'Customer is required';
+    if (!formData.title) newErrors.title = 'Title is required';
+    if (!formData.description) newErrors.description = 'Description is required';
+    
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      setToast({ message: 'Please fix the validation errors', type: 'error' });
       return;
     }
     
+    setErrors({});
     setIsSaving(true);
     
     try {
@@ -398,359 +355,184 @@ export default function NewServiceRequestPage() {
   // Loading state
   if (authLoading || isLoadingCustomers) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1e3a8a]"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/20">
-      {/* Toast Notification */}
-      {toast && (
-        <div className="fixed top-6 right-6 z-50 animate-slide-in-right">
-          <div className={`flex items-start gap-4 px-5 py-4 rounded-xl shadow-2xl backdrop-blur-sm min-w-[420px] border ${
-            toast.type === 'error' 
-              ? 'bg-red-50/95 border-red-200'
-              : 'bg-emerald-50/95 border-emerald-200'
-          }`}>
-            <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center shadow-lg ${
-              toast.type === 'error'
-                ? 'bg-gradient-to-br from-red-500 to-red-600'
-                : 'bg-gradient-to-br from-emerald-500 to-green-600'
-            }`}>
-              {toast.type === 'error' ? (
-                <XMarkIcon className="h-6 w-6 text-white" />
-              ) : (
-                <CheckIcon className="h-6 w-6 text-white" />
-              )}
-            </div>
-            <div className="flex-1 pt-1">
-              <p className={`text-sm font-bold ${
-                toast.type === 'error' ? 'text-red-900' : 'text-emerald-900'
-              }`}>
-                {toast.type === 'error' ? '⚠️ Error Occurred' : '✓ Success!'}
-              </p>
-              <p className={`text-sm mt-1.5 ${
-                toast.type === 'error' ? 'text-red-700' : 'text-emerald-700'
-              }`}>
-                {toast.message}
-              </p>
-            </div>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-gradient-to-r from-[#1e3a8a] to-[#1e40af] border-b border-[#172554] shadow-lg sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-8 py-6 flex items-center justify-between">
+          <div className="flex items-center space-x-4">
             <button
-              onClick={() => setToast(null)}
-              className="flex-shrink-0 text-gray-400 hover:text-gray-700 transition-all hover:rotate-90 duration-300"
+              onClick={() => router.back()}
+              className="inline-flex items-center px-4 py-2 text-white/90 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
             >
-              <XMarkIcon className="h-5 w-5" />
+              <ArrowLeftIcon className="h-5 w-5 mr-2" />
+              <span className="font-medium">Back</span>
             </button>
-          </div>
-        </div>
-      )}
-
-      {/* Modern Header with Glass Effect */}
-      <header className="bg-white/95 backdrop-blur-lg border-b border-gray-200 sticky top-0 z-40 shadow-sm">
-        <div className="px-8 py-5 flex items-center justify-between max-w-7xl mx-auto">
-          <div className="flex items-center space-x-6">
-            <button
-              onClick={() => router.push('/service-requests')}
-              className="group flex items-center space-x-2 px-4 py-2.5 rounded-xl hover:bg-gray-50 transition-all duration-200 border border-transparent hover:border-gray-200"
-            >
-              <svg className="h-5 w-5 text-gray-500 group-hover:text-gray-700 group-hover:-translate-x-1 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-              <span className="text-sm font-medium text-gray-600 group-hover:text-gray-800">Back</span>
-            </button>
-            <div className="h-8 w-px bg-gray-300"></div>
-            <div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 bg-clip-text text-transparent">
-                Create Service Request
-              </h1>
-              <p className="text-xs text-gray-500 mt-1 font-medium">
-                Add a new service request to your system
-              </p>
-            </div>
+            <div className="h-8 w-px bg-white/20"></div>
+            <h1 className="text-2xl font-bold text-white">New Service Request</h1>
           </div>
           <div className="flex items-center space-x-4">
-            {hasUnsavedChanges && (
-              <div className="flex items-center space-x-2 px-4 py-2.5 bg-orange-50 border border-orange-300 rounded-xl shadow-sm">
-                <div className="h-2 w-2 rounded-full bg-orange-500 animate-pulse shadow-sm"></div>
-                <span className="text-sm font-semibold text-orange-700">Unsaved Changes</span>
-              </div>
-            )}
-            <Button 
-              onClick={handleSubmit} 
+            <div className={`px-4 py-2 rounded-full text-sm font-medium ${
+              formData.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
+              formData.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-800' :
+              formData.status === 'CANCELLED' ? 'bg-red-100 text-red-800' :
+              'bg-yellow-100 text-yellow-800'
+            }`}>
+              {formData.status.replace('_', ' ')}
+            </div>
+            <button
+              type="submit"
+              onClick={handleSubmit}
               disabled={isSaving}
-              className="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
+              className="inline-flex items-center px-6 py-2.5 bg-white text-gray-900 rounded-lg text-sm font-semibold transition-all disabled:opacity-50 hover:bg-gray-50 shadow-md hover:shadow-lg"
             >
               {isSaving ? (
-                <span className="flex items-center space-x-2">
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  <span>Creating...</span>
-                </span>
+                  Creating...
+                </>
               ) : (
-                <span className="flex items-center space-x-2">
-                  <CheckIcon className="h-5 w-5" />
-                  <span>Create Request</span>
-                </span>
+                'Create Service Request'
               )}
-            </Button>
+            </button>
           </div>
         </div>
       </header>
 
-      {/* Main Content - Centered Card Layout */}
-      <div className="container mx-auto px-8 py-16 max-w-7xl">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          {/* Left Column - Sidebar */}
-          <div className="lg:col-span-1 space-y-6">
-            
-            {/* Service Request Preview Card */}
-            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden sticky top-28 hover:shadow-2xl transition-shadow duration-300">
-              <div className="bg-gradient-to-br from-blue-600 via-indigo-600 to-indigo-700 p-8 text-center relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent"></div>
-                <div className="inline-flex p-4 bg-white/20 rounded-2xl backdrop-blur-sm mb-4 shadow-lg relative z-10">
-                  <DocumentTextIcon className="h-16 w-16 text-white" />
-                </div>
-                <h3 className="text-xl font-bold text-white mb-2 relative z-10">
-                  {formData.title || 'New Service Request'}
-                </h3>
-                <p className="text-sm text-blue-50 capitalize flex items-center justify-center relative z-10">
-                  <span className="inline-block w-2 h-2 rounded-full bg-white/60 mr-2"></span>
-                  {formData.problemType.replace('_', ' ')}
-                </p>
-              </div>
+      {/* Toast Notification */}
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg ${
+          toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'
+        } text-white`}>
+          {toast.message}
+        </div>
+      )}
+      
+      {/* Main Content Area */}
+      <div className="flex">
+        <div className="flex-1 overflow-y-auto bg-gray-50">
+          <div className="max-w-7xl mx-auto p-8 pb-16">
+            <form onSubmit={handleSubmit} className="space-y-6">
               
-              <div className="p-6 space-y-4">
-                {/* Status Badge */}
-                <div>
-                  <label className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center mb-2">
-                    <CheckIcon className="h-4 w-4 mr-1.5 text-blue-600" />
-                    Status
-                  </label>
-                  <span className={`inline-block px-4 py-2 rounded-lg font-semibold text-sm ${
-                    formData.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
-                    formData.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
-                    formData.status === 'CANCELLED' ? 'bg-red-100 text-red-700' :
-                    'bg-yellow-100 text-yellow-700'
-                  }`}>
-                    {formData.status.replace('_', ' ')}
-                  </span>
-                </div>
-
-                {/* Urgency Badge */}
-                <div>
-                  <label className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center mb-2">
-                    <ExclamationTriangleIcon className="h-4 w-4 mr-1.5 text-blue-600" />
-                    Urgency Level
-                  </label>
-                  <span className={`inline-block px-4 py-2 rounded-lg font-semibold text-sm ${
-                    formData.urgency === 'EMERGENCY' || formData.urgency === 'CRITICAL' ? 'bg-red-100 text-red-700' :
-                    formData.urgency === 'HIGH' ? 'bg-orange-100 text-orange-700' :
-                    formData.urgency === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' :
-                    'bg-gray-100 text-gray-700'
-                  }`}>
-                    {formData.urgency}
-                  </span>
-                </div>
-
-                {/* Notes Section */}
-                <div>
-                  <label className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center mb-3">
-                    <DocumentTextIcon className="h-4 w-4 mr-1.5 text-blue-600" />
-                    Internal Notes
-                  </label>
-                  <textarea
-                    name="notes"
-                    value={formData.notes}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 focus:border-blue-500 focus:bg-white rounded-xl transition-all duration-200 text-sm placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-blue-100 resize-none"
-                    rows={4}
-                    placeholder="Add internal notes about this request..."
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column - Main Form */}
-          <div className="lg:col-span-2 space-y-6">
-            
-            {/* Customer Selection Card */}
-            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 hover:shadow-2xl transition-all duration-300 overflow-visible hover:scale-[1.01] relative z-20">
-              <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 px-8 py-6 rounded-t-2xl">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
-                    <UserCircleIcon className="h-6 w-6 text-white" />
-                  </div>
+              {/* Basic Information */}
+              <div className="bg-white rounded-xl shadow-sm border border-blue-100 p-8">
+                <h2 className="text-xl font-bold text-[#1e3a8a] mb-6 pb-4 border-b border-blue-200">Basic Information</h2>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Title */}
                   <div>
-                    <h2 className="text-lg font-bold text-white">Customer Information</h2>
-                    <p className="text-xs text-blue-100">Select customer and service address</p>
+                    <label className="block text-sm font-semibold text-[#1e3a8a] mb-2">
+                      Title <span className="text-red-600">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.title}
+                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a] transition-all placeholder:text-gray-400"
+                      placeholder="e.g., HVAC not cooling properly"
+                    />
+                    {showValidation && errors.title && <p className="mt-1 text-sm text-red-600">{errors.title}</p>}
                   </div>
-                </div>
-              </div>
-              
-              <div className="p-8 space-y-6 bg-gradient-to-b from-gray-50/30 to-white">
-                <div className="relative z-10">
-                  <label htmlFor="customerId" className="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wider">
-                    Select Customer <span className="text-red-500">*</span>
-                  </label>
-                  <SearchableSelect
-                    options={customers?.map((customer: Customer) => ({
-                      value: customer.id,
-                      label: `${customer.firstName || ''} ${customer.lastName || ''} (${customer.email || ''})`
-                    })) || []}
-                    value={formData.customerId}
-                    onChange={(value) => {
-                      const event = {
-                        target: {
-                          name: 'customerId',
-                          value: value
-                        }
-                      } as React.ChangeEvent<HTMLSelectElement>;
-                      handleChange(event);
-                    }}
-                    placeholder="-- Select a customer --"
-                  />
-                  {errors.customerId && (
-                    <p className="mt-2 text-xs text-red-600 flex items-center">
-                      <span className="inline-block mr-1">⚠</span> {errors.customerId}
-                    </p>
-                  )}
-                </div>
 
-                {selectedCustomer && (
-                  <div className="mt-2 p-4 bg-blue-50/80 border border-blue-200 rounded-lg backdrop-blur-sm">
-                    <div className="grid grid-cols-2 gap-3 text-sm">
-                      <div className="flex items-center text-gray-700">
-                        <UserCircleIcon className="h-4 w-4 mr-2 text-blue-600" />
-                        {selectedCustomer.firstName || ''} {selectedCustomer.lastName || ''}
-                      </div>
-                      {selectedCustomer.mobilePhone && (
-                        <div className="flex items-center text-gray-700">
-                          <PhoneIcon className="h-4 w-4 mr-2 text-blue-600" />
-                          {selectedCustomer.mobilePhone}
+                  {/* Customer */}
+                  <div>
+                    <label className="block text-sm font-semibold text-[#1e3a8a] mb-2">
+                      Customer <span className="text-red-600">*</span>
+                    </label>
+                    <SearchableSelect
+                      options={(customers || []).map((c: Customer) => ({
+                        value: c.id,
+                        label: `${c.firstName} ${c.lastName}${c.email ? ` (${c.email})` : c.mobilePhone ? ` (${c.mobilePhone})` : ''}`,
+                      }))}
+                      value={formData.customerId}
+                      onChange={(value) => setFormData({ ...formData, customerId: value, serviceAddressId: '' })}
+                      placeholder="Select customer"
+                      disabled={isLoadingCustomers}
+                    />
+                    {showValidation && errors.customerId && <p className="mt-1 text-sm text-red-600">{errors.customerId}</p>}
+                  </div>
+
+                  {/* Display selected customer info */}
+                  {selectedCustomer && (
+                    <div className="col-span-2 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div className="text-gray-700">
+                          <span className="font-semibold">Name:</span> {selectedCustomer.firstName} {selectedCustomer.lastName}
                         </div>
-                      )}
+                        {selectedCustomer.email && (
+                          <div className="text-gray-700">
+                            <span className="font-semibold">Email:</span> {selectedCustomer.email}
+                          </div>
+                        )}
+                        {selectedCustomer.mobilePhone && (
+                          <div className="text-gray-700">
+                            <span className="font-semibold">Phone:</span> {selectedCustomer.mobilePhone}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
-
-              </div>
-            </div>
-
-            {/* Request Details Card */}
-            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 hover:shadow-2xl transition-all duration-300 overflow-visible hover:scale-[1.01] relative z-10">
-              <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 px-8 py-6 rounded-t-2xl">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
-                    <DocumentTextIcon className="h-6 w-6 text-white" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-bold text-white">Request Details</h2>
-                    <p className="text-xs text-blue-100">Service request information</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="p-8 space-y-6 bg-gradient-to-b from-gray-50/30 to-white">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label htmlFor="title" className="block text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Title <span className="text-red-500">*</span>
-                    </label>
-                    <span className={`text-xs ${
-                      formData.title.length < 5 ? 'text-gray-400' : 'text-green-600'
-                    }`}>
-                      {formData.title.length}/100
-                    </span>
-                  </div>
-                  <input
-                    type="text"
-                    id="title"
-                    name="title"
-                    value={formData.title}
-                    onChange={handleChange}
-                    maxLength={100}
-                    placeholder="e.g., HVAC not cooling properly"
-                    className={`w-full px-4 py-3 bg-gray-50 border-2 ${
-                      errors.title ? 'border-red-300 bg-red-50' : 'border-gray-200 focus:border-blue-500 focus:bg-white'
-                    } rounded-xl transition-all duration-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-blue-100`}
-                  />
-                  {errors.title && (
-                    <p className="text-xs text-red-600 mt-1.5 flex items-center">
-                      <span className="inline-block mr-1">⚠</span> {errors.title}
-                    </p>
                   )}
                 </div>
 
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label htmlFor="description" className="block text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Description <span className="text-red-500">*</span>
-                    </label>
-                    <span className={`text-xs ${
-                      formData.description.length < 10 ? 'text-gray-400' : 'text-green-600'
-                    }`}>
-                      {formData.description.length}/500
-                    </span>
-                  </div>
+                {/* Description */}
+                <div className="mt-6">
+                  <label className="block text-sm font-semibold text-[#1e3a8a] mb-2">
+                    Description <span className="text-red-600">*</span>
+                  </label>
                   <textarea
-                    id="description"
-                    name="description"
-                    value={formData.description}
-                    onChange={handleChange}
                     rows={4}
-                    maxLength={500}
-                    placeholder="Provide detailed information about the service request..."
-                    className={`w-full px-4 py-3 bg-gray-50 border-2 ${
-                      errors.description ? 'border-red-300 bg-red-50' : 'border-gray-200 focus:border-blue-500 focus:bg-white'
-                    } rounded-xl transition-all duration-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-blue-100 resize-none`}
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                    placeholder="Describe the service request..."
                   />
-                  {errors.description && (
-                    <p className="text-xs text-red-600 mt-1.5 flex items-center">
-                      <span className="inline-block mr-1">⚠</span> {errors.description}
-                    </p>
-                  )}
+                  {showValidation && errors.description && <p className="mt-1 text-sm text-red-600">{errors.description}</p>}
                 </div>
+              </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Request Details */}
+              <div className="bg-white rounded-xl shadow-sm border border-blue-100 p-8">
+                <h2 className="text-xl font-bold text-[#1e3a8a] mb-6 pb-4 border-b border-blue-200">Request Details</h2>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Problem Type */}
                   <div>
-                    <label htmlFor="problemType" className="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wider">
-                      Problem Type <span className="text-red-500">*</span>
+                    <label className="block text-sm font-semibold text-[#1e3a8a] mb-2">
+                      Problem Type
                     </label>
                     <select
-                      id="problemType"
-                      name="problemType"
                       value={formData.problemType}
-                      onChange={handleChange}
-                      className="w-full appearance-none px-4 py-3 pr-10 bg-gray-50 border-2 border-gray-200 focus:border-blue-500 focus:bg-white rounded-xl transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-100 cursor-pointer bg-[length:20px] bg-[position:right_12px_center] bg-no-repeat"
-                      style={{ backgroundImage: "url('data:image/svg+xml;charset=UTF-8,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27%236b7280%27 stroke-width=%272%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3e%3cpolyline points=%276 9 12 15 18 9%27%3e%3c/polyline%3e%3c/svg%3e')" }}
+                      onChange={(e) => setFormData({ ...formData, problemType: e.target.value })}
+                      className="w-full pl-4 pr-10 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a] appearance-none bg-white"
+                      style={{ backgroundImage: "url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 fill=%27none%27 viewBox=%270 0 24 24%27 stroke=%27%236b7280%27%3E%3Cpath stroke-linecap=%27round%27 stroke-linejoin=%27round%27 stroke-width=%272%27 d=%27M19 9l-7 7-7-7%27/%3E%3C/svg%3E')", backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.5rem center', backgroundSize: '1.5em 1.5em' }}
                     >
                       <option value="HVAC">HVAC</option>
                       <option value="PLUMBING">Plumbing</option>
                       <option value="ELECTRICAL">Electrical</option>
-                      <option value="APPLIANCE">Appliance</option>
-                      <option value="GENERAL_MAINTENANCE">General Maintenance</option>
-                      <option value="EMERGENCY">Emergency</option>
+                      <option value="GENERAL">General</option>
                       <option value="OTHER">Other</option>
                     </select>
                   </div>
 
+                  {/* Urgency */}
                   <div>
-                    <label htmlFor="urgency" className="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wider">
-                      Urgency
+                    <label className="block text-sm font-semibold text-[#1e3a8a] mb-2">
+                      Urgency Level
                     </label>
                     <select
-                      id="urgency"
-                      name="urgency"
                       value={formData.urgency}
-                      onChange={handleChange}
-                      className="w-full appearance-none px-4 py-3 pr-10 bg-gray-50 border-2 border-gray-200 focus:border-blue-500 focus:bg-white rounded-xl transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-100 cursor-pointer bg-[length:20px] bg-[position:right_12px_center] bg-no-repeat"
-                      style={{ backgroundImage: "url('data:image/svg+xml;charset=UTF-8,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27%236b7280%27 stroke-width=%272%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3e%3cpolyline points=%276 9 12 15 18 9%27%3e%3c/polyline%3e%3c/svg%3e')" }}
+                      onChange={(e) => setFormData({ ...formData, urgency: e.target.value as any })}
+                      className="w-full pl-4 pr-10 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a] appearance-none bg-white"
+                      style={{ backgroundImage: "url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 fill=%27none%27 viewBox=%270 0 24 24%27 stroke=%27%236b7280%27%3E%3Cpath stroke-linecap=%27round%27 stroke-linejoin=%27round%27 stroke-width=%272%27 d=%27M19 9l-7 7-7-7%27/%3E%3C/svg%3E')", backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.5rem center', backgroundSize: '1.5em 1.5em' }}
                     >
                       <option value="LOW">Low</option>
                       <option value="MEDIUM">Medium</option>
@@ -760,17 +542,16 @@ export default function NewServiceRequestPage() {
                     </select>
                   </div>
 
+                  {/* Status */}
                   <div>
-                    <label htmlFor="status" className="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wider">
+                    <label className="block text-sm font-semibold text-[#1e3a8a] mb-2">
                       Status
                     </label>
                     <select
-                      id="status"
-                      name="status"
                       value={formData.status}
-                      onChange={handleChange}
-                      className="w-full appearance-none px-4 py-3 pr-10 bg-gray-50 border-2 border-gray-200 focus:border-blue-500 focus:bg-white rounded-xl transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-100 cursor-pointer bg-[length:20px] bg-[position:right_12px_center] bg-no-repeat"
-                      style={{ backgroundImage: "url('data:image/svg+xml;charset=UTF-8,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27%236b7280%27 stroke-width=%272%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3e%3cpolyline points=%276 9 12 15 18 9%27%3e%3c/polyline%3e%3c/svg%3e')" }}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+                      className="w-full pl-4 pr-10 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a] appearance-none bg-white"
+                      style={{ backgroundImage: "url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 fill=%27none%27 viewBox=%270 0 24 24%27 stroke=%27%236b7280%27%3E%3Cpath stroke-linecap=%27round%27 stroke-linejoin=%27round%27 stroke-width=%272%27 d=%27M19 9l-7 7-7-7%27/%3E%3C/svg%3E')", backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.5rem center', backgroundSize: '1.5em 1.5em' }}
                     >
                       <option value="NEW">New</option>
                       <option value="ASSIGNED">Assigned</option>
@@ -780,379 +561,236 @@ export default function NewServiceRequestPage() {
                     </select>
                   </div>
                 </div>
+              </div>
 
-                {/* Same as Primary Address Checkbox */}
-                <div className="mb-4">
-                  <label className="flex items-center space-x-3 cursor-pointer group">
-                    <input
-                      type="checkbox"
-                      checked={useSameAsPrimary}
-                      onChange={(e) => {
-                        setUseSameAsPrimary(e.target.checked);
-                        setFormData(prev => ({ ...prev, isServiceAddressSameAsPrimary: e.target.checked }));
-                      }}
-                      disabled={!selectedCustomer}
-                      className="h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                    />
-                    <span className={`text-sm font-medium ${
-                      !selectedCustomer ? 'text-gray-400' : 'text-gray-700 group-hover:text-blue-600'
-                    } transition-colors`}>
-                      Is Service Address Same as Primary Address
-                    </span>
-                  </label>
-                  {!selectedCustomer && (
-                    <p className="text-xs text-gray-500 mt-1 ml-8">
-                      Select a customer first to enable this option
-                    </p>
-                  )}
-                  {useSameAsPrimary && selectedCustomer && (() => {
-                    const addresses = (selectedCustomer?.addresses as any)?.data || selectedCustomer?.addresses || [];
-                    const primaryAddress = addresses.find((addr: any) => addr.type?.toUpperCase() === 'PRIMARY');
-                    return primaryAddress ? (
-                      <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                        <p className="text-xs font-semibold text-blue-700 mb-1">Using Primary Address:</p>
-                        <p className="text-sm text-gray-700">
-                          {primaryAddress.street}, {primaryAddress.city}, {primaryAddress.state} {primaryAddress.zip}
-                        </p>
-                      </div>
-                    ) : (
-                      <p className="text-xs text-amber-600 mt-1 ml-8">
-                        No primary address found for this customer
+              {/* Service Address */}
+              <div className="bg-white rounded-xl shadow-sm border border-blue-100 p-8">
+                <h2 className="text-xl font-bold text-[#1e3a8a] mb-6 pb-4 border-b border-blue-200">Service Address</h2>
+                
+                <div className="space-y-6">
+                  {/* Use Same as Primary Address */}
+                  <div>
+                    <label className="inline-flex items-center cursor-pointer group">
+                      <input
+                        type="checkbox"
+                        checked={useSameAsPrimary}
+                        onChange={(e) => setUseSameAsPrimary(e.target.checked)}
+                        disabled={!selectedCustomer}
+                        className="h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      />
+                      <span className={`ml-2 text-sm font-medium ${
+                        !selectedCustomer ? 'text-gray-400' : 'text-gray-700 group-hover:text-blue-600'
+                      } transition-colors`}>
+                        Use Same as Primary Address
+                      </span>
+                    </label>
+                    {!selectedCustomer && (
+                      <p className="text-xs text-gray-500 mt-1 ml-8">
+                        Select a customer first to enable this option
                       </p>
-                    );
-                  })()}
-                </div>
+                    )}
+                    {useSameAsPrimary && selectedCustomer && (() => {
+                      const addresses = (selectedCustomer?.addresses as any)?.data || selectedCustomer?.addresses || [];
+                      const primaryAddress = addresses.find((addr: any) => addr.type?.toUpperCase() === 'PRIMARY');
+                      return primaryAddress ? (
+                        <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <p className="text-xs font-semibold text-blue-700 mb-1">Using Primary Address:</p>
+                          <p className="text-sm text-gray-700">
+                            {primaryAddress.street}, {primaryAddress.city}, {primaryAddress.state} {primaryAddress.zip}
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-amber-600 mt-1 ml-8">
+                          No primary address found for this customer
+                        </p>
+                      );
+                    })()}
+                  </div>
 
-                <div>
-                  <label htmlFor="serviceAddressId" className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">
-                    Service Address (Optional)
-                  </label>
-                  <SearchableSelect
-                    options={[
-                      ...customerAddresses.map((address: any) => ({
-                        value: address.id,
-                        label: `${address.street}, ${address.city}, ${address.state} ${address.zip}`
-                      })),
-                      ...(selectedCustomer ? [{
-                        value: '__add_new__',
-                        label: '+ Add New Service Address'
-                      }] : [])
-                    ]}
-                    value={formData.serviceAddressId}
-                    disabled={!selectedCustomer || useSameAsPrimary}
-                    onChange={(value) => {
-                      if (value === '__add_new__') {
-                        setShowAddressModal(true);
-                        return;
-                      }
-                      const event = {
-                        target: {
-                          name: 'serviceAddressId',
-                          value: value
+                  {/* Service Address Select */}
+                  <div>
+                    <label className="block text-sm font-semibold text-[#1e3a8a] mb-2">
+                      Service Address
+                    </label>
+                    <SearchableSelect
+                      options={[
+                        ...customerAddresses.map((address: any) => ({
+                          value: address.id,
+                          label: `${address.street}, ${address.city}, ${address.state} ${address.zip}${address.id.startsWith('pending') ? ' (pending)' : ''}`
+                        })),
+                        ...(selectedCustomer ? [{
+                          value: '__add_new__',
+                          label: '+ Add New Service Address'
+                        }] : [])
+                      ]}
+                      value={formData.serviceAddressId}
+                      disabled={!formData.customerId || useSameAsPrimary}
+                      onChange={(value) => {
+                        if (value === '__add_new__') {
+                          setShowAddressModal(true);
+                          return;
                         }
-                      } as React.ChangeEvent<HTMLSelectElement>;
-                      handleChange(event);
-                    }}
-                    placeholder={selectedCustomer ? "-- Select service address --" : "Select a customer first"}
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="estimateId" className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">
-                    Estimate (Optional)
-                  </label>
-                  <SearchableSelect
-                    options={[
-                      ...estimates?.map((estimate: any) => ({
-                        value: estimate.id,
-                        label: `${estimate.estimateNumber} - ${estimate.customer.firstName} ${estimate.customer.lastName} ($${Number(estimate.total).toFixed(2)}) - ${estimate.status}`
-                      })) || [],
-                      {
-                        value: '__add_new__',
-                        label: '+ Create New Estimate'
-                      }
-                    ]}
-                    value={formData.estimateId}
-                    onChange={(value) => {
-                      console.log('[Estimate Select] Selected value:', value);
-                      if (value === '__add_new__') {
-                        console.log('[Estimate Select] Showing modal');
-                        setShowEstimateRedirect(true);
-                        return;
-                      }
-                      const event = {
-                        target: {
-                          name: 'estimateId',
-                          value: value
-                        }
-                      } as React.ChangeEvent<HTMLSelectElement>;
-                      handleChange(event);
-                    }}
-                    placeholder="-- Select an estimate --"
-                  />
-                  <p className="text-xs text-gray-500 mt-1.5">
-                    Link this service request to an existing estimate
-                  </p>
-                  
-                  {/* Display Estimate Details */}
-                  {isLoadingEstimate && formData.estimateId && (
-                    <div className="mt-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                      <p className="text-sm text-blue-600">Loading estimate details...</p>
-                    </div>
-                  )}
-                  
-                  {selectedEstimate && (
-                    <div className="mt-3 p-4 bg-green-50 border border-green-200 rounded-lg space-y-3">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <p className="text-xs font-bold text-green-700 uppercase tracking-wider mb-1">Estimate Found</p>
-                          <p className="text-sm font-semibold text-gray-800">{selectedEstimate.estimateNumber}</p>
-                          {selectedEstimate.title && (
-                            <p className="text-sm text-gray-700 mt-1">{selectedEstimate.title}</p>
-                          )}
-                        </div>
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                          selectedEstimate.status === 'APPROVED' ? 'bg-green-100 text-green-700' :
-                          selectedEstimate.status === 'SENT' ? 'bg-blue-100 text-blue-700' :
-                          selectedEstimate.status === 'VIEWED' ? 'bg-purple-100 text-purple-700' :
-                          selectedEstimate.status === 'DECLINED' ? 'bg-red-100 text-red-700' :
-                          selectedEstimate.status === 'EXPIRED' ? 'bg-gray-100 text-gray-700' :
-                          'bg-yellow-100 text-yellow-700'
-                        }`}>
-                          {selectedEstimate.status}
-                        </span>
-                      </div>
-                      
-                      {selectedEstimate.message && (
-                        <div className="pt-2 border-t border-green-200">
-                          <p className="text-xs font-semibold text-gray-700 mb-1">Message:</p>
-                          <p className="text-sm text-gray-600">{selectedEstimate.message}</p>
-                        </div>
-                      )}
-                      
-                      <div className="pt-2 border-t border-green-200">
-                        <div className="flex items-center justify-between mb-2">
-                          <p className="text-xs font-bold text-gray-700 uppercase tracking-wider">Line Items</p>
-                          <div className="text-right">
-                            <p className="text-xs text-gray-500">Total</p>
-                            <p className="text-lg font-bold text-gray-800">${Number(selectedEstimate.total).toFixed(2)}</p>
-                          </div>
-                        </div>
-                        
-                        {selectedEstimate.lineItems && selectedEstimate.lineItems.length > 0 ? (
-                          <div className="space-y-3">
-                            {selectedEstimate.lineItems.map((item) => (
-                              <div key={item.id} className="flex items-start justify-between text-sm">
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-semibold text-gray-800">{item.name}</span>
-                                    <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 text-xs rounded">
-                                      {item.type}
-                                    </span>
-                                    {item.isOptional && (
-                                      <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-xs rounded">
-                                        Optional
-                                      </span>
-                                    )}
-                                  </div>
-                                  {item.description && (
-                                    <p className="text-xs text-gray-600 mt-0.5">{item.description}</p>
-                                  )}
-                                  <p className="text-xs text-gray-500 mt-1">
-                                    Qty: {Number(item.quantity)} × ${Number(item.unitPrice).toFixed(2)}
-                                    {item.isTaxable && <span className="ml-2 text-green-600">• Taxable</span>}
-                                  </p>
-                                </div>
-                                <span className="text-gray-700 font-semibold ml-4">
-                                  ${(Number(item.quantity) * Number(item.unitPrice)).toFixed(2)}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-xs text-gray-500 italic">No line items</p>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  
-                  {formData.estimateId && !isLoadingEstimate && !selectedEstimate && (
-                    <div className="mt-3 p-4 bg-red-50 border border-red-200 rounded-lg">
-                      <p className="text-sm text-red-600">Estimate not found. Please check the ID.</p>
-                    </div>
-                  )}
+                        setFormData({ ...formData, serviceAddressId: value });
+                      }}
+                      placeholder={selectedCustomer ? "-- Select service address --" : "Select a customer first"}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
 
+
+              {/* Additional Information */}
+              <div className="bg-white rounded-xl shadow-sm border border-blue-100 p-8">
+                <h2 className="text-xl font-bold text-[#1e3a8a] mb-6 pb-4 border-b border-blue-200">Additional Information</h2>
+                
+                {/* Notes */}
+                <div>
+                  <label className="block text-sm font-semibold text-[#1e3a8a] mb-2">
+                    Internal Notes
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={formData.notes}
+                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                    placeholder="Add internal notes..."
+                  />
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <div className="flex items-center justify-end space-x-4">
+                <button
+                  type="button"
+                  onClick={() => router.back()}
+                  className="px-6 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="px-6 py-2 bg-blue-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                >
+                  {isSaving ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Creating...
+                    </>
+                  ) : (
+                    'Create Service Request'
+                  )}
+                </button>
+              </div>
+            </form>
+
+            {/* Add Service Address Modal */}
+            {showAddressModal && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
+                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+                  <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
+                    <h3 className="text-xl font-bold text-white">Add Service Address</h3>
+                  </div>
+                  <div className="p-6 space-y-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wider">
+                        Street Address *
+                      </label>
+                      <input
+                        type="text"
+                        value={newAddress.street}
+                        onChange={(e) => setNewAddress({ ...newAddress, street: e.target.value })}
+                        className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 focus:border-blue-500 focus:bg-white rounded-xl transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-100"
+                        placeholder="Enter street address"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wider">
+                        City *
+                      </label>
+                      <input
+                        type="text"
+                        value={newAddress.city}
+                        onChange={(e) => setNewAddress({ ...newAddress, city: e.target.value })}
+                        className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 focus:border-blue-500 focus:bg-white rounded-xl transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-100"
+                        placeholder="Enter city"
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wider">
+                          State *
+                        </label>
+                        <input
+                          type="text"
+                          value={newAddress.state}
+                          onChange={(e) => setNewAddress({ ...newAddress, state: e.target.value })}
+                          className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 focus:border-blue-500 focus:bg-white rounded-xl transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-100"
+                          placeholder="State"
+                          maxLength={2}
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wider">
+                          ZIP Code *
+                        </label>
+                        <input
+                          type="text"
+                          value={newAddress.zip}
+                          onChange={(e) => setNewAddress({ ...newAddress, zip: e.target.value })}
+                          className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 focus:border-blue-500 focus:bg-white rounded-xl transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-100"
+                          placeholder="ZIP"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowAddressModal(false);
+                        setNewAddress({ street: '', city: '', state: '', zip: '', type: 'SERVICE' });
+                      }}
+                      className="px-4 py-2 text-gray-700 hover:bg-gray-200 rounded-xl font-medium transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!selectedCustomer || !newAddress.street || !newAddress.city || !newAddress.state || !newAddress.zip) {
+                          alert('Please fill in all address fields');
+                          return;
+                        }
+                        
+                        const stagedAddress = {
+                          id: `pending-${Date.now()}`,
+                          ...newAddress
+                        };
+                        
+                        setPendingAddresses([...pendingAddresses, stagedAddress]);
+                        setFormData({ ...formData, serviceAddressId: stagedAddress.id });
+                        
+                        setShowAddressModal(false);
+                        setNewAddress({ street: '', city: '', state: '', zip: '', type: 'SERVICE' });
+                      }}
+                      disabled={!newAddress.street || !newAddress.city || !newAddress.state || !newAddress.zip}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Add Address
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
-
-      {/* Add Address Modal */}
-      {showAddressModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
-              <h3 className="text-xl font-bold text-white">Add Service Address</h3>
-            </div>
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wider">
-                  Street Address *
-                </label>
-                <input
-                  type="text"
-                  value={newAddress.street}
-                  onChange={(e) => setNewAddress({ ...newAddress, street: e.target.value })}
-                  className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 focus:border-blue-500 focus:bg-white rounded-xl transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-100"
-                  placeholder="Enter street address"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wider">
-                  City *
-                </label>
-                <input
-                  type="text"
-                  value={newAddress.city}
-                  onChange={(e) => setNewAddress({ ...newAddress, city: e.target.value })}
-                  className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 focus:border-blue-500 focus:bg-white rounded-xl transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-100"
-                  placeholder="Enter city"
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wider">
-                    State *
-                  </label>
-                  <input
-                    type="text"
-                    value={newAddress.state}
-                    onChange={(e) => setNewAddress({ ...newAddress, state: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 focus:border-blue-500 focus:bg-white rounded-xl transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-100"
-                    placeholder="State"
-                    maxLength={2}
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wider">
-                    ZIP Code *
-                  </label>
-                  <input
-                    type="text"
-                    value={newAddress.zip}
-                    onChange={(e) => setNewAddress({ ...newAddress, zip: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 focus:border-blue-500 focus:bg-white rounded-xl transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-100"
-                    placeholder="ZIP"
-                  />
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowAddressModal(false);
-                  setNewAddress({ street: '', city: '', state: '', zip: '', type: 'SERVICE' });
-                }}
-                className="px-4 py-2 text-gray-700 hover:bg-gray-200 rounded-xl font-medium transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!selectedCustomer || !newAddress.street || !newAddress.city || !newAddress.state || !newAddress.zip) {
-                    setToast({ message: 'Please fill in all address fields', type: 'error' });
-                    return;
-                  }
-                  
-                  // Stage address locally with temporary ID
-                  const stagedAddress = {
-                    id: `pending-${Date.now()}`,
-                    ...newAddress
-                  };
-                  
-                  setPendingAddresses([...pendingAddresses, stagedAddress]);
-                  
-                  // Auto-select the new address
-                  const event = {
-                    target: {
-                      name: 'serviceAddressId',
-                      value: stagedAddress.id
-                    }
-                  } as React.ChangeEvent<HTMLSelectElement>;
-                  handleChange(event);
-                  
-                  setShowAddressModal(false);
-                  setNewAddress({ street: '', city: '', state: '', zip: '', type: 'SERVICE' });
-                  setToast({ message: 'Address staged (will be saved with service request)', type: 'success' });
-                }}
-                disabled={!newAddress.street || !newAddress.city || !newAddress.state || !newAddress.zip}
-                className="px-4 py-2 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-              >
-                Add Address
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Create Estimate Redirect Modal */}
-      {showEstimateRedirect && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
-              <h3 className="text-xl font-bold text-white">Create New Estimate</h3>
-            </div>
-            <div className="p-6">
-              <div className="flex items-start space-x-4 mb-6">
-                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
-                  <CurrencyDollarIcon className="h-6 w-6 text-blue-600" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-gray-700 mb-2">
-                    Creating an estimate requires multiple steps including adding options and line items.
-                  </p>
-                  <p className="text-gray-600 text-sm">
-                    You'll be redirected to the estimates page to create a new estimate. After creating it, you can return here and select it from the dropdown.
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setShowEstimateRedirect(false)}
-                className="px-4 py-2 text-gray-700 hover:bg-gray-200 rounded-xl font-medium transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  // Save current form data to sessionStorage so it can be restored
-                  sessionStorage.setItem('pendingServiceRequest', JSON.stringify({
-                    formData,
-                    selectedCustomerId: selectedCustomer?.id,
-                    returnUrl: '/service-requests/new'
-                  }));
-                  router.push('/estimates/new');
-                }}
-                className="px-4 py-2 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors"
-              >
-                Go to Estimates
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
+
