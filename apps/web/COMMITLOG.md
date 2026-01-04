@@ -4,6 +4,60 @@ All commits to this project are documented in this file.
 
 ---
 
+## 📦 Commit #40 - 2026-01-04
+
+**Developer:** Ghanshyam  
+**Type:** Software Enhancement
+
+### 📝 Commit Message
+```
+fix: add address data to appointment API response and improve calendar address handling
+
+- Include address details in getAllAppointments API response
+- Fix service address dropdown not showing saved addresses when editing appointments
+- Add comprehensive logging to track address data flow in calendar
+- Handle both nested (addresses.data) and flat (addresses) customer data formats
+- Add pending addresses mechanism to display newly created addresses immediately
+- Auto-populate address dropdown when reopening saved appointments
+
+API Changes:
+- apps/api/src/handlers/appointments/index.ts: Include address relation in findMany query
+
+Frontend Changes:
+- apps/web/src/app/calendar/page.tsx: Enhanced handleAppointmentClick to populate addresses from appointment data
+- apps/web/src/app/calendar/page.tsx: Added detailed console logging for debugging address flow
+- apps/web/src/app/calendar/page.tsx: Improved customerAddresses useMemo to handle nested data structures
+```
+
+### ✨ Changes
+
+**Backend:**
+- ✅ `apps/api/src/handlers/appointments/index.ts` - Added address relation to getAllAppointments query
+  - Include id, street, city, state, zip, and type fields
+  - Ensures appointment data includes associated address details
+
+**Frontend:**
+- ✅ `apps/web/src/app/calendar/page.tsx` - Enhanced appointment editing with address support
+  - Added extensive console logging for debugging address data flow
+  - Fixed handleAppointmentClick to check if address exists in customer's address list
+  - Handle both nested (addresses.data) and flat (addresses) customer data formats
+  - Add addresses to pendingAddresses state if not found in customer's list
+  - Clear pendingAddresses when address already exists
+  - Enhanced customerAddresses useMemo with logging to track filtered addresses
+
+### 🐛 Bug Fixes
+- Fixed service address dropdown showing empty when editing saved appointments
+- Fixed address not appearing after creating new service address
+- Fixed address selection not persisting when reopening appointments
+
+### 📊 Impact
+- Service address now properly displays in dropdown when editing appointments
+- Improved UX with immediate feedback when adding new addresses
+- Better debugging capabilities with comprehensive console logging
+- More robust handling of different customer data structures
+
+---
+
 ## 📦 Commit #39 - 2026-01-01 2:14 PM (IST)
 
 **Developer:** Logeshwaran S
